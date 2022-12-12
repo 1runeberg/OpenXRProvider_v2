@@ -25,6 +25,7 @@ Currently an active work in progress with testing done in both **Android (Meta Q
 | sample_02_hello_exts    | Extensions handling                    | TBD               |
 | sample_03_hello_session | Session creation                       | TBD               |
 | sample_04_hello_cube    | Event Polling and Session  Lifecycle   | TBD               |
+| sample_05_hello_pbr     | Complex rendering and intro xrvk module| TBD               |
   
 ## I. Pre-built binaries
 
