@@ -1,0 +1,3 @@
+#define SAMPLE2_VERSION_MAJOR @sample_02_hello_exts_VERSION_MAJOR@
+#define SAMPLE2_VERSION_MINOR @sample_02_hello_exts_VERSION_MINOR@
+#define SAMPLE2_VERSION_PATCH @sample_02_hello_exts_VERSION_PATCH@

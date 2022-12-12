@@ -1,0 +1,3 @@
+#define SAMPLE4_VERSION_MAJOR @sample_04_hello_cube_VERSION_MAJOR@
+#define SAMPLE4_VERSION_MINOR @sample_04_hello_cube_VERSION_MINOR@
+#define SAMPLE4_VERSION_PATCH @sample_04_hello_cube_VERSION_PATCH@

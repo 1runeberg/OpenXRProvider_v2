@@ -1,0 +1,3 @@
+#define SAMPLE3_VERSION_MAJOR @sample_03_hello_session_VERSION_MAJOR@
+#define SAMPLE3_VERSION_MINOR @sample_03_hello_session_VERSION_MINOR@
+#define SAMPLE3_VERSION_PATCH @sample_03_hello_session_VERSION_PATCH@

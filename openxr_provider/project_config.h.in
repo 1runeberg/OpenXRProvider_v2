@@ -1,0 +1,3 @@
+#define PROVIDER_VERSION_MAJOR @openxr_provider_VERSION_MAJOR@
+#define PROVIDER_VERSION_MINOR @openxr_provider_VERSION_MINOR@
+#define PROVIDER_VERSION_PATCH @openxr_provider_VERSION_PATCH@

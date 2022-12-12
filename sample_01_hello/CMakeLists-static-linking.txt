@@ -1,0 +1,101 @@
+# OpenXR Provider
+# Sample 01 - Hello
+
+cmake_minimum_required(VERSION 3.14.4 FATAL_ERROR)
+set(CMAKE_SUPPRESS_REGENERATION true)
+
+set(SAMPLE_PROJECT "sample_01_hello")
+project("${SAMPLE_PROJECT}")
+
+# C++ 17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+message(STATUS "[${SAMPLE_PROJECT}] Project language set to C++17")
+
+# Check platform architecture
+if(NOT PLATFORM)
+	if(CMAKE_SIZEOF_VOID_P MATCHES 8)
+	    set(PLATFORM 64)
+	else()
+        message(FATAL_ERROR "[${SAMPLE_PROJECT}] ERROR: Only 64-bit platforms are supported.")
+	endif()
+endif()
+
+# OS specific
+if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    set(LIB_EXTENSION "lib")
+else()
+    set(LIB_EXTENSION "a")
+endif()
+
+# Set project source directory
+set(APP_DIRECTORY "${CMAKE_SOURCE_DIR}")
+set(APP_SOURCE_DIRECTORY "${APP_DIRECTORY}/src")
+
+# Find all project header files
+file(GLOB APP_HEADER_FILES
+        "${APP_SOURCE_DIRECTORY}/*.h*"
+	)
+
+# Find all project source files
+file(GLOB APP_SOURCE_FILES
+        "${APP_DIRECTORY}/README.md"
+        "${APP_DIRECTORY}/LICENSE" 
+        "${APP_DIRECTORY}/CMakeLists.txt" 
+        "${APP_SOURCE_DIRECTORY}/*.cpp"
+	)
+
+# Add project header and source files to project
+add_executable(${SAMPLE_PROJECT} ${APP_HEADER_FILES} ${APP_SOURCE_FILES})
+
+message(STATUS "[${SAMPLE_PROJECT}] Project executable defined.")
+
+# Set project public include headers
+# Subdirectories are optional just for convenience/readability (e.g. #include <gli/...> vs #include<gli/gli/...>)
+set(PROVIDER_NAME "openxr_provider")
+set(PROVIDER_DIRECTORY "${CMAKE_SOURCE_DIR}/${PROVIDER_NAME}")
+set(PROVIDER_INCLUDE_DIRECTORY "${PROVIDER_DIRECTORY}/include")
+target_include_directories(${SAMPLE_PROJECT} PUBLIC "${APP_SOURCE_DIRECTORY}"
+                                               "${Vulkan_INCLUDE_DIRS}"
+                                               "${PROVIDER_INCLUDE_DIRECTORY}")
+
+message(STATUS "[${SAMPLE_PROJECT}] Public include directories defined.")
+
+# Organize source folders
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+source_group(TREE ${APP_DIRECTORY} FILES ${APP_HEADER_FILES} ${APP_SOURCE_FILES})
+
+# Link third party libraries
+set(OPENXR_PROVIDER_LIBRARY "${PROVIDER_DIRECTORY}/lib/${PROVIDER_NAME}.${LIB_EXTENSION}")
+target_link_libraries(${SAMPLE_PROJECT} 
+    				  "${Vulkan_LIBRARY}"
+					  "${OPENXR_PROVIDER_LIBRARY}")
+
+message(STATUS "[${SAMPLE_PROJECT}] Third party libraries linked.")
+
+# Set output directories
+set(APP_BINARY_DIRECTORY "${APP_DIRECTORY}/bin")
+set(APP_LIBRARY_DIRECTORY "${APP_DIRECTORY}/lib")
+set_target_properties(${SAMPLE_PROJECT} PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${APP_LIBRARY_DIRECTORY}"
+    LIBRARY_OUTPUT_DIRECTORY_DEBUG "${APP_LIBRARY_DIRECTORY}"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${APP_BINARY_DIRECTORY}"
+    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${APP_LIBRARY_DIRECTORY}"
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${APP_LIBRARY_DIRECTORY}"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${APP_BINARY_DIRECTORY}"
+)
+
+message(STATUS "[${SAMPLE_PROJECT}] Project archives will be built in: ${APP_LIBRARY_DIRECTORY}")
+message(STATUS "[${SAMPLE_PROJECT}] Project libraries will be built in: ${APP_LIBRARY_DIRECTORY}")
+message(STATUS "[${SAMPLE_PROJECT}] Project binaries will be built in: ${APP_BINARY_DIRECTORY}")
+
+# Post-Build
+add_custom_command(TARGET ${SAMPLE_PROJECT} POST_BUILD
+
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${APP_BINARY_DIRECTORY}"
+
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${PROVIDER_DIRECTORY}/bin"
+            "${APP_BINARY_DIRECTORY}"
+            )

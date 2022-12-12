@@ -1,0 +1,3 @@
+[submodule "openxr_provider/third_party/openxr"]
+	path = openxr_provider/third_party/openxr
+	url = https://github.com/KhronosGroup/OpenXR-SDK.git

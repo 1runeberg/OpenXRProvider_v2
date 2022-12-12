@@ -1,0 +1,3 @@
+#define SAMPLE5_VERSION_MAJOR @sample_05_hello_pbr_VERSION_MAJOR@
+#define SAMPLE5_VERSION_MINOR @sample_05_hello_pbr_VERSION_MINOR@
+#define SAMPLE5_VERSION_PATCH @sample_05_hello_pbr_VERSION_PATCH@
