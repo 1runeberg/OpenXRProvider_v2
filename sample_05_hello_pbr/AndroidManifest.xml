@@ -13,6 +13,7 @@
   <!-- Tell the system this app works in either 3dof or 6dof mode -->
   <uses-feature
     android:name="android.hardware.vr.headtracking"
+    android:testOnly="false"
     android:required="false"
     android:version="1" />
 
