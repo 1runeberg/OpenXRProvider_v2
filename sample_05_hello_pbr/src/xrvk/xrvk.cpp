@@ -352,7 +352,7 @@ namespace xrvk
 		XrMatrix4x4f_Multiply( &matViewProjection, &matProjection, &matInvertedRigidBodyView );
 
 		// (12) Draw vismask if available
-		if ( !m_vecVisMasks[ unSwapchainIndex ].indices.empty() )
+		if ( m_vecVisMasks.size() > unSwapchainIndex && !m_vecVisMasks[ unSwapchainIndex ].indices.empty() )
 		{
 			assert( m_vecVisMasks.size() == m_vecVisMaskBuffers.size() );
 
