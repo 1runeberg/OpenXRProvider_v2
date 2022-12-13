@@ -5,7 +5,7 @@
     "kind": "Directory"
   },
   "applicationId": "net.beyondreality.openxr_provider.hello_pbr.openxr",
-  "variantName": "VulkanRelease",
+  "variantName": "VulkanDebug",
   "elements": [
     {
       "type": "SINGLE",
@@ -13,7 +13,7 @@
       "attributes": [],
       "versionCode": 1,
       "versionName": "1.0",
-      "outputFile": "sample_05_hello_pbr-Vulkan-release.apk"
+      "outputFile": "sample_05_hello_pbr-Vulkan-debug.apk"
     }
   ],
   "elementType": "File"

@@ -231,13 +231,9 @@ XrResult demo_openxr_start()
 	XrSpace spaceLeft;
 	oxrProvider->Session()->CreateReferenceSpace( &spaceLeft, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.5f, 0.5f, -0.5f, 0.5f }, { -1.0f, 1.0f, 0.0f } } ); // 1m left 1m up, rotated x: 90, y: 0, z: 90
 
-	XrSpace spaceRight;
-	oxrProvider->Session()->CreateReferenceSpace( &spaceRight, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.0f, 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 0.0f } } ); // 1m right 1m up, rotated x: 90, y: 0, z: 90
-
 	// asset loading is done asynchronously with start times in FIFO from adding them
 	// so best to add more complex models first
 	g_pRender->AddRenderModel( "models/DamagedHelmet.glb", { 0.25f, 0.25f, 0.25f }, spaceLeft );
-	g_pRender->AddRenderModel( "models/IridescenceLamp.glb", { 1.5f, 1.5f, 1.5f }, spaceRight );
 	g_pRender->AddRenderModel( "models/EnvironmentTest/EnvironmentTest.gltf", { 0.2f, 0.2f, 0.2f }, spaceFront );
 
 	// (8.5) Optional - Set vismask if present

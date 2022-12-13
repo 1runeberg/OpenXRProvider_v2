@@ -621,27 +621,22 @@ namespace xrvk
 
 	void Render::LoadGltfScenes()
 	{
-		// TODO: ensure fixed thread pool for all platforms
-		std::vector< std::future< void > > asyncResults;
-
-		asyncResults.resize( vecRenderScenes.size() + vecRenderSectors.size() + vecRenderModels.size() );
-
 		// Scenes
 		for ( auto &renderable : vecRenderScenes )
 		{
-			asyncResults.push_back( std::async( std::launch::async, &Render::LoadGltfScene, this, renderable ) );
+			LoadGltfScene(renderable );
 		}
 
 		// Sectors
 		for ( auto &renderable : vecRenderSectors )
 		{
-			asyncResults.push_back( std::async( std::launch::async, &Render::LoadGltfScene, this, renderable ) );
+			LoadGltfScene(renderable );
 		}
 
 		// Models
 		for ( auto &renderable : vecRenderModels )
 		{
-			asyncResults.push_back( std::async( std::launch::async, &Render::LoadGltfScene, this, renderable ) );
+			LoadGltfScene(renderable );
 		}
 	}
 

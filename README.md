@@ -6,15 +6,15 @@ Currently an active work in progress with testing done in both **Android (Meta Q
 
 ### Current backlog prior to full release:
 
-| OpenXR Provider Library      | XRVK - Optional Vulkan Render Module                             |  
-|------------------------------|------------------------------------------------------------------|
-| Input subsystem              | MSAA support                                                     | 
-| Flexible extension subsystem | Mesh Instancing                                                  |
-|                              | Custom graphics pipelines and shaders                            |
-|                              | Multithreading (Double buffer, subcommands)                      | 
-|                              | Improve async asset loading (add async rendering)                |
-|                              | Animation support and demos                                      |
-|                              | XML-style header documentation and resulting refactors (if any)  |
+| OpenXR Provider Library           | XRVK - Optional Vulkan Render Module                             |  
+|-----------------------------------|------------------------------------------------------------------|
+| Input subsystem                   | MSAA support                                                     | 
+| ~~Flexible extension subsystem~~  | Mesh Instancing                                                  |
+|                                   | Custom graphics pipelines and shaders                            |
+|                                   | Multithreading (Async loading, Double buffer, subcommands)       | 
+|                                   | Improve async asset loading (add async rendering)                |
+|                                   | Animation support and demos                                      |
+|                                   | XML-style header documentation and resulting refactors (if any)  |
 
 
 ### Current demos and tutorials:
