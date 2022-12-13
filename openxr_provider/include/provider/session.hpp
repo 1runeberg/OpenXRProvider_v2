@@ -347,6 +347,28 @@ namespace oxr
 			uint32_t unArrayIndex = 0 );
 
 		/// <summary>
+		/// Call to start rendering frames. Make sure to register for rendering callbacks (e.g. RegisterAcquireSwapchainImageImageCallback, etc)
+		/// These will be called in the appropriate times during the openxr render pass
+		/// </summary>
+		/// <param name="vecFrameLayerProjectionViews">Vector of projection layers to render</param>
+		/// <param name="vecFrameLayers">Vector of frame layers to render</param>
+		/// <param name="pFrameState">Output parameter for the framestate (e.g. for checking if the app should render in this pass)</param>
+		/// <param name="xrEnvironmentBlendMode">Blend mode in this render</param>
+		/// <param name="xrRectOffset">Rect offset (e.g. for single pass rendering or lowering res during runtime)</param>
+		/// <param name="xrRectExtent">Rect extent (e.g. for single pass rendering or lowering res during runtime)</param>
+		/// <param name="bIsarray">Whether texture to render to is an array</param>
+		/// <param name="unArrayIndex">Index if a texture array</param>
+		void RenderFrame(
+			std::vector< XrCompositionLayerProjectionView > &vecFrameLayerProjectionViews,
+			std::vector< XrCompositionLayerBaseHeader* > &vecFrameLayers,
+			XrFrameState *pFrameState,
+			XrEnvironmentBlendMode xrEnvironmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE, // vr
+			XrOffset2Di xrRectOffset = { 0, 0 },
+			XrExtent2Di xrRectExtent = { 0, 0 },
+			bool bIsarray = false,
+			uint32_t unArrayIndex = 0 );
+
+		/// <summary>
 		/// Retrieve the most recent predicted display time from the openxr runtime
 		/// </summary>
 		/// <returns>The most recent predicted display time from the openxr runtime</returns>

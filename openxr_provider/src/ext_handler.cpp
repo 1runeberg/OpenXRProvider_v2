@@ -107,17 +107,24 @@ namespace oxr
 
 	bool ExtHandler::AddExtension( XrInstance xrInstance, XrSession xrSession, const char *extensionName )
 	{
-		// Visibility mask
+		// KHR: Visibility mask
 		if ( strcmp( extensionName, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME ) == 0 )
 		{
 			m_vecExtensions.push_back( new ExtVisMask( xrInstance, xrSession ) );
 			return true;
 		}
 
-		// Hand tracking
+		// EXT: Hand tracking
 		if ( strcmp( extensionName, XR_EXT_HAND_TRACKING_EXTENSION_NAME ) == 0 )
 		{
 			m_vecExtensions.push_back( new ExtHandTracking( xrInstance, xrSession ) );
+			return true;
+		}
+
+		// FB: Passthrough
+		if ( strcmp( extensionName, XR_FB_PASSTHROUGH_EXTENSION_NAME ) == 0 )
+		{
+			m_vecExtensions.push_back( new ExtFBPassthrough( xrInstance, xrSession ) );
 			return true;
 		}
 

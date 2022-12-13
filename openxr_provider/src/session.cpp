@@ -66,6 +66,9 @@ namespace oxr
 
 				if ( extensionName == XR_EXT_HAND_TRACKING_EXTENSION_NAME )
 					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_EXT_HAND_TRACKING_EXTENSION_NAME );
+
+				if ( extensionName == XR_FB_PASSTHROUGH_EXTENSION_NAME )
+					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_FB_PASSTHROUGH_EXTENSION_NAME );
 			}
 
 			// Log session supported reference space types (debug only)
@@ -544,6 +547,28 @@ namespace oxr
 		bool bIsarray,
 		uint32_t unArrayIndex )
 	{
+		std::vector< XrCompositionLayerBaseHeader * > xrFrameLayers;
+		RenderFrame(
+			vecFrameLayerProjectionViews,
+			xrFrameLayers,
+			pFrameState,
+			xrEnvironmentBlendMode,
+			xrRectOffset,
+			xrRectExtent,
+			bIsarray,
+			unArrayIndex);
+	}
+
+	void Session::RenderFrame(
+		std::vector< XrCompositionLayerProjectionView > &vecFrameLayerProjectionViews,
+		std::vector< XrCompositionLayerBaseHeader* > &vecFrameLayers,
+		XrFrameState *pFrameState,
+		XrEnvironmentBlendMode xrEnvironmentBlendMode /*= XR_ENVIRONMENT_BLEND_MODE_OPAQUE*/,
+		/* vr */ XrOffset2Di xrRectOffset /*= { 0, 0 }*/,
+		XrExtent2Di xrRectExtent /*= { 0, 0 }*/,
+		bool bIsarray /*= false*/,
+		uint32_t unArrayIndex /*= 0 */ )
+	{
 		// Check if there's a valid session and swapchains to work with
 		if ( m_xrSession == XR_NULL_HANDLE || m_vecSwapchains.empty() )
 			return;
@@ -563,7 +588,6 @@ namespace oxr
 		if ( xrBeginFrame( m_xrSession, &xrBeginFrameInfo ) != XR_SUCCESS )
 			return;
 
-		std::vector< XrCompositionLayerBaseHeader * > xrFrameLayers;
 		XrCompositionLayerProjection xrFrameLayerProjection { XR_TYPE_COMPOSITION_LAYER_PROJECTION };
 
 		if ( pFrameState->shouldRender )
@@ -649,7 +673,7 @@ namespace oxr
 				xrFrameLayerProjection.viewCount = ( uint32_t )vecFrameLayerProjectionViews.size();
 				xrFrameLayerProjection.views = vecFrameLayerProjectionViews.data();
 
-				xrFrameLayers.push_back( reinterpret_cast< XrCompositionLayerBaseHeader * >( &xrFrameLayerProjection ) );
+				vecFrameLayers.push_back( reinterpret_cast< XrCompositionLayerBaseHeader * >( &xrFrameLayerProjection ) );
 			}
 		}
 
@@ -658,8 +682,8 @@ namespace oxr
 		XrFrameEndInfo xrEndFrameInfo { XR_TYPE_FRAME_END_INFO };
 		xrEndFrameInfo.displayTime = pFrameState->predictedDisplayTime;
 		xrEndFrameInfo.environmentBlendMode = xrEnvironmentBlendMode;
-		xrEndFrameInfo.layerCount = ( uint32_t )xrFrameLayers.size();
-		xrEndFrameInfo.layers = xrFrameLayers.data();
+		xrEndFrameInfo.layerCount = ( uint32_t )vecFrameLayers.size();
+		xrEndFrameInfo.layers = vecFrameLayers.data();
 
 		xrEndFrame( m_xrSession, &xrEndFrameInfo );
 	}

@@ -45,6 +45,7 @@ oxr::Session *g_pSession = nullptr;
 XrSessionState g_sessionState = XR_SESSION_STATE_UNKNOWN;
 XrFrameState m_xrFrameState { XR_TYPE_FRAME_STATE };
 std::vector< XrCompositionLayerProjectionView > g_vecFrameLayerProjectionViews;
+std::vector< XrCompositionLayerBaseHeader * > g_vecFrameLayers;
 
 /**
  * These are utility functions to check game loop conditions
@@ -141,12 +142,14 @@ XrResult demo_openxr_start()
 	//	   You can also manually request available runtime extensions with GetSupportedExtensions()
 	//     Similar functions are available for api layers
 
-	std::vector< const char * > vecRequestedExtensions {										// These extensions, being KHR, are very likely to be supported by most major runtimes
-														 XR_KHR_VULKAN_ENABLE_EXTENSION_NAME,	// this is our preferred graphics extension (only vulkan is supported)
-														 XR_KHR_VISIBILITY_MASK_EXTENSION_NAME, // this gives us a stencil mask area that the end user will never see, so we don't need to render to it
-																								// XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME,
+	std::vector< const char * > vecRequestedExtensions {
+		// These extensions, being KHR, are very likely to be supported by most major runtimes
+		XR_KHR_VULKAN_ENABLE_EXTENSION_NAME,   // this is our preferred graphics extension (only vulkan is supported)
+		XR_KHR_VISIBILITY_MASK_EXTENSION_NAME, // this gives us a stencil mask area that the end user will never see, so we don't need to render to it
 
-														 XR_EXT_HAND_TRACKING_EXTENSION_NAME };
+		XR_EXT_HAND_TRACKING_EXTENSION_NAME, // Multi-vendor extension but may have different behaviors/implementations across runtimes
+		XR_FB_PASSTHROUGH_EXTENSION_NAME	 // Vendor specific extension - not supported on all runtimes
+	};
 
 	oxrProvider->FilterOutUnsupportedExtensions( vecRequestedExtensions );
 
@@ -188,11 +191,14 @@ XrResult demo_openxr_start()
 	g_pSession = oxrProvider->Session();
 
 	// (6.1) Get any extensions that requires an active openxr instance and session
-	//oxr::ExtHandTracking* g_exthandTracking= static_cast<oxr::ExtHandTracking*>(oxrProvider->Instance()->extHandler.GetExtension(XR_EXT_HAND_TRACKING_EXTENSION_NAME));
-	//if (g_exthandTracking)
-	//{
-	//	xrResult = g_exthandTracking->Init();
-	//}
+	oxr::ExtHandTracking *g_extHandTracking = static_cast< oxr::ExtHandTracking * >( oxrProvider->Instance()->extHandler.GetExtension( XR_EXT_HAND_TRACKING_EXTENSION_NAME ) );
+	if ( g_extHandTracking )
+	{
+		xrResult = g_extHandTracking->Init();
+	}
+
+	// FB Passthrough, we'll need the app reference space to initialize so we'll call this after starting the session
+	oxr::ExtFBPassthrough *g_extFBPassthrough = static_cast< oxr::ExtFBPassthrough * >( oxrProvider->Instance()->extHandler.GetExtension( XR_FB_PASSTHROUGH_EXTENSION_NAME ) );
 
 	// (7) Create swapchains for rendering
 
@@ -229,10 +235,10 @@ XrResult demo_openxr_start()
 	XrSpace spaceFront;
 	oxrProvider->Session()->CreateReferenceSpace( &spaceFront, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, -3.0f, -1.0f } } ); // 3m down, no rotation
 
-	XrSpace spaceLeft;
-	oxrProvider->Session()->CreateReferenceSpace( &spaceLeft, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.5f, 0.5f, -0.5f, 0.5f }, { -1.0f, 1.0f, 0.0f } } ); // 1m left 1m up, rotated x: 90, y: 0, z: 90
+	//XrSpace spaceLeft;
+	//oxrProvider->Session()->CreateReferenceSpace( &spaceLeft, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.5f, 0.5f, -0.5f, 0.5f }, { -1.0f, 1.0f, 0.0f } } ); // 1m left 1m up, rotated x: 90, y: 0, z: 90
 
-	g_pRender->AddRenderModel( "models/DamagedHelmet.glb", { 0.25f, 0.25f, 0.25f }, spaceLeft );
+	//g_pRender->AddRenderModel( "models/DamagedHelmet.glb", { 0.25f, 0.25f, 0.25f }, spaceLeft );
 	g_pRender->AddRenderSector( "models/EnvironmentTest/EnvironmentTest.gltf", { 0.2f, 0.2f, 0.2f }, spaceFront );
 
 	// (8.5) Optional - Set vismask if present
@@ -250,7 +256,7 @@ XrResult demo_openxr_start()
 	}
 
 	// (8.6) Optional - Set skybox
-	g_pRender->SetSkyboxVisibility( true );
+	g_pRender->SetSkyboxVisibility( false );
 	g_pRender->skybox->currentScale = { 5.0f, 5.0f, 5.0f };
 	g_pRender->skybox->bApplyOffset = true;
 	g_pRender->skybox->offsetRotation = { 0.0f, 0.0f, 1.0f, 0.0f }; // rotate 180 degrees in z (roll)
@@ -319,6 +325,15 @@ XrResult demo_openxr_start()
 					xrResult = oxrProvider->Session()->Begin();
 					if ( xrResult == XR_SUCCESS ) // defaults to stereo (vr)
 					{
+						// Initialize any extensions we need
+						if (g_extFBPassthrough && g_pSession->GetAppSpace() != XR_NULL_HANDLE )
+						{
+							xrResult = g_extFBPassthrough->Init(g_pSession->GetAppSpace());
+							oxr::LogDebug(LOG_CATEGORY_DEMO, "[RUNE] FB Passthrough initialized: %s", oxr::XrEnumToString(xrResult));
+							g_extFBPassthrough->SetPassThroughStyle(oxr::ExtFBPassthrough::EPassthroughMode::EPassthroughMode_Basic);
+						}
+
+						// Start processing render frames
 						bProcessRenderFrame = true;
 					}
 					else
@@ -340,8 +355,13 @@ XrResult demo_openxr_start()
 		if ( bProcessRenderFrame )
 		{
 			// (13) Call render frame - this will call our registered callback at the appropriate times
+
+			//  (13.1) Define projection layers to render
+			if ( g_extFBPassthrough )
+				g_vecFrameLayers.push_back( reinterpret_cast<XrCompositionLayerBaseHeader *>(g_extFBPassthrough->GetCompositionLayer()));
+
 			g_vecFrameLayerProjectionViews.resize( oxrProvider->Session()->GetSwapchains().size(), { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } );
-			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, &m_xrFrameState );
+			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, g_vecFrameLayers, &m_xrFrameState );
 		}
 	}
 
