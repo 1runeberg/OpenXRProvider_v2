@@ -13,7 +13,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_MSC_SECURE_CRT
 
-#include "VulkanglTFModel.h"
+#include <xrvk/vulkanpbr/VulkanglTFModel.h>
 
 namespace vkglTF
 {

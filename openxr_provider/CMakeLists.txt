@@ -35,6 +35,7 @@ file(GLOB PROVIDER_HEADER_FILES
         "${PROVIDER_INCLUDE_DIRECTORY}/*.h*"
         "${PROVIDER_SOURCE_DIRECTORY}/*.h*"
         "${PROVIDER_INCLUDE_DIRECTORY}/provider/*.h*"
+        "${PROVIDER_INCLUDE_DIRECTORY}/xrvk/*.h*"
         "${PROVIDER_INCLUDE_DIRECTORY}/openxr/*.h*"
 	)
 
@@ -46,6 +47,8 @@ file(GLOB PROVIDER_SOURCE_FILES
         "${PROVIDER_DIRECTORY}/*.h.in" 
         "${PROVIDER_SOURCE_DIRECTORY}/*.cpp"
         "${PROVIDER_SOURCE_DIRECTORY}/common/*.cpp" 
+        "${PROVIDER_SOURCE_DIRECTORY}/xrvk/*.cpp"
+        "${PROVIDER_SOURCE_DIRECTORY}/xrvk/vulkanpbr/*.cpp" 
 	)
 
 # Add project header and source files to project

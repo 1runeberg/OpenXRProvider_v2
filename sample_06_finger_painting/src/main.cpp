@@ -34,6 +34,7 @@
 #include <iostream>
 
 #include <openxr_provider.h>
+#include <xrvk/xrvk.hpp>
 
 #include "xrvk/xrvk.hpp"
 
