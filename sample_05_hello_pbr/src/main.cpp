@@ -101,10 +101,7 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 	g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
 }
 
-void PostRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
-{
-	g_pRender->EndRender();
-}
+void PostRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex ) { g_pRender->EndRender(); }
 
 /**
  * This is the application openxr flow and is numbered
@@ -148,9 +145,7 @@ XrResult demo_openxr_start()
 														 XR_KHR_VISIBILITY_MASK_EXTENSION_NAME, // this gives us a stencil mask area that the end user will never see, so we don't need to render to it
 																								// XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME,
 
-														 // These multi-vendor extensions may or may not be supported by all runtimes
-														 XR_KHR_BINDING_MODIFICATION_EXTENSION_NAME, // this is a pre-requisite for dpad
-														 XR_EXT_DPAD_BINDING_EXTENSION_NAME };
+														 XR_EXT_HAND_TRACKING_EXTENSION_NAME };
 
 	oxrProvider->FilterOutUnsupportedExtensions( vecRequestedExtensions );
 
@@ -190,6 +185,13 @@ XrResult demo_openxr_start()
 		return xrResult;
 
 	g_pSession = oxrProvider->Session();
+
+	// (6.1) Get any extensions that requires an active openxr instance and session
+	//oxr::ExtHandTracking* g_exthandTracking= static_cast<oxr::ExtHandTracking*>(oxrProvider->Instance()->extHandler.GetExtension(XR_EXT_HAND_TRACKING_EXTENSION_NAME));
+	//if (g_exthandTracking)
+	//{
+	//	xrResult = g_exthandTracking->Init();
+	//}
 
 	// (7) Create swapchains for rendering
 
@@ -239,13 +241,18 @@ XrResult demo_openxr_start()
 	g_pRender->AddRenderModel( "models/EnvironmentTest/EnvironmentTest.gltf", { 0.2f, 0.2f, 0.2f }, spaceFront );
 
 	// (8.5) Optional - Set vismask if present
-	g_pRender->CreateVisMasks( 2 );
+	oxr::ExtVisMask *pVisMask = static_cast< oxr::ExtVisMask * >( oxrProvider->Instance()->extHandler.GetExtension( XR_KHR_VISIBILITY_MASK_EXTENSION_NAME ) );
 
-	oxrProvider->Session()->GetVisMask(
-		g_pRender->GetVisMasks()[ 0 ].vertices, g_pRender->GetVisMasks()[ 0 ].indices, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 0, XR_VISIBILITY_MASK_TYPE_HIDDEN_TRIANGLE_MESH_KHR );
+	if ( pVisMask )
+	{
+		g_pRender->CreateVisMasks( 2 );
 
-	oxrProvider->Session()->GetVisMask(
-		g_pRender->GetVisMasks()[ 1 ].vertices, g_pRender->GetVisMasks()[ 1 ].indices, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 1, XR_VISIBILITY_MASK_TYPE_HIDDEN_TRIANGLE_MESH_KHR );
+		pVisMask->GetVisMask(
+			g_pRender->GetVisMasks()[ 0 ].vertices, g_pRender->GetVisMasks()[ 0 ].indices, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 0, XR_VISIBILITY_MASK_TYPE_HIDDEN_TRIANGLE_MESH_KHR );
+
+		pVisMask->GetVisMask(
+			g_pRender->GetVisMasks()[ 1 ].vertices, g_pRender->GetVisMasks()[ 1 ].indices, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 1, XR_VISIBILITY_MASK_TYPE_HIDDEN_TRIANGLE_MESH_KHR );
+	}
 
 	// (8.6) Optional - Set skybox
 	g_pRender->SetSkyboxVisibility( true );

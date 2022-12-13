@@ -42,7 +42,7 @@ namespace oxr
 		return CheckIfXrError( m_xrSession == XR_NULL_HANDLE, XR_ERROR_CALL_ORDER_INVALID, "Error - This session has not been initialized properly. Have you called Session.Init?" );
 	}
 
-	Session::Session( const oxr::Instance *pInstance, ELogLevel eLogLevel, bool bDepthhandling )
+	Session::Session( oxr::Instance *pInstance, ELogLevel eLogLevel, bool bDepthhandling )
 		: m_pInstance( pInstance )
 		, m_eMinLogLevel( eLogLevel )
 		, m_bDepthHandling( bDepthhandling )
@@ -56,15 +56,28 @@ namespace oxr
 		// Create session
 		XrResult xrResult = xrCreateSession( m_pInstance->xrInstance, pSessionCreateInfo, &m_xrSession );
 
-		// Log session supported reference space types (debug only)
-		if ( XR_UNQUALIFIED_SUCCESS( xrResult ) && oxr::CheckLogLevelDebug( m_eMinLogLevel ) )
+		if ( XR_UNQUALIFIED_SUCCESS( xrResult ) )
 		{
-			auto vecSupportedReferenceSpaceTypes = GetSupportedReferenceSpaceTypes();
-
-			oxr::LogDebug( m_sLogCategory, "This session supports %i reference space type(s):", vecSupportedReferenceSpaceTypes.size() );
-			for ( auto &xrReferenceSpaceType : vecSupportedReferenceSpaceTypes )
+			// Add extensions that require a session
+			for ( auto &extensionName : m_pInstance->vecEnabledExtensions )
 			{
-				oxr::LogDebug( m_sLogCategory, "\t%s", XrEnumToString( xrReferenceSpaceType ) );
+				if ( extensionName == XR_KHR_VISIBILITY_MASK_EXTENSION_NAME )
+					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
+
+				if ( extensionName == XR_EXT_HAND_TRACKING_EXTENSION_NAME )
+					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_EXT_HAND_TRACKING_EXTENSION_NAME );
+			}
+
+			// Log session supported reference space types (debug only)
+			if ( oxr::CheckLogLevelDebug( m_eMinLogLevel ) )
+			{
+				auto vecSupportedReferenceSpaceTypes = GetSupportedReferenceSpaceTypes();
+
+				oxr::LogDebug( m_sLogCategory, "This session supports %i reference space type(s):", vecSupportedReferenceSpaceTypes.size() );
+				for ( auto &xrReferenceSpaceType : vecSupportedReferenceSpaceTypes )
+				{
+					oxr::LogDebug( m_sLogCategory, "\t%s", XrEnumToString( xrReferenceSpaceType ) );
+				}
 			}
 		}
 
@@ -649,73 +662,6 @@ namespace oxr
 		xrEndFrameInfo.layers = xrFrameLayers.data();
 
 		xrEndFrame( m_xrSession, &xrEndFrameInfo );
-	}
-
-	XrResult Session::GetVisMask(
-		std::vector< XrVector2f > &outVertices,
-		std::vector< uint32_t > &outIndices,
-		XrViewConfigurationType xrViewConfigurationType,
-		uint32_t unViewIndex,
-		XrVisibilityMaskTypeKHR xrVisibilityMaskType )
-	{
-		// Clear  output vectors
-		outIndices.clear();
-		outVertices.clear();
-
-		// Get function pointer to retrieve vismask data from the runtime
-		PFN_xrGetVisibilityMaskKHR xrGetVisibilityMaskKHR = nullptr;
-		XrResult xrResult = xrGetInstanceProcAddr( m_pInstance->xrInstance, "xrGetVisibilityMaskKHR", ( PFN_xrVoidFunction * )&xrGetVisibilityMaskKHR );
-
-		if ( xrResult != XR_SUCCESS )
-		{
-			LogDebug( m_sLogCategory, "Error retrieving vismask function from system: %s", XrEnumToString( xrResult ) );
-			return xrResult;
-		}
-
-		// Get index and vertex counts
-		XrVisibilityMaskKHR xrVisibilityMask { XR_TYPE_VISIBILITY_MASK_KHR };
-		xrVisibilityMask.indexCapacityInput = 0;
-		xrVisibilityMask.vertexCapacityInput = 0;
-
-		xrResult = xrGetVisibilityMaskKHR( m_xrSession, xrViewConfigurationType, unViewIndex, xrVisibilityMaskType, &xrVisibilityMask );
-
-		if ( xrResult != XR_SUCCESS )
-		{
-			LogDebug( m_sLogCategory, "Error retrieving vismask counts: %s", XrEnumToString( xrResult ) );
-			return xrResult;
-		}
-
-		// Check vismask data
-		uint32_t unVertexCount = xrVisibilityMask.vertexCountOutput;
-		uint32_t unIndexCount = xrVisibilityMask.indexCountOutput;
-
-		if ( unIndexCount == 0 && unVertexCount == 0 )
-		{
-			LogWarning( m_sLogCategory, "Warning - runtime doesn't have a visibility mask for this view configuration!" );
-			return XR_SUCCESS;
-		}
-
-		// Reserve size for output vectors
-		outVertices.resize( unVertexCount );
-		outIndices.resize( unIndexCount );
-
-		// Get mask vertices and indices from the runtime
-		xrVisibilityMask.vertexCapacityInput = unVertexCount;
-		xrVisibilityMask.indexCapacityInput = unIndexCount;
-		xrVisibilityMask.indexCountOutput = 0;
-		xrVisibilityMask.vertexCountOutput = 0;
-		xrVisibilityMask.indices = outIndices.data();
-		xrVisibilityMask.vertices = outVertices.data();
-
-		xrResult = xrGetVisibilityMaskKHR( m_xrSession, xrViewConfigurationType, unViewIndex, xrVisibilityMaskType, &xrVisibilityMask );
-
-		if ( xrResult != XR_SUCCESS )
-		{
-			LogDebug( m_sLogCategory, "Error retrieving vismask data from the runtime: %s", XrEnumToString( xrResult ) );
-			return xrResult;
-		}
-
-		return XR_SUCCESS;
 	}
 
 } // namespace oxr

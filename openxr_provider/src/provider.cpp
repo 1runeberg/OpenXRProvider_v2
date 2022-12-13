@@ -144,8 +144,6 @@ namespace oxr
 		xrInstanceCreateInfo.enabledExtensionCount = ( uint32_t )vecRequestedExtensionNames.size();
 		xrInstanceCreateInfo.enabledExtensionNames = vecRequestedExtensionNames.data();
 
-		// Check if we'll handle sessions
-
 		// Cache enabled extensions
 		for ( auto &xrExtensionProperty : vecExtensionProperties )
 		{
@@ -154,7 +152,7 @@ namespace oxr
 
 			if ( bFound )
 			{
-				m_vecEnabledExtensions.push_back( sExtensionName );
+				m_instance.vecEnabledExtensions.push_back( sExtensionName );
 			}
 
 			if ( oxr::CheckLogLevelDebug( m_eMinLogLevel ) )

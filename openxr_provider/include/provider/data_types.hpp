@@ -49,6 +49,9 @@
 #include "openxr/openxr_platform_defines.h"
 #include "openxr/openxr_reflection.h"
 
+// Internal
+#include "ext_handler.hpp"
+
 namespace oxr
 {
 	typedef uint32_t OxrVersion32;
@@ -100,6 +103,9 @@ namespace oxr
 
 		EVulkanExt eCurrentVulkanExt = EVulkanExt::VulkanExtNone;
 		bool bDepthHandling = false;
+
+		std::vector< std::string > vecEnabledExtensions;
+		ExtHandler extHandler{};
 
 #ifdef XR_USE_PLATFORM_ANDROID
 		JNIEnv *jniEnv = nullptr;

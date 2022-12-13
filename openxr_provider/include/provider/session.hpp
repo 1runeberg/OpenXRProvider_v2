@@ -96,7 +96,7 @@ namespace oxr
 		/// <param name="pInstance">Pointer to the instance state struct. An instance must be created and initialized before a session is created</param>
 		/// <param name="eLogLevel">Severity level to be used for logging</param>
 		/// <param name="bDepthHandling">Whether a special depth handlign extension is active</param>
-		Session( const oxr::Instance *pInstance, ELogLevel eLogLevel, bool bDepthHandling = false );
+		Session( oxr::Instance *pInstance, ELogLevel eLogLevel, bool bDepthHandling = false );
 		~Session()
 		{
 
@@ -383,28 +383,6 @@ namespace oxr
 		}
 
 		/// <summary>
-		/// Check is a visibility mask is active
-		/// </summary>
-		/// <returns>True if vismasks are active, false otherwise</returns>
-		bool bIsVisMaskActive() { return m_bVisMaskActive; }
-
-		/// <summary>
-		/// Retrieves the visibility mask for a give view (e.g. one per eye)
-		/// </summary>
-		/// <param name="outVertices">Output parameter that will hold the vismask vertices</param>
-		/// <param name="outIndices">Output parameter that will hold the vismask indices</param>
-		/// <param name="xrViewConfigurationType">The view configuration type (e.g. STEREO for vr)</param>
-		/// <param name="unViewIndex">The view index (e.g. 0 for the left eye, 1 for the right eye</param>
-		/// <param name="xrVisibilityMaskType">The mask polygon type (e.g. line loop, visible tris, etc)</param>
-		/// <returns>Result fo retrieving the visibility mask</returns>
-		XrResult GetVisMask(
-			std::vector< XrVector2f > &outVertices,
-			std::vector< uint32_t > &outIndices,
-			XrViewConfigurationType xrViewConfigurationType,
-			uint32_t unViewIndex,
-			XrVisibilityMaskTypeKHR xrVisibilityMaskType );
-
-		/// <summary>
 		/// Adds a function pointer from the app that will be called by the library after acquiring a swapchain image
 		/// </summary>
 		/// <param name="pRenderImageCallback">Function pointer to the callback</param>
@@ -466,7 +444,7 @@ namespace oxr
 		std::string m_sLogCategory = LOG_CATEGORY_SESSION;
 
 		// Pointer to instance state from the Provider class
-		const Instance *m_pInstance = nullptr;
+		Instance *m_pInstance = nullptr;
 
 		// The active openxr session handle
 		XrSession m_xrSession = XR_NULL_HANDLE;
@@ -500,9 +478,6 @@ namespace oxr
 
 		// The app's reference space
 		XrSpace m_xrAppSpace = XR_NULL_HANDLE;
-
-		// Whether or not vismask handling is active (via requested and available extensions)
-		bool m_bVisMaskActive = true;
 
 		// Holds the app callbacks that will be called after acquire swapchain
 		std::vector< RenderImageCallback * > m_vecAcquireSwapchainImageCallbacks;

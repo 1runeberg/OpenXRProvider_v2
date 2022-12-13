@@ -159,7 +159,7 @@ namespace oxr
 		/// </summary>
 		/// <param name="sExtensionName">The name of the extension to check</param>
 		/// <returns>True if the extension is enabled for the active openxr instance, false otherwise</returns>
-		bool IsExtensionEnabled( std::string sExtensionName ) { return FindStringInVector( m_vecEnabledExtensions, sExtensionName ); }
+		bool IsExtensionEnabled( std::string sExtensionName ) { return FindStringInVector( m_instance.vecEnabledExtensions, sExtensionName ); }
 
 		/// <summary>
 		/// Retrieves all the supported extensions by the currently active openxr runtime (e.g. SteamVR, Meta, etc)
@@ -291,7 +291,7 @@ namespace oxr
 		/// Retrieves the extensions currently enabled in the active openxr instance
 		/// </summary>
 		/// <returns>Vector of enabled extension names in the openxr instance</returns>
-		std::vector< std::string > GetEnabledExtensions() { return m_vecEnabledExtensions; }
+		std::vector< std::string > GetEnabledExtensions() { return m_instance.vecEnabledExtensions; }
 
 		/// <summary>
 		/// Retrieves the api layers currently enabled in the active openxr instance
@@ -308,9 +308,6 @@ namespace oxr
 
 		// Latest event buffer for the last call to PollXrEvents()
 		XrEventDataBuffer m_xrEventDataBuffer;
-
-		// Cache of enabled extensions for the currently active openxr instance
-		std::vector< std::string > m_vecEnabledExtensions;
 
 		// Cache of enabled api layers for the currently active openxr instance
 		std::vector< std::string > m_vecEnabledApiLayers;
