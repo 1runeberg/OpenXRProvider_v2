@@ -1,0 +1,3 @@
+#define SAMPLE6_VERSION_MAJOR @sample_06_finger_painting_VERSION_MAJOR@
+#define SAMPLE6_VERSION_MINOR @sample_06_finger_painting_VERSION_MINOR@
+#define SAMPLE6_VERSION_PATCH @sample_06_finger_painting_VERSION_PATCH@
