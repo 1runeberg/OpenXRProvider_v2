@@ -126,7 +126,7 @@ namespace oxr
 		/// </summary>
 		/// <param name="pSessionCreateInfo">openxr create info struct neeed to create an openxr session. The provider class have convenience functions to generate this</param>
 		/// <returns>The result returned by the openxr runtime when creating an openxr session</returns>
-		XrResult Init( XrSessionCreateInfo *pSessionCreateInfo );
+		XrResult Init( XrSessionCreateInfo *pSessionCreateInfo, XrReferenceSpaceType xrRefSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE, XrPosef xrReferencePose = IdentityPosef() );
 
 		/// <summary>
 		/// Checks a boolean result from a function call that doesn't return an XrResult ( e.g. bool foo(XrResult xrResult) {} ).
@@ -181,8 +181,6 @@ namespace oxr
 		/// <returns>The result returned by the runtime for starting an openxr session</returns>
 		XrResult Begin(
 			XrViewConfigurationType xrViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
-			XrReferenceSpaceType xrRefSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE,
-			XrPosef xrReferencePose = IdentityPosef(),
 			void *pvOtherBeginInfo = nullptr,
 			void *pvOtherReferenceSpaceInfo = nullptr );
 
@@ -340,6 +338,7 @@ namespace oxr
 		void RenderFrame(
 			std::vector< XrCompositionLayerProjectionView > &vecFrameLayerProjectionViews,
 			XrFrameState *pFrameState,
+			XrCompositionLayerFlags xrCompositionLayerFlags = 0,
 			XrEnvironmentBlendMode xrEnvironmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE, // vr
 			XrOffset2Di xrRectOffset = { 0, 0 },
 			XrExtent2Di xrRectExtent = { 0, 0 },
@@ -362,6 +361,7 @@ namespace oxr
 			std::vector< XrCompositionLayerProjectionView > &vecFrameLayerProjectionViews,
 			std::vector< XrCompositionLayerBaseHeader* > &vecFrameLayers,
 			XrFrameState *pFrameState,
+			XrCompositionLayerFlags xrCompositionLayerFlags = 0,
 			XrEnvironmentBlendMode xrEnvironmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE, // vr
 			XrOffset2Di xrRectOffset = { 0, 0 },
 			XrExtent2Di xrRectExtent = { 0, 0 },

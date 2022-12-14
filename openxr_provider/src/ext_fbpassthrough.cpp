@@ -58,9 +58,6 @@ namespace oxr
 
 	XrResult ExtFBPassthrough::Init( XrSpace appSpace )
 	{
-		//if ( m_bInitialized = true )
-		//	return XR_ERROR_RUNTIME_UNAVAILABLE;
-
 		// Create passthrough objects
 		XrPassthroughCreateInfoFB ptci = { XR_TYPE_PASSTHROUGH_CREATE_INFO_FB };
 		XrResult result = xrCreatePassthroughFB( m_xrSession, &ptci, &passthrough );
@@ -96,30 +93,6 @@ namespace oxr
 				LogError(LOG_CATEGORY_EXTFBPASSTHROUGH, "FB Passthrough - xrCreatePassthroughLayerFB: %s", XrEnumToString(result));
 				return result;
 			}
-
-			const XrVector3f verts[] = { { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 }, { 1, 1, 0 } };
-			const uint32_t indexes[] = { 0, 1, 2, 2, 1, 3 };
-			XrTriangleMeshCreateInfoFB tmci = { XR_TYPE_TRIANGLE_MESH_CREATE_INFO_FB };
-			tmci.vertexCount = 4;
-			tmci.vertexBuffer = &verts[ 0 ];
-			tmci.triangleCount = 2;
-			tmci.indexBuffer = &indexes[ 0 ];
-
-			XrTriangleMeshFB mesh = XR_NULL_HANDLE;
-			result = xrCreateTriangleMeshFB( m_xrSession, &tmci, &mesh );
-			if (!XR_SUCCEEDED(result))
-			{
-				LogError(LOG_CATEGORY_EXTFBPASSTHROUGH, "FB Passthrough - xrCreateTriangleMeshFB: %s", XrEnumToString(result));
-				return result;
-			}
-
-			XrGeometryInstanceCreateInfoFB gici = { XR_TYPE_GEOMETRY_INSTANCE_CREATE_INFO_FB };
-			gici.layer = geomPassthroughLayer;
-			gici.mesh = mesh;
-			gici.baseSpace = appSpace;
-			gici.pose.orientation.w = 1.0f;
-			gici.scale = { 1.0f, 1.0f, 1.0f };
-			result = xrCreateGeometryInstanceFB( m_xrSession, &gici, &geomInstance );
 		}
 		else
 		{
@@ -129,12 +102,10 @@ namespace oxr
 
 		if ( XR_UNQUALIFIED_SUCCESS( result ) )
 		{
-			m_bInitialized = true;
 			LogInfo( LOG_CATEGORY_EXTFBPASSTHROUGH, "FB Passthrough initialized: %s", XrEnumToString( result ) );
 			return XR_SUCCESS;
 		}
 
-		m_bInitialized = false;
 		LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Unable to initialize FB Passthrough: %s", XrEnumToString( result ) );
 		return result;
 	}

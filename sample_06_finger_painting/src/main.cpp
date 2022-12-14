@@ -197,9 +197,13 @@ XrResult demo_openxr_start()
 		xrResult = g_extHandTracking->Init();
 	}
 
-	// FB Passthrough, we'll need the app reference space to initialize so we'll call this after starting the session
 	oxr::ExtFBPassthrough *g_extFBPassthrough = static_cast< oxr::ExtFBPassthrough * >( oxrProvider->Instance()->extHandler.GetExtension( XR_FB_PASSTHROUGH_EXTENSION_NAME ) );
-
+	// Initialize any extensions we need
+	if ( g_extFBPassthrough && g_pSession->GetAppSpace() != XR_NULL_HANDLE )
+	{
+		if ( XR_UNQUALIFIED_SUCCESS( g_extFBPassthrough->Init( g_pSession->GetAppSpace() ) ) )
+			g_extFBPassthrough->SetPassThroughStyle( oxr::ExtFBPassthrough::EPassthroughMode::EPassthroughMode_Basic );
+	}
 	// (7) Create swapchains for rendering
 
 	// (7.1) Specify color formats
@@ -235,10 +239,10 @@ XrResult demo_openxr_start()
 	XrSpace spaceFront;
 	oxrProvider->Session()->CreateReferenceSpace( &spaceFront, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, -3.0f, -1.0f } } ); // 3m down, no rotation
 
-	//XrSpace spaceLeft;
-	//oxrProvider->Session()->CreateReferenceSpace( &spaceLeft, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.5f, 0.5f, -0.5f, 0.5f }, { -1.0f, 1.0f, 0.0f } } ); // 1m left 1m up, rotated x: 90, y: 0, z: 90
+	// XrSpace spaceLeft;
+	// oxrProvider->Session()->CreateReferenceSpace( &spaceLeft, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.5f, 0.5f, -0.5f, 0.5f }, { -1.0f, 1.0f, 0.0f } } ); // 1m left 1m up, rotated x: 90, y: 0, z: 90
 
-	//g_pRender->AddRenderModel( "models/DamagedHelmet.glb", { 0.25f, 0.25f, 0.25f }, spaceLeft );
+	// g_pRender->AddRenderModel( "models/DamagedHelmet.glb", { 0.25f, 0.25f, 0.25f }, spaceLeft );
 	g_pRender->AddRenderSector( "models/EnvironmentTest/EnvironmentTest.gltf", { 0.2f, 0.2f, 0.2f }, spaceFront );
 
 	// (8.5) Optional - Set vismask if present
@@ -325,19 +329,12 @@ XrResult demo_openxr_start()
 					xrResult = oxrProvider->Session()->Begin();
 					if ( xrResult == XR_SUCCESS ) // defaults to stereo (vr)
 					{
-						// Initialize any extensions we need
-						if (g_extFBPassthrough && g_pSession->GetAppSpace() != XR_NULL_HANDLE )
-						{
-							xrResult = g_extFBPassthrough->Init(g_pSession->GetAppSpace());
-							oxr::LogDebug(LOG_CATEGORY_DEMO, "[RUNE] FB Passthrough initialized: %s", oxr::XrEnumToString(xrResult));
-							g_extFBPassthrough->SetPassThroughStyle(oxr::ExtFBPassthrough::EPassthroughMode::EPassthroughMode_Basic);
-						}
-
 						// Start processing render frames
 						bProcessRenderFrame = true;
 					}
 					else
 					{
+						bProcessRenderFrame = false;
 						oxr::LogError( LOG_CATEGORY_DEMO, "Unable to start openxr session (%s)", oxr::XrEnumToString( xrResult ) );
 					}
 				}
@@ -357,11 +354,18 @@ XrResult demo_openxr_start()
 			// (13) Call render frame - this will call our registered callback at the appropriate times
 
 			//  (13.1) Define projection layers to render
+			XrCompositionLayerFlags xrCompositionLayerFlags = 0;
 			if ( g_extFBPassthrough )
-				g_vecFrameLayers.push_back( reinterpret_cast<XrCompositionLayerBaseHeader *>(g_extFBPassthrough->GetCompositionLayer()));
+			{
+				xrCompositionLayerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT | 
+					XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT | 
+					XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
+
+				g_vecFrameLayers.push_back( reinterpret_cast< XrCompositionLayerBaseHeader * >( g_extFBPassthrough->GetCompositionLayer() ) );
+			}
 
 			g_vecFrameLayerProjectionViews.resize( oxrProvider->Session()->GetSwapchains().size(), { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } );
-			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, g_vecFrameLayers, &m_xrFrameState );
+			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, g_vecFrameLayers, &m_xrFrameState, xrCompositionLayerFlags );
 		}
 	}
 

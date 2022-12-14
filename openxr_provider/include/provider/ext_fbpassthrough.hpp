@@ -64,7 +64,6 @@ public:
 		XrCompositionLayerPassthroughFB* GetCompositionLayer() { return &m_FBPassthroughCompositionLayer; }
 
 	private:
-		bool m_bInitialized = false;
 		XrInstance m_xrInstance = XR_NULL_HANDLE;
 		XrSession m_xrSession = XR_NULL_HANDLE;
 
@@ -93,7 +92,7 @@ public:
 		XrPassthroughLayerFB passthroughLayer = XR_NULL_HANDLE;
 		XrPassthroughLayerFB reconPassthroughLayer = XR_NULL_HANDLE;
 		XrPassthroughLayerFB geomPassthroughLayer = XR_NULL_HANDLE;
-		XrGeometryInstanceFB geomInstance = XR_NULL_HANDLE;
+		//XrGeometryInstanceFB geomInstance = XR_NULL_HANDLE;
 
 		// passthrough style
 		XrPassthroughStyleFB style{XR_TYPE_PASSTHROUGH_STYLE_FB};
