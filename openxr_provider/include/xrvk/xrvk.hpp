@@ -21,7 +21,7 @@
  *
  * Portions of this code are Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
  * SPDX-License-Identifier: MIT
- * 
+ *
  * Portions of this code Copyright (c) 2019-2022, The Khronos Group Inc.
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -31,7 +31,6 @@
 
 #include "data_types.hpp"
 #include <future>
-
 
 namespace Shapes
 {
@@ -61,45 +60,61 @@ namespace Shapes
 		XrVector3f Color;
 	};
 
+	// Cube indices
+	std::vector< unsigned short > vecCubeIndices = {
+		0,	1,	2,	3,	4,	5,	// -X
+		6,	7,	8,	9,	10, 11, // +X
+		12, 13, 14, 15, 16, 17, // -Y
+		18, 19, 20, 21, 22, 23, // +Y
+		24, 25, 26, 27, 28, 29, // -Z
+		30, 31, 32, 33, 34, 35, // +Z
+	};
+
+	// Cube vertices
+	std::vector< Shapes::Vertex > vecCubeVertices = {
+		CUBE_SIDE( LTB, LBF, LBB, LTB, LTF, LBF, DarkRed )	 // -X
+		CUBE_SIDE( RTB, RBB, RBF, RTB, RBF, RTF, Red )		 // +X
+		CUBE_SIDE( LBB, LBF, RBF, LBB, RBF, RBB, DarkGreen ) // -Y
+		CUBE_SIDE( LTB, RTB, RTF, LTB, RTF, LTF, Green )	 // +Y
+		CUBE_SIDE( LBB, RBB, RTB, LBB, RTB, LTB, DarkBlue )	 // -Z
+		CUBE_SIDE( LBF, LTF, RTF, LBF, RTF, RBF, Blue )		 // +Z
+	};
+
 	struct Shape
 	{
 		XrPosef pose;
-		XrVector3f scale{ 1.0f, 1.0f, 1.0f };
+		XrVector3f scale { 1.0f, 1.0f, 1.0f };
 
-		xrvk::Buffer indexBuffer{};
-		xrvk::Buffer vertexBuffer{};
+		xrvk::Buffer indexBuffer {};
+		xrvk::Buffer vertexBuffer {};
 
 		VkPipeline pipeline = VK_NULL_HANDLE;
 
-		std::vector< unsigned short > vecIndicies;
-		std::vector< Shapes::Vertex > vecVerticies;
+		std::vector< unsigned short >* vecIndices = nullptr;
+		std::vector< Shapes::Vertex >* vecVertices = nullptr;
+
+		Shape* Duplicate()
+		{
+			Shape* shape = new Shape;
+			shape->pose = pose;
+			shape->scale = scale;
+			shape->indexBuffer = indexBuffer;
+			shape->vertexBuffer = vertexBuffer;
+			shape->pipeline = pipeline;
+			shape->vecIndices = vecIndices;
+			shape->vecVertices = vecVertices;
+
+			return shape;
+		}
 	};
 
 	struct Shape_Cube : Shape
 	{
-		Shape_Cube()
-		{
-			vecIndicies = 
-			{
-				0,	1,	2,	3,	4,	5,	// -X
-				6,	7,	8,	9,	10, 11, // +X
-				12, 13, 14, 15, 16, 17, // -Y
-				18, 19, 20, 21, 22, 23, // +Y
-				24, 25, 26, 27, 28, 29, // -Z
-				30, 31, 32, 33, 34, 35, // +Z
-			};
-
-			vecVerticies = 
-			{
-				CUBE_SIDE(LTB, LBF, LBB, LTB, LTF, LBF, DarkRed)	 // -X
-				CUBE_SIDE(RTB, RBB, RBF, RTB, RBF, RTF, Red)		 // +X
-				CUBE_SIDE(LBB, LBF, RBF, LBB, RBF, RBB, DarkGreen) // -Y
-				CUBE_SIDE(LTB, RTB, RTF, LTB, RTF, LTF, Green)	 // +Y
-				CUBE_SIDE(LBB, RBB, RTB, LBB, RTB, LTB, DarkBlue)	 // -Z
-				CUBE_SIDE(LBF, LTF, RTF, LBF, RTF, RBF, Blue)		 // +Z
-			};
-
-			XrPosef_Identity(&pose);
+		Shape_Cube() 
+		{ 
+			XrPosef_Identity( &pose ); 
+			this->vecIndices = &vecCubeIndices;
+			this->vecVertices = &vecCubeVertices;
 		}
 	};
 
@@ -217,7 +232,7 @@ namespace xrvk
 		VkExtent2D vkExtent {};
 		VkDeviceSize vkDeviceSizeOffsets[ 1 ] = { 0 };
 		VkDescriptorPool vkDescriptorPool = VK_NULL_HANDLE;
-		
+
 		// pipelines
 		VkPipeline vkBoundPipeline = VK_NULL_HANDLE;
 
@@ -285,24 +300,21 @@ namespace xrvk
 		void SetupNodeDescriptorSet( vkglTF::Node *node );
 
 		// Pipelines
-		void PrepareShapesPipeline( 
-			Shapes::Shape* shape,
-			std::string sVertexShader, 
-			std::string sFragmentShader,
-			VkPolygonMode vkPolygonMode = VK_POLYGON_MODE_FILL ); // basic geometry
-		void PreparePipelines(); // pbr
+		void PrepareShapesPipeline( Shapes::Shape *shape, std::string sVertexShader, std::string sFragmentShader,
+									VkPolygonMode vkPolygonMode = VK_POLYGON_MODE_FILL ); // basic geometry
+		void PreparePipelines();														  // pbr
 
 		// Shaders
 		void PrepareUniformBuffers();
-		VkShaderModule CreateShaderModule(const std::string& sFilename);
-		VkPipelineShaderStageCreateInfo CreateShaderStage(VkShaderStageFlagBits flagShaderStage, VkShaderModule* pShaderModule, const std::string& sEntrypoint);
+		VkShaderModule CreateShaderModule( const std::string &sFilename );
+		VkPipelineShaderStageCreateInfo CreateShaderStage( VkShaderStageFlagBits flagShaderStage, VkShaderModule *pShaderModule, const std::string &sEntrypoint );
 
 		// Renderables handling
 		uint32_t AddRenderScene( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f } );
 		uint32_t AddRenderSector( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f }, XrSpace xrSpace = XR_NULL_HANDLE );
 		uint32_t AddRenderModel( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f }, XrSpace xrSpace = XR_NULL_HANDLE );
 
-		std::vector< Shapes::Shape* > vecShapes;
+		std::vector< Shapes::Shape * > vecShapes;
 
 		void CreateVisMasks( uint32_t unNum );
 

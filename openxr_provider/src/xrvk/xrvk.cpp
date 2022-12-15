@@ -2023,15 +2023,15 @@ namespace xrvk
 		std::vector< VkPipelineShaderStageCreateInfo > shaderStages = { vertShaderStage, fragShaderStage };
 
 		// (3) Create and allocate memory buffers
-		uint32_t unCountIndices = static_cast< uint32_t >( shape->vecIndicies.size() );
-		uint32_t unCountVertices = static_cast< uint32_t >( shape->vecVerticies.size() );
+		uint32_t unCountIndices = static_cast< uint32_t >( shape->vecIndices->size() );
+		uint32_t unCountVertices = static_cast< uint32_t >( shape->vecVertices->size() );
 
 		shape->indexBuffer.create(
 			m_pVulkanDevice,
 			VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			sizeof( uint16_t ) * unCountIndices,
-			shape->vecIndicies.data() );
+			shape->vecIndices->data() );
 
 		shape->indexBuffer.count = unCountIndices;
 
@@ -2040,7 +2040,7 @@ namespace xrvk
 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			sizeof( Shapes::Vertex ) * unCountVertices,
-			shape->vecVerticies.data() );
+			shape->vecVertices->data() );
 
 		shape->vertexBuffer.count = unCountVertices;
 

@@ -104,15 +104,60 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 	g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
 
 	// Finger paint every half a second
-	if ((m_xrFrameState.predictedDisplayTime - g_LastPredictedDisplayTime) > 500000000 )
+	if ( ( m_xrFrameState.predictedDisplayTime - g_LastPredictedDisplayTime ) > 500000000 )
 	{
 		g_LastPredictedDisplayTime = m_xrFrameState.predictedDisplayTime;
-		
-		//oxr::LogInfo(LOG_CATEGORY_DEMO, "Add vertex here %" PRIu64, g_LastPredictedDisplayTime);
+
+		// oxr::LogInfo(LOG_CATEGORY_DEMO, "Add vertex here %" PRIu64, g_LastPredictedDisplayTime);
 	}
 }
 
 void PostRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex ) { g_pRender->EndRender(); }
+
+/**
+ * These are utility functions for the extensions we will be using in this demo
+ */
+
+void PopulateHandShapes( Shapes::Shape* shapePalm )
+{
+	assert(g_pRender);
+	assert(shapePalm);
+
+
+
+	//XR_HAND_JOINT_COUNT_EXT
+
+	//typedef enum XrHandJointEXT
+	//{
+	//	XR_HAND_JOINT_PALM_EXT = 0,
+	//	XR_HAND_JOINT_WRIST_EXT = 1,
+	//	XR_HAND_JOINT_THUMB_METACARPAL_EXT = 2,
+	//	XR_HAND_JOINT_THUMB_PROXIMAL_EXT = 3,
+	//	XR_HAND_JOINT_THUMB_DISTAL_EXT = 4,
+	//	XR_HAND_JOINT_THUMB_TIP_EXT = 5,
+	//	XR_HAND_JOINT_INDEX_METACARPAL_EXT = 6,
+	//	XR_HAND_JOINT_INDEX_PROXIMAL_EXT = 7,
+	//	XR_HAND_JOINT_INDEX_INTERMEDIATE_EXT = 8,
+	//	XR_HAND_JOINT_INDEX_DISTAL_EXT = 9,
+	//	XR_HAND_JOINT_INDEX_TIP_EXT = 10,
+	//	XR_HAND_JOINT_MIDDLE_METACARPAL_EXT = 11,
+	//	XR_HAND_JOINT_MIDDLE_PROXIMAL_EXT = 12,
+	//	XR_HAND_JOINT_MIDDLE_INTERMEDIATE_EXT = 13,
+	//	XR_HAND_JOINT_MIDDLE_DISTAL_EXT = 14,
+	//	XR_HAND_JOINT_MIDDLE_TIP_EXT = 15,
+	//	XR_HAND_JOINT_RING_METACARPAL_EXT = 16,
+	//	XR_HAND_JOINT_RING_PROXIMAL_EXT = 17,
+	//	XR_HAND_JOINT_RING_INTERMEDIATE_EXT = 18,
+	//	XR_HAND_JOINT_RING_DISTAL_EXT = 19,
+	//	XR_HAND_JOINT_RING_TIP_EXT = 20,
+	//	XR_HAND_JOINT_LITTLE_METACARPAL_EXT = 21,
+	//	XR_HAND_JOINT_LITTLE_PROXIMAL_EXT = 22,
+	//	XR_HAND_JOINT_LITTLE_INTERMEDIATE_EXT = 23,
+	//	XR_HAND_JOINT_LITTLE_DISTAL_EXT = 24,
+	//	XR_HAND_JOINT_LITTLE_TIP_EXT = 25,
+	//	XR_HAND_JOINT_MAX_ENUM_EXT = 0x7FFFFFFF
+	//} XrHandJointEXT;
+}
 
 /**
  * This is the application openxr flow and is numbered
@@ -242,16 +287,15 @@ XrResult demo_openxr_start()
 	g_pRender->CreateRenderResources( g_pSession, selectedTextureFormats.vkColorTextureFormat, selectedTextureFormats.vkDepthTextureFormat, vkExtent );
 
 	// (8.3) Optional: Add any shape pipelines
-	Shapes::Shape_Cube cubeIndex{};
-	g_pRender->PrepareShapesPipeline(&cubeIndex, "shaders/shape.vert.spv", "shaders/shape.frag.spv");
+	Shapes::Shape_Cube cubeIndex {};
+	g_pRender->PrepareShapesPipeline( &cubeIndex, "shaders/shape.vert.spv", "shaders/shape.frag.spv" );
 
-	g_pRender->vecShapes.push_back(&cubeIndex);
+	g_pRender->vecShapes.push_back( &cubeIndex );
 
 	// (8.3) Add Render Scenes to render (will spawn in world origin)
 	g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
-	//g_pRender->AddRenderModel( "models/test_sphere.glb", { .01f, .01f, .01f } );
-	//g_pRender->AddRenderScene( "models/openxr_proxy_right.glb", { .1f, .1f, .1f } );
-
+	// g_pRender->AddRenderModel( "models/test_sphere.glb", { .01f, .01f, .01f } );
+	// g_pRender->AddRenderScene( "models/openxr_proxy_right.glb", { .1f, .1f, .1f } );
 
 	// (8.4) Add Render Sectors and Render Models (will spawn based on defined reference space and/or offsets from world origin)
 	XrSpace spaceFront;
@@ -261,7 +305,7 @@ XrResult demo_openxr_start()
 	// oxrProvider->Session()->CreateReferenceSpace( &spaceLeft, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.5f, 0.5f, -0.5f, 0.5f }, { -1.0f, 1.0f, 0.0f } } ); // 1m left 1m up, rotated x: 90, y: 0, z: 90
 
 	// g_pRender->AddRenderModel( "models/DamagedHelmet.glb", { 0.25f, 0.25f, 0.25f }, spaceLeft );
-	//g_pRender->AddRenderSector( "models/EnvironmentTest/EnvironmentTest.gltf", { 0.2f, 0.2f, 0.2f }, spaceFront );
+	// g_pRender->AddRenderSector( "models/EnvironmentTest/EnvironmentTest.gltf", { 0.2f, 0.2f, 0.2f }, spaceFront );
 
 	// (8.5) Optional - Set vismask if present
 	oxr::ExtVisMask *pVisMask = static_cast< oxr::ExtVisMask * >( oxrProvider->Instance()->extHandler.GetExtension( XR_KHR_VISIBILITY_MASK_EXTENSION_NAME ) );
@@ -376,9 +420,7 @@ XrResult demo_openxr_start()
 			g_vecFrameLayers.clear();
 			if ( g_extFBPassthrough )
 			{
-				xrCompositionLayerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT | 
-					XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT | 
-					XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
+				xrCompositionLayerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT | XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT | XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
 
 				g_vecFrameLayers.push_back( reinterpret_cast< XrCompositionLayerBaseHeader * >( g_extFBPassthrough->GetCompositionLayer() ) );
 			}
@@ -397,25 +439,16 @@ XrResult demo_openxr_start()
 
 				if ( xrHandJointLocations_Left->isActive )
 				{
-					Shapes::Shape* cubeRef = g_pRender->vecShapes.back();
-					
-					if (cubeRef)
-					{
-						cubeRef->pose = xrHandJointLocations_Left->jointLocations[XR_HAND_JOINT_INDEX_TIP_EXT].pose;
-						cubeRef->scale = { xrHandJointLocations_Left->jointLocations->radius, xrHandJointLocations_Left->jointLocations->radius, xrHandJointLocations_Left->jointLocations->radius };
-					
-						Shapes::Shape_Cube *newShape = new Shapes::Shape_Cube;
-						newShape->indexBuffer = cubeRef->indexBuffer;
-						newShape->vertexBuffer = cubeRef->vertexBuffer;
-						newShape->pipeline = cubeRef->pipeline;
-						newShape->pose = cubeRef->pose;
-						newShape->scale = cubeRef->scale;
+					Shapes::Shape *cubeRef = g_pRender->vecShapes.back();
 
-						g_pRender->vecShapes.push_back( newShape );
-					
+					if ( cubeRef )
+					{
+						cubeRef->pose = xrHandJointLocations_Left->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose;
+						cubeRef->scale = { xrHandJointLocations_Left->jointLocations->radius, xrHandJointLocations_Left->jointLocations->radius, xrHandJointLocations_Left->jointLocations->radius };
+
+						g_pRender->vecShapes.push_back( cubeRef->Duplicate() );
 					}
 				}
-
 			}
 		}
 	}
