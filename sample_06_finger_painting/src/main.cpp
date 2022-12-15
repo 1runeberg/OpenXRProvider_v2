@@ -52,6 +52,12 @@ XrFrameState m_xrFrameState { XR_TYPE_FRAME_STATE };
 std::vector< XrCompositionLayerProjectionView > g_vecFrameLayerProjectionViews;
 std::vector< XrCompositionLayerBaseHeader * > g_vecFrameLayers;
 
+bool g_bSkyboxScalingActivated = false;
+float g_fSkyboxScalingActivationDistance = 0.0f;
+
+static const float k_fGestureActivationThreshold = 0.025f;
+static const float k_fSkyboxScalingStride = 0.05f;
+
 // Color constants for finger painting
 constexpr XrVector3f colorRed { 1, 0, 0 };
 constexpr XrVector3f colorGreen { 0, 1, 0 };
@@ -85,7 +91,6 @@ Shapes::Shape *g_pReferencePaint = nullptr;
 /**
  * These are utility functions for the extensions we will be using in this demo
  */
-
 void PopulateHandShapes( Shapes::Shape *shapePalm )
 {
 	assert( g_pRender );
@@ -169,7 +174,7 @@ void Paint( XrHandEXT hand )
 			float fDistance = 0.0f;
 			XrVector3f_Distance( &fDistance, &joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose.position, &joints->jointLocations[ XR_HAND_JOINT_THUMB_TIP_EXT ].pose.position );
 
-			if ( fDistance < 0.025f )
+			if ( fDistance < k_fGestureActivationThreshold )
 			{
 				// Paint from the index tip
 				Shapes::Shape *newPaint = g_pReferencePaint->Duplicate();
@@ -180,7 +185,86 @@ void Paint( XrHandEXT hand )
 	}
 }
 
-void ScaleSkybox( XrFrameState *frameState ) {}
+bool IsTwoHandedGestureActive( 
+	XrHandJointEXT leftJointA, XrHandJointEXT leftJointB,
+	XrHandJointEXT rightJointA, XrHandJointEXT rightJointB,
+	XrVector3f *outReferencePosition_Left,	XrVector3f *outReferencePosition_Right, 
+	bool *outActivated )
+{
+	// Check if hand tracking is available
+	if ( g_extHandTracking )
+	{
+		// Get latest hand joints
+		XrHandJointLocationsEXT *leftHand = g_extHandTracking->GetHandJointLocations( XR_HAND_LEFT_EXT );
+		XrHandJointLocationsEXT *rightHand = g_extHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT );
+
+		XrHandJointLocationEXT *leftJoints = leftHand->jointLocations;
+		XrHandJointLocationEXT *rightJoints = rightHand->jointLocations;
+
+		// Check if both left and right hands are tracking
+		// and the provided joint a and joint b on both hands have valid positions
+		if ( leftHand->isActive && rightHand->isActive && 
+		   ( leftJoints[ leftJointA ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
+		   ( leftJoints[ leftJointB ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
+		   ( rightJoints[ rightJointA ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
+		   ( rightJoints[ rightJointB ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
+		{
+			// Check gesture
+			float fDistance = 0.0f;
+
+			*outReferencePosition_Left = leftJoints[ leftJointB ].pose.position;
+			XrVector3f_Distance( &fDistance, &leftJoints[ leftJointA ].pose.position, outReferencePosition_Left );
+
+			if ( fDistance < k_fGestureActivationThreshold )
+			{
+				*outReferencePosition_Right = rightJoints[ rightJointB ].pose.position;
+				XrVector3f_Distance( &fDistance, &rightJoints[ rightJointA ].pose.position, outReferencePosition_Right );
+
+				if ( fDistance < k_fGestureActivationThreshold )
+				{
+					*outActivated = true;
+					return true;
+				}
+			}
+		}
+	}
+
+	*outActivated = false;
+	return false;
+}
+
+bool IsSkyboxScalingActive( XrVector3f *outThumbPosition_Left, XrVector3f *outThumbPosition_Right )
+{
+	// Gesture - middle and thumb tips are touching on both hands
+	return IsTwoHandedGestureActive(XR_HAND_JOINT_MIDDLE_TIP_EXT, XR_HAND_JOINT_THUMB_TIP_EXT, XR_HAND_JOINT_MIDDLE_TIP_EXT, XR_HAND_JOINT_THUMB_TIP_EXT,
+		outThumbPosition_Left, outThumbPosition_Right, &g_bSkyboxScalingActivated);
+}
+
+void ScaleSkybox()
+{
+	// Check if gesture was activated on a previous frame
+	bool bGestureActivedOnPreviousFrame = g_bSkyboxScalingActivated;
+
+	// Check if gesture is active in this frame
+	XrVector3f leftThumb, rightThumb;
+	if ( IsSkyboxScalingActive( &leftThumb, &rightThumb ) )
+	{
+		// Gesture was activated on this frame, cache the distance
+		if ( !bGestureActivedOnPreviousFrame )
+		{
+			XrVector3f_Distance( &g_fSkyboxScalingActivationDistance, &leftThumb, &rightThumb );
+		}
+
+		// Scale skybox based on distance and stride
+		float currentDistance = 0.0f;
+		XrVector3f_Distance( &currentDistance, &leftThumb, &rightThumb );
+
+		g_pRender->SetSkyboxVisibility( true );
+		float fScaleFactor = ( currentDistance - g_fSkyboxScalingActivationDistance ) * k_fSkyboxScalingStride;
+		g_pRender->skybox->currentScale.x += fScaleFactor;
+		g_pRender->skybox->currentScale.y = g_pRender->skybox->currentScale.z = g_pRender->skybox->currentScale.x;
+	}
+}
 
 /**
  * These are utility functions to check game loop conditions
@@ -243,6 +327,9 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 		// Painting updates
 		Paint( XR_HAND_LEFT_EXT );
 		Paint( XR_HAND_RIGHT_EXT );
+
+		// Skybox scaling
+		ScaleSkybox();
 
 		// Render
 		g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
