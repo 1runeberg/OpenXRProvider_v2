@@ -126,7 +126,7 @@ void UpdateHandJoints( XrHandEXT hand, XrHandJointLocationEXT *handJoints )
 
 void UpdateHandTrackingPoses( XrFrameState *frameState )
 {
-	if ( g_extHandTracking && frameState->shouldRender )
+	if ( g_extHandTracking )
 	{
 		// Update the hand joints poses for this frame
 		g_extHandTracking->LocateHandJoints( XR_HAND_LEFT_EXT, g_pSession->GetAppSpace(), frameState->predictedDisplayTime );
@@ -153,10 +153,10 @@ void UpdatePaintColor( XrVector3f *newColor )
 	}
 }
 
-void Paint( XrFrameState *frameState, XrHandEXT hand )
+void Paint( XrHandEXT hand )
 {
 	// Check if hand tracking is available
-	if ( g_extHandTracking && frameState->shouldRender )
+	if ( g_extHandTracking )
 	{
 		// Get latest hand joints
 		XrHandJointLocationsEXT *joints = g_extHandTracking->GetHandJointLocations( hand );
@@ -169,7 +169,7 @@ void Paint( XrFrameState *frameState, XrHandEXT hand )
 			float fDistance = 0.0f;
 			XrVector3f_Distance( &fDistance, &joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose.position, &joints->jointLocations[ XR_HAND_JOINT_THUMB_TIP_EXT ].pose.position );
 
-			if (fDistance < 0.025f)
+			if ( fDistance < 0.025f )
 			{
 				// Paint from the index tip
 				Shapes::Shape *newPaint = g_pReferencePaint->Duplicate();
@@ -180,23 +180,7 @@ void Paint( XrFrameState *frameState, XrHandEXT hand )
 	}
 }
 
-//void Paint( XrFrameState *frameState, XrHandEXT hand )
-//{
-//	// Check if hand tracking is available
-//	if ( g_extHandTracking && frameState->shouldRender )
-//	{
-//		// Get latest hand joints
-//		XrHandJointLocationsEXT *joints = g_extHandTracking->GetHandJointLocations( hand );
-//
-//		if ( joints->isActive && ( joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
-//		{
-//			// We'll paint from the index tip
-//			Shapes::Shape *newPaint = g_pReferencePaint->Duplicate();
-//			newPaint->pose = joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose;
-//			g_pRender->vecShapes.push_back( newPaint );
-//		}
-//	}
-//}
+void ScaleSkybox( XrFrameState *frameState ) {}
 
 /**
  * These are utility functions to check game loop conditions
@@ -251,15 +235,18 @@ bool CheckGameLoopExit( oxr::Provider *oxrProvider ) { return oxrProvider->Sessi
  */
 void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 {
-	// Hand tracking updates
-	UpdateHandTrackingPoses( &m_xrFrameState );
+	if ( m_xrFrameState.shouldRender )
+	{
+		// Hand tracking updates
+		UpdateHandTrackingPoses( &m_xrFrameState );
 
-	// Painting updates
-	Paint( &m_xrFrameState, XR_HAND_LEFT_EXT );
-	Paint( &m_xrFrameState, XR_HAND_RIGHT_EXT );
+		// Painting updates
+		Paint( XR_HAND_LEFT_EXT );
+		Paint( XR_HAND_RIGHT_EXT );
 
-	// Render
-	g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
+		// Render
+		g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
+	}
 }
 
 void PostRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex ) { g_pRender->EndRender(); }
