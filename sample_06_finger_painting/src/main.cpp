@@ -57,10 +57,11 @@ float g_fSkyboxScaleGestureDistanceOnActivate = 0.0f;
 
 bool g_bSaturationAdjustmentActivated = false;
 float g_fSaturationValueOnActivation = 0.0f;
+float g_fCurrentSaturationValue = 0.0f;
 
 static const float k_fGestureActivationThreshold = 0.025f;
 static const float k_fSkyboxScalingStride = 0.05f;
-static const float k_fSaturationAdjustmentStride = 0.f;
+static const float k_fSaturationAdjustmentStride = 0.1f;
 
 // Color constants for finger painting
 constexpr XrVector3f colorRed { 1, 0, 0 };
@@ -265,7 +266,7 @@ bool IsSaturationAdjustmentActive( XrVector3f *outThumbPosition_Left, XrVector3f
 		outThumbPosition_Left,
 		outThumbPosition_Right,
 		&g_bSaturationAdjustmentActivated,
-		&g_fSkyboxScaleGestureDistanceOnActivate );
+		&g_fSaturationValueOnActivation );
 }
 
 void ScaleSkybox()
@@ -294,6 +295,39 @@ void ScaleSkybox()
 		float fScaleFactor = fGestureDistanceFromPreviousFrame * k_fSkyboxScalingStride;
 		g_pRender->skybox->currentScale.x += fScaleFactor;
 		g_pRender->skybox->currentScale.y = g_pRender->skybox->currentScale.z = g_pRender->skybox->currentScale.x;
+	}
+}
+
+void AdjustPassthroughSaturation()
+{
+	// Check for passthrough extension
+	if ( g_extFBPassthrough == nullptr )
+		return;
+
+	// Check if gesture was activated on a previous frame
+	bool bGestureActivedOnPreviousFrame = g_bSaturationAdjustmentActivated;
+
+	// Check if gesture is active in this frame
+	XrVector3f leftThumb, rightThumb;
+	if ( IsSaturationAdjustmentActive( &leftThumb, &rightThumb ) )
+	{
+		// Gesture was activated on this frame, cache the distance
+		if ( !bGestureActivedOnPreviousFrame )
+		{
+			XrVector3f_Distance( &g_fSaturationValueOnActivation, &leftThumb, &rightThumb );
+		}
+
+		// Adjust saturation based on distance and stride
+		float currentDistance = 0.0f;
+		XrVector3f_Distance( &currentDistance, &leftThumb, &rightThumb );
+
+		float fGestureDistanceFromPreviousFrame = currentDistance - g_fSaturationValueOnActivation;
+		if ( abs( fGestureDistanceFromPreviousFrame ) < k_fSaturationAdjustmentStride )
+			return;
+
+		g_fCurrentSaturationValue = fGestureDistanceFromPreviousFrame * k_fSaturationAdjustmentStride * 100;
+		g_fCurrentSaturationValue = g_fCurrentSaturationValue < 0.0f ? 0.0f : g_fCurrentSaturationValue;
+		g_extFBPassthrough->SetModeToBCS(0.0f, 1.0f, g_fCurrentSaturationValue);
 	}
 }
 
@@ -364,6 +398,9 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 
 		// Render
 		g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
+
+		// Passthrough adjustments
+		AdjustPassthroughSaturation();
 	}
 }
 
@@ -473,7 +510,7 @@ XrResult demo_openxr_start()
 		}
 		else
 		{
-			g_extFBPassthrough->SetModeToDefault();
+			g_extFBPassthrough->SetModeToMono();
 		}
 	}
 

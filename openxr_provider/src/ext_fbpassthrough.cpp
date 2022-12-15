@@ -250,10 +250,6 @@ namespace oxr
 	{
 		XrResult xrResult = XR_SUCCESS;
 
-		// Check if we're already in requested mode
-		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Mono )
-			return xrResult;
-
 		// Start passthrough if it's not started
 		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Stopped )
 		{
@@ -299,10 +295,6 @@ namespace oxr
 	{
 		XrResult xrResult = XR_SUCCESS;
 
-		// Check if we're already in requested mode
-		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_ColorMapped )
-			return xrResult;
-
 		// Start passthrough if it's not started
 		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Stopped )
 		{
@@ -347,10 +339,6 @@ namespace oxr
 	XrResult ExtFBPassthrough::SetModeToBCS( float fBrightness /*= 0.0f*/, float fContrast /*= 1.0f*/, float fSaturation /*= 1.0f*/ )
 	{
 		XrResult xrResult = XR_SUCCESS;
-
-		// Check if we're already in requested mode
-		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_BCS )
-			return xrResult;
 
 		// Start passthrough if it's not started
 		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Stopped )
