@@ -70,8 +70,7 @@ constexpr XrVector3f RBF { 0.5f, -0.5f, 0.5f };
 constexpr XrVector3f RTB { 0.5f, 0.5f, -0.5f };
 constexpr XrVector3f RTF { 0.5f, 0.5f, 0.5f };
 
-std::vector< Shapes::Vertex > g_vecCubeVertices = 
-{
+std::vector< Shapes::Vertex > g_vecPaintCubeVertices = {
 	CUBE_SIDE( LTB, LBF, LBB, LTB, LTF, LBF, colorCyan ) // -X
 	CUBE_SIDE( RTB, RBB, RBF, RTB, RBF, RTF, colorCyan ) // +X
 	CUBE_SIDE( LBB, LBF, RBF, LBB, RBF, RBB, colorCyan ) // -Y
@@ -79,6 +78,9 @@ std::vector< Shapes::Vertex > g_vecCubeVertices =
 	CUBE_SIDE( LBB, RBB, RTB, LBB, RTB, LTB, colorCyan ) // -Z
 	CUBE_SIDE( LBF, LTF, RTF, LBF, RTF, RBF, colorCyan ) // +Z
 };
+
+// Reference shape for painting
+Shapes::Shape *g_pReferencePaint = nullptr;
 
 /**
  * These are utility functions for the extensions we will be using in this demo
@@ -122,24 +124,50 @@ void UpdateHandJoints( XrHandEXT hand, XrHandJointLocationEXT *handJoints )
 	}
 }
 
-void UpdateHandTrackingPoses( oxr::ExtHandTracking *pHandTracking, XrFrameState *frameState )
+void UpdateHandTrackingPoses( XrFrameState *frameState )
 {
-	if ( pHandTracking && frameState->shouldRender )
+	if ( g_extHandTracking && frameState->shouldRender )
 	{
 		// Update the hand joints poses for this frame
-		pHandTracking->LocateHandJoints( XR_HAND_LEFT_EXT, g_pSession->GetAppSpace(), frameState->predictedDisplayTime );
-		pHandTracking->LocateHandJoints( XR_HAND_RIGHT_EXT, g_pSession->GetAppSpace(), frameState->predictedDisplayTime );
+		g_extHandTracking->LocateHandJoints( XR_HAND_LEFT_EXT, g_pSession->GetAppSpace(), frameState->predictedDisplayTime );
+		g_extHandTracking->LocateHandJoints( XR_HAND_RIGHT_EXT, g_pSession->GetAppSpace(), frameState->predictedDisplayTime );
 
 		// Retrieve updated hand poses
-		XrHandJointLocationsEXT *leftHand = pHandTracking->GetHandJointLocations( XR_HAND_LEFT_EXT );
-		XrHandJointLocationsEXT *rightHand = pHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT );
+		XrHandJointLocationsEXT *leftHand = g_extHandTracking->GetHandJointLocations( XR_HAND_LEFT_EXT );
+		XrHandJointLocationsEXT *rightHand = g_extHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT );
 
 		// Finally, update cube poses representing the hand joints
 		if ( leftHand->isActive )
 			UpdateHandJoints( XR_HAND_LEFT_EXT, leftHand->jointLocations );
 
 		if ( rightHand->isActive )
-			UpdateHandJoints( XR_HAND_RIGHT_EXT, pHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT )->jointLocations );
+			UpdateHandJoints( XR_HAND_RIGHT_EXT, g_extHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT )->jointLocations );
+	}
+}
+
+void UpdatePaintColor( XrVector3f *newColor )
+{
+	for ( auto &cubeVertices : g_vecPaintCubeVertices )
+	{
+		cubeVertices.Color = *newColor;
+	}
+}
+
+void Paint( XrFrameState *frameState, XrHandEXT hand ) 
+{ 
+	// Check if hand tracking is available
+	if (g_extHandTracking && frameState->shouldRender)
+	{		
+		// Get latest hand joints
+		XrHandJointLocationsEXT *joints = g_extHandTracking->GetHandJointLocations( hand );
+
+		if (joints->isActive && (joints->jointLocations[XR_HAND_JOINT_INDEX_TIP_EXT].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0)
+		{
+			// We'll paint from the index tip
+			Shapes::Shape *newPaint = g_pReferencePaint->Duplicate();
+			newPaint->pose = joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose;
+			g_pRender->vecShapes.push_back( newPaint ); 
+		}
 	}
 }
 
@@ -197,18 +225,13 @@ bool CheckGameLoopExit( oxr::Provider *oxrProvider ) { return oxrProvider->Sessi
 void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 {
 	// Hand tracking updates
-	UpdateHandTrackingPoses( g_extHandTracking, &m_xrFrameState );
+	UpdateHandTrackingPoses( &m_xrFrameState );
+
+	// Painting updates
+	Paint(&m_xrFrameState, XR_HAND_LEFT_EXT);
 
 	// Render
 	g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
-
-	// Finger paint every half a second
-	if ( ( m_xrFrameState.predictedDisplayTime - g_LastPredictedDisplayTime ) > 500000000 )
-	{
-		g_LastPredictedDisplayTime = m_xrFrameState.predictedDisplayTime;
-
-		// oxr::LogInfo(LOG_CATEGORY_DEMO, "Add vertex here %" PRIu64, g_LastPredictedDisplayTime);
-	}
 }
 
 void PostRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex ) { g_pRender->EndRender(); }
@@ -341,12 +364,20 @@ XrResult demo_openxr_start()
 	g_pRender->CreateRenderResources( g_pSession, selectedTextureFormats.vkColorTextureFormat, selectedTextureFormats.vkDepthTextureFormat, vkExtent );
 
 	// (8.3) Optional: Add any shape pipelines
-	if (g_extHandTracking)
+	if ( g_extHandTracking )
 	{
+		// For hand tracking cubes
 		Shapes::Shape_Cube cubePalmLeft {};
 		g_pRender->PrepareShapesPipeline( &cubePalmLeft, "shaders/shape.vert.spv", "shaders/shape.frag.spv" );
 
 		PopulateHandShapes( &cubePalmLeft );
+
+		// For painting cubes
+		g_pReferencePaint = new Shapes::Shape_Cube;
+		g_pReferencePaint->vecVertices = &g_vecPaintCubeVertices;
+		g_pReferencePaint->scale = { 0.01f, 0.01f, 0.01f };
+
+		g_pRender->PrepareShapesPipeline( g_pReferencePaint, "shaders/shape.vert.spv", "shaders/shape.frag.spv" );
 	}
 
 	// (8.3) Add Render Scenes to render (will spawn in world origin)
