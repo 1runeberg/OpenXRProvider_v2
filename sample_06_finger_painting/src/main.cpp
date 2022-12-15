@@ -153,23 +153,50 @@ void UpdatePaintColor( XrVector3f *newColor )
 	}
 }
 
-void Paint( XrFrameState *frameState, XrHandEXT hand ) 
-{ 
+void Paint( XrFrameState *frameState, XrHandEXT hand )
+{
 	// Check if hand tracking is available
-	if (g_extHandTracking && frameState->shouldRender)
-	{		
+	if ( g_extHandTracking && frameState->shouldRender )
+	{
 		// Get latest hand joints
 		XrHandJointLocationsEXT *joints = g_extHandTracking->GetHandJointLocations( hand );
 
-		if (joints->isActive && (joints->jointLocations[XR_HAND_JOINT_INDEX_TIP_EXT].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0)
+		// Check if index tip and thumb tips have valid locations
+		if ( joints->isActive && ( joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
+			 ( joints->jointLocations[ XR_HAND_JOINT_THUMB_TIP_EXT ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
 		{
-			// We'll paint from the index tip
-			Shapes::Shape *newPaint = g_pReferencePaint->Duplicate();
-			newPaint->pose = joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose;
-			g_pRender->vecShapes.push_back( newPaint ); 
+			// Paint gesture - if index and thumb tips meet
+			float fDistance = 0.0f;
+			XrVector3f_Distance( &fDistance, &joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose.position, &joints->jointLocations[ XR_HAND_JOINT_THUMB_TIP_EXT ].pose.position );
+
+			if (fDistance < 0.025f)
+			{
+				// Paint from the index tip
+				Shapes::Shape *newPaint = g_pReferencePaint->Duplicate();
+				newPaint->pose = joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose;
+				g_pRender->vecShapes.push_back( newPaint );
+			}
 		}
 	}
 }
+
+//void Paint( XrFrameState *frameState, XrHandEXT hand )
+//{
+//	// Check if hand tracking is available
+//	if ( g_extHandTracking && frameState->shouldRender )
+//	{
+//		// Get latest hand joints
+//		XrHandJointLocationsEXT *joints = g_extHandTracking->GetHandJointLocations( hand );
+//
+//		if ( joints->isActive && ( joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
+//		{
+//			// We'll paint from the index tip
+//			Shapes::Shape *newPaint = g_pReferencePaint->Duplicate();
+//			newPaint->pose = joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose;
+//			g_pRender->vecShapes.push_back( newPaint );
+//		}
+//	}
+//}
 
 /**
  * These are utility functions to check game loop conditions
@@ -228,7 +255,8 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 	UpdateHandTrackingPoses( &m_xrFrameState );
 
 	// Painting updates
-	Paint(&m_xrFrameState, XR_HAND_LEFT_EXT);
+	Paint( &m_xrFrameState, XR_HAND_LEFT_EXT );
+	Paint( &m_xrFrameState, XR_HAND_RIGHT_EXT );
 
 	// Render
 	g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
