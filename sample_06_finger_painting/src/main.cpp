@@ -53,10 +53,14 @@ std::vector< XrCompositionLayerProjectionView > g_vecFrameLayerProjectionViews;
 std::vector< XrCompositionLayerBaseHeader * > g_vecFrameLayers;
 
 bool g_bSkyboxScalingActivated = false;
-float g_fSkyboxScalingActivationDistance = 0.0f;
+float g_fSkyboxScaleGestureDistanceOnActivate = 0.0f;
+
+bool g_bSaturationAdjustmentActivated = false;
+float g_fSaturationValueOnActivation = 0.0f;
 
 static const float k_fGestureActivationThreshold = 0.025f;
 static const float k_fSkyboxScalingStride = 0.05f;
+static const float k_fSaturationAdjustmentStride = 0.f;
 
 // Color constants for finger painting
 constexpr XrVector3f colorRed { 1, 0, 0 };
@@ -189,7 +193,7 @@ bool IsTwoHandedGestureActive(
 	XrHandJointEXT leftJointA, XrHandJointEXT leftJointB,
 	XrHandJointEXT rightJointA, XrHandJointEXT rightJointB,
 	XrVector3f *outReferencePosition_Left,	XrVector3f *outReferencePosition_Right, 
-	bool *outActivated )
+	bool *outActivated, float* fCacheValue )
 {
 	// Check if hand tracking is available
 	if ( g_extHandTracking )
@@ -230,6 +234,7 @@ bool IsTwoHandedGestureActive(
 	}
 
 	*outActivated = false;
+	*fCacheValue = 0.0f;
 	return false;
 }
 
@@ -237,7 +242,14 @@ bool IsSkyboxScalingActive( XrVector3f *outThumbPosition_Left, XrVector3f *outTh
 {
 	// Gesture - middle and thumb tips are touching on both hands
 	return IsTwoHandedGestureActive(XR_HAND_JOINT_MIDDLE_TIP_EXT, XR_HAND_JOINT_THUMB_TIP_EXT, XR_HAND_JOINT_MIDDLE_TIP_EXT, XR_HAND_JOINT_THUMB_TIP_EXT,
-		outThumbPosition_Left, outThumbPosition_Right, &g_bSkyboxScalingActivated);
+		outThumbPosition_Left, outThumbPosition_Right, &g_bSkyboxScalingActivated, &g_fSkyboxScaleGestureDistanceOnActivate );
+}
+
+bool IsSaturationAdjustmentActive( XrVector3f *outThumbPosition_Left, XrVector3f *outThumbPosition_Right )
+{
+	// Gesture - ring and thumb tips are touching on both hands
+	return IsTwoHandedGestureActive(XR_HAND_JOINT_RING_TIP_EXT, XR_HAND_JOINT_THUMB_TIP_EXT, XR_HAND_JOINT_RING_TIP_EXT, XR_HAND_JOINT_THUMB_TIP_EXT,
+									outThumbPosition_Left, outThumbPosition_Right, &g_bSaturationAdjustmentActivated, &g_fSkyboxScaleGestureDistanceOnActivate );
 }
 
 void ScaleSkybox()
@@ -252,14 +264,14 @@ void ScaleSkybox()
 		// Gesture was activated on this frame, cache the distance
 		if ( !bGestureActivedOnPreviousFrame )
 		{
-			XrVector3f_Distance( &g_fSkyboxScalingActivationDistance, &leftThumb, &rightThumb );
+			XrVector3f_Distance( &g_fSkyboxScaleGestureDistanceOnActivate, &leftThumb, &rightThumb );
 		}
 
 		// Scale skybox based on distance and stride
 		float currentDistance = 0.0f;
 		XrVector3f_Distance( &currentDistance, &leftThumb, &rightThumb );
 
-        float fGestureDistanceFromPreviousFrame = currentDistance - g_fSkyboxScalingActivationDistance;
+        float fGestureDistanceFromPreviousFrame = currentDistance - g_fSkyboxScaleGestureDistanceOnActivate;
 		if (abs(fGestureDistanceFromPreviousFrame ) < k_fSkyboxScalingStride )
 			return;
 
