@@ -259,8 +259,11 @@ void ScaleSkybox()
 		float currentDistance = 0.0f;
 		XrVector3f_Distance( &currentDistance, &leftThumb, &rightThumb );
 
-		g_pRender->SetSkyboxVisibility( true );
-		float fScaleFactor = ( currentDistance - g_fSkyboxScalingActivationDistance ) * k_fSkyboxScalingStride;
+        float fGestureDistanceFromPreviousFrame = currentDistance - g_fSkyboxScalingActivationDistance;
+		if (abs(fGestureDistanceFromPreviousFrame ) < k_fSkyboxScalingStride )
+			return;
+
+		float fScaleFactor = fGestureDistanceFromPreviousFrame * k_fSkyboxScalingStride;
 		g_pRender->skybox->currentScale.x += fScaleFactor;
 		g_pRender->skybox->currentScale.y = g_pRender->skybox->currentScale.z = g_pRender->skybox->currentScale.x;
 	}
@@ -512,7 +515,6 @@ XrResult demo_openxr_start()
 	}
 
 	// (8.6) Optional - Set skybox
-	g_pRender->SetSkyboxVisibility( false );
 	g_pRender->skybox->currentScale = { 5.0f, 5.0f, 5.0f };
 	g_pRender->skybox->bApplyOffset = true;
 	g_pRender->skybox->offsetRotation = { 0.0f, 0.0f, 1.0f, 0.0f }; // rotate 180 degrees in z (roll)
