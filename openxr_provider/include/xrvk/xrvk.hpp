@@ -21,6 +21,9 @@
  *
  * Portions of this code are Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
  * SPDX-License-Identifier: MIT
+ * 
+ * Portions of this code Copyright (c) 2019-2022, The Khronos Group Inc.
+ * SPDX-License-Identifier: Apache-2.0
  *
  */
 
@@ -28,6 +31,79 @@
 
 #include "data_types.hpp"
 #include <future>
+
+
+namespace Shapes
+{
+	// Color constants
+	constexpr XrVector3f Red { 1, 0, 0 };
+	constexpr XrVector3f DarkRed { 0.25f, 0, 0 };
+	constexpr XrVector3f Green { 0, 1, 0 };
+	constexpr XrVector3f DarkGreen { 0, 0.25f, 0 };
+	constexpr XrVector3f Blue { 0, 0, 1 };
+	constexpr XrVector3f DarkBlue { 0, 0, 0.25f };
+
+	// Vertices for a 1x1x1 meter cube. (Left/Right, Top/Bottom, Front/Back)
+	constexpr XrVector3f LBB { -0.5f, -0.5f, -0.5f };
+	constexpr XrVector3f LBF { -0.5f, -0.5f, 0.5f };
+	constexpr XrVector3f LTB { -0.5f, 0.5f, -0.5f };
+	constexpr XrVector3f LTF { -0.5f, 0.5f, 0.5f };
+	constexpr XrVector3f RBB { 0.5f, -0.5f, -0.5f };
+	constexpr XrVector3f RBF { 0.5f, -0.5f, 0.5f };
+	constexpr XrVector3f RTB { 0.5f, 0.5f, -0.5f };
+	constexpr XrVector3f RTF { 0.5f, 0.5f, 0.5f };
+
+#define CUBE_SIDE( V1, V2, V3, V4, V5, V6, COLOR ) { V1, COLOR }, { V2, COLOR }, { V3, COLOR }, { V4, COLOR }, { V5, COLOR }, { V6, COLOR },
+
+	struct Vertex
+	{
+		XrVector3f Position;
+		XrVector3f Color;
+	};
+
+	struct Shape
+	{
+		XrPosef pose;
+		XrVector3f scale{ 1.0f, 1.0f, 1.0f };
+
+		xrvk::Buffer indexBuffer{};
+		xrvk::Buffer vertexBuffer{};
+
+		VkPipeline pipeline = VK_NULL_HANDLE;
+
+		std::vector< unsigned short > vecIndicies;
+		std::vector< Shapes::Vertex > vecVerticies;
+	};
+
+	struct Shape_Cube : Shape
+	{
+		Shape_Cube()
+		{
+			vecIndicies = 
+			{
+				0,	1,	2,	3,	4,	5,	// -X
+				6,	7,	8,	9,	10, 11, // +X
+				12, 13, 14, 15, 16, 17, // -Y
+				18, 19, 20, 21, 22, 23, // +Y
+				24, 25, 26, 27, 28, 29, // -Z
+				30, 31, 32, 33, 34, 35, // +Z
+			};
+
+			vecVerticies = 
+			{
+				CUBE_SIDE(LTB, LBF, LBB, LTB, LTF, LBF, DarkRed)	 // -X
+				CUBE_SIDE(RTB, RBB, RBF, RTB, RBF, RTF, Red)		 // +X
+				CUBE_SIDE(LBB, LBF, RBF, LBB, RBF, RBB, DarkGreen) // -Y
+				CUBE_SIDE(LTB, RTB, RTF, LTB, RTF, LTF, Green)	 // +Y
+				CUBE_SIDE(LBB, RBB, RTB, LBB, RTB, LTB, DarkBlue)	 // -Z
+				CUBE_SIDE(LBF, LTF, RTF, LBF, RTF, RBF, Blue)		 // +Z
+			};
+
+			XrPosef_Identity(&pose);
+		}
+	};
+
+} // namespace Shapes
 
 namespace xrvk
 {
@@ -70,6 +146,8 @@ namespace xrvk
 		};
 		Buffer skyboxUniformBuffer;
 		std::vector< UniformBufferSet > vecUniformBuffers;
+
+		std::vector< std::vector< Buffer > > vecvecUniformBuffers_Shapes;
 
 		struct VertexBufferSet
 		{
@@ -139,11 +217,14 @@ namespace xrvk
 		VkExtent2D vkExtent {};
 		VkDeviceSize vkDeviceSizeOffsets[ 1 ] = { 0 };
 		VkDescriptorPool vkDescriptorPool = VK_NULL_HANDLE;
+		
+		// pipelines
 		VkPipeline vkBoundPipeline = VK_NULL_HANDLE;
 
 		// pipeline layouts
 		VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
 		VkPipelineLayout vkPipelineLayoutVisMask = VK_NULL_HANDLE;
+		VkPipelineLayout vkPipelineLayoutShapes = VK_NULL_HANDLE;
 
 		// renderables
 		RenderModel *skybox = nullptr;
@@ -200,17 +281,28 @@ namespace xrvk
 		void GenerateCubemaps();
 		void GenerateBRDFLUT();
 
-		void PrepareUniformBuffers();
-		void UpdateUniformBuffers();
-
 		void SetupDescriptors();
 		void SetupNodeDescriptorSet( vkglTF::Node *node );
-		void PreparePipelines();
+
+		// Pipelines
+		void PrepareShapesPipeline( 
+			Shapes::Shape* shape,
+			std::string sVertexShader, 
+			std::string sFragmentShader,
+			VkPolygonMode vkPolygonMode = VK_POLYGON_MODE_FILL ); // basic geometry
+		void PreparePipelines(); // pbr
+
+		// Shaders
+		void PrepareUniformBuffers();
+		VkShaderModule CreateShaderModule(const std::string& sFilename);
+		VkPipelineShaderStageCreateInfo CreateShaderStage(VkShaderStageFlagBits flagShaderStage, VkShaderModule* pShaderModule, const std::string& sEntrypoint);
 
 		// Renderables handling
 		uint32_t AddRenderScene( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f } );
 		uint32_t AddRenderSector( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f }, XrSpace xrSpace = XR_NULL_HANDLE );
 		uint32_t AddRenderModel( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f }, XrSpace xrSpace = XR_NULL_HANDLE );
+
+		std::vector< Shapes::Shape* > vecShapes;
 
 		void CreateVisMasks( uint32_t unNum );
 
@@ -239,6 +331,42 @@ namespace xrvk
 
 			return VK_FALSE;
 		}
+
+		// Shader loading (bytecode only - spirv)
+#ifdef XR_USE_PLATFORM_ANDROID
+		std::vector< char > readFile( const std::string &filename )
+		{
+			AAsset *file = AAssetManager_open( m_pProvider->Instance()->androidActivity->assetManager, filename.c_str(), AASSET_MODE_BUFFER );
+			size_t fileLength = AAsset_getLength( file );
+			char *fileContent = new char[ fileLength ];
+			AAsset_read( file, fileContent, fileLength );
+			AAsset_close( file );
+
+			std::vector< char > vec( fileContent, fileContent + fileLength );
+			return vec;
+		}
+#else
+		static std::vector< char > readFile( const std::string &filename )
+		{
+			std::ifstream file( filename, std::ios::ate | std::ios::binary );
+
+			if ( !file.is_open() )
+			{
+				std::filesystem::path cwd = std::filesystem::current_path();
+				LogError( "Unable to read file: %s (%s)", filename.c_str(), cwd.generic_string().c_str() );
+				throw std::runtime_error( "failed to open file!" );
+			}
+
+			size_t fileSize = ( size_t )file.tellg();
+			std::vector< char > buffer( fileSize );
+
+			file.seekg( 0 );
+			file.read( buffer.data(), fileSize );
+
+			file.close();
+			return buffer;
+		}
+#endif
 
 	  private:
 		// general

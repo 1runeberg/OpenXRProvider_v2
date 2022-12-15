@@ -138,15 +138,33 @@ namespace oxr
 				result = xrPassthroughLayerResumeFB( passthroughLayer );
 
 				// Create a color map which maps each input value to a green ramp
-				XrPassthroughColorMapMonoToRgbaFB colorMap = { XR_TYPE_PASSTHROUGH_COLOR_MAP_MONO_TO_RGBA_FB };
-				for ( int i = 0; i < XR_PASSTHROUGH_COLOR_MAP_MONO_SIZE_FB; ++i )
-				{
-					float colorValue = i / 255.0f;
-					colorMap.textureColorMap[ i ] = { 0.0f, colorValue, 0.0f, 1.0f };
-				}
+				//XrPassthroughColorMapMonoToRgbaFB colorMap = { XR_TYPE_PASSTHROUGH_COLOR_MAP_MONO_TO_RGBA_FB };
+				//for ( int i = 0; i < XR_PASSTHROUGH_COLOR_MAP_MONO_SIZE_FB; ++i )
+				//{
+				//	float colorValue = (i / 255.0f) * .5;
+				//	colorMap.textureColorMap[ i ] = { colorValue, colorValue, colorValue, 1.0f };
+				//}
 
-				style.textureOpacityFactor = 0.5f;
-				style.edgeColor = { 1.0f, 1.0f, 0.0f, 0.5f };
+				//style.textureOpacityFactor = 0.5f;
+				//style.edgeColor = { 1.0f, 1.0f, 0.0f, 0.5f };
+				//style.next = &colorMap;
+				//result = xrPassthroughLayerSetStyleFB( passthroughLayer, &style );
+
+
+				//XrPassthroughColorMapMonoToMonoFB colorMap = { XR_TYPE_PASSTHROUGH_COLOR_MAP_MONO_TO_MONO_FB }; 
+				//for ( int i = 0; i < XR_PASSTHROUGH_COLOR_MAP_MONO_SIZE_FB; ++i )
+				//{
+				//	uint8_t colorValue = i;
+				//	colorMap.textureColorMap[ i ] = colorValue;
+				//}
+
+				XrPassthroughBrightnessContrastSaturationFB colorMap = { XR_TYPE_PASSTHROUGH_BRIGHTNESS_CONTRAST_SATURATION_FB };
+				colorMap.brightness = 0.0f;
+				colorMap.contrast = 1.0f;
+				colorMap.saturation = 1.5f;
+
+				style.textureOpacityFactor = 1.0f;
+				//style.edgeColor = { 1.0f, 1.0f, 1.0f, 0.5f };
 				style.next = &colorMap;
 				result = xrPassthroughLayerSetStyleFB( passthroughLayer, &style );
 			}
@@ -198,6 +216,35 @@ namespace oxr
 			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error - Unable to start passthrough: %s", XrEnumToString( result ) );
 
 		return result;
+	}
+
+	void ExtFBPassthrough::SetPassThroughParams( float fTextureOpacityFactor, XrColor4f xrEdgeColor ) 
+	{
+		SetPassThroughOpacityFactor(fTextureOpacityFactor);
+		SetPassThroughEdgeColor(xrEdgeColor);
+	}
+
+	XrResult ExtFBPassthrough::SetModeToDefault()
+	{
+		return XR_SUCCESS;
+	}
+
+
+	XrResult ExtFBPassthrough::SetModeToMono() 
+	{
+		return XR_SUCCESS;
+	}
+
+	XrResult ExtFBPassthrough::SetModeToColorMap( bool bRed, bool bGreen, bool bBlue, float fAlpha /*= 1.0f*/ ) 
+	{
+		return XR_SUCCESS;
+	}
+
+	
+
+	XrResult ExtFBPassthrough::SetModeToBCS( float fBrightness /*= 0.0f*/, float fContrast /*= 1.0f*/, float fSaturation /*= 1.0f*/ ) 
+	{
+		return XR_SUCCESS;
 	}
 
 } // namespace oxr

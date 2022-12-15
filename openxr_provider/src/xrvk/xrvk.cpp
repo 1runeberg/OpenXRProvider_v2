@@ -22,10 +22,13 @@
  * Portions of this code are Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
  * SPDX-License-Identifier: MIT
  *
+ * Portions of this code Copyright (c) 2019-2022, The Khronos Group Inc.
+ * SPDX-License-Identifier: Apache-2.0
+ *
  */
 
-#include <xrvk/xrvk.hpp>
 #include <xrvk/vulkanpbr/VulkanUtils.hpp>
+#include <xrvk/xrvk.hpp>
 
 namespace xrvk
 {
@@ -65,6 +68,9 @@ namespace xrvk
 		if ( skybox != nullptr )
 			delete skybox;
 
+		for ( auto &shape : vecShapes )
+			delete shape;
+
 		for ( auto &renderable : vecRenderScenes )
 			delete renderable;
 
@@ -74,13 +80,21 @@ namespace xrvk
 		for ( auto &renderable : vecRenderModels )
 			delete renderable;
 
-		// free vulkan resources
+		// free vulkan descriptor pool
 		if ( vkDescriptorPool != VK_NULL_HANDLE )
 			vkDestroyDescriptorPool( m_SharedState.vkDevice, vkDescriptorPool, nullptr );
 
+		// free vulkan pipeline layouts
 		if ( vkPipelineLayout != VK_NULL_HANDLE )
 			vkDestroyPipelineLayout( m_SharedState.vkDevice, vkPipelineLayout, nullptr );
 
+		if ( vkPipelineLayoutVisMask != VK_NULL_HANDLE )
+			vkDestroyPipelineLayout( m_SharedState.vkDevice, vkPipelineLayoutVisMask, nullptr );
+
+		if ( vkPipelineLayoutShapes != VK_NULL_HANDLE )
+			vkDestroyPipelineLayout( m_SharedState.vkDevice, vkPipelineLayoutShapes, nullptr );
+
+		// vulkan device cleanup
 		if ( m_pVulkanDevice )
 			delete m_pVulkanDevice;
 	}
@@ -405,24 +419,48 @@ namespace xrvk
 			skybox->gltfModel.draw( m_vecFrameData[ 0 ].vkCommandBuffer );
 		}
 
-		// (14) Draw all renderables (recording command buffer)
+		// (14) Draw basic geometry if present
+		for ( auto &shape : vecShapes )
+		{
+			// Bind the graphics pipeline for this shape
+			vkCmdBindPipeline( m_vecFrameData[ 0 ].vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shape->pipeline );
 
-		// (14.1) Update renderables current poses
+			// Bind shape's index and vertex buffers
+			const VkDeviceSize offsets[ 1 ] = { 0 };
+			vkCmdBindIndexBuffer( m_vecFrameData[ 0 ].vkCommandBuffer, shape->indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16 );
+			vkCmdBindVertexBuffers( m_vecFrameData[ 0 ].vkCommandBuffer, 0, 1, &shape->vertexBuffer.buffer, offsets );
+
+			// Compute the model-view-projection transform and push as a vertex shader constant
+			XrMatrix4x4f model;
+			XrMatrix4x4f_CreateTranslationRotationScale( &model, &shape->pose.position, &shape->pose.orientation, &shape->scale );
+
+			XrMatrix4x4f mvp;
+			XrMatrix4x4f_Multiply( &mvp, &matViewProjection, &model );
+
+			vkCmdPushConstants( m_vecFrameData[ 0 ].vkCommandBuffer, vkPipelineLayoutShapes, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof( mvp.m ), &mvp.m[ 0 ] );
+
+			// Draw the shape
+			vkCmdDrawIndexed( m_vecFrameData[ 0 ].vkCommandBuffer, shape->indexBuffer.count, 1, 0, 0, 0 );
+		}
+
+		// (15) Draw all renderables (recording command buffer)
+
+		// (15.1) Update renderables current poses
 		UpdateRenderablePoses( pSession, pFrameState );
 
-		// (14.2) Update renderables shader values UBOs
+		// (15.2) Update renderables shader values UBOs
 		UpdateUniformBuffers( &uboMatricesScene, &currentUB.scene, &matViewProjection, eyePose );
 
-		// (14.3) Copy pbr properties to gpu
+		// (15.3) Copy pbr properties to gpu
 		memcpy( currentUB.params.mapped, &shaderValuesPbrParams, sizeof( shaderValuesPbrParams ) );
 
-		// (14.4) Draw renderables
+		// (15.4) Draw renderables
 		RenderGltfScenes();
 
-		// (15) End render pass
+		// (16) End render pass
 		vkCmdEndRenderPass( m_vecFrameData[ 0 ].vkCommandBuffer );
 
-		// (16) Close command buffer recording
+		// (17) Close command buffer recording
 		vkEndCommandBuffer( m_vecFrameData[ 0 ].vkCommandBuffer );
 	}
 
@@ -624,19 +662,19 @@ namespace xrvk
 		// Scenes
 		for ( auto &renderable : vecRenderScenes )
 		{
-			LoadGltfScene (renderable );
+			LoadGltfScene( renderable );
 		}
 
 		// Sectors
 		for ( auto &renderable : vecRenderSectors )
 		{
-			LoadGltfScene ( renderable );
+			LoadGltfScene( renderable );
 		}
 
 		// Models
 		for ( auto &renderable : vecRenderModels )
 		{
-			LoadGltfScene (renderable );
+			LoadGltfScene( renderable );
 		}
 	}
 
@@ -1521,6 +1559,37 @@ namespace xrvk
 		}
 	}
 
+	VkShaderModule Render::CreateShaderModule( const std::string &sFilename )
+	{
+		auto spirvShaderCode = readFile( sFilename );
+
+		// Create shader module
+		VkShaderModuleCreateInfo createInfo {};
+		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		createInfo.codeSize = spirvShaderCode.size();
+		createInfo.pCode = reinterpret_cast< const uint32_t * >( spirvShaderCode.data() );
+
+		VkShaderModule shaderModule;
+		if ( vkCreateShaderModule( m_pVulkanDevice->logicalDevice, &createInfo, nullptr, &shaderModule ) != VK_SUCCESS )
+		{
+			throw std::runtime_error( "failed to create shader module!" );
+		}
+
+		return shaderModule;
+	}
+
+	VkPipelineShaderStageCreateInfo Render::CreateShaderStage( VkShaderStageFlagBits flagShaderStage, VkShaderModule *pShaderModule, const std::string &sEntrypoint )
+	{
+		// Create shader stage
+		VkPipelineShaderStageCreateInfo shaderStageInfo {};
+		shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		shaderStageInfo.stage = flagShaderStage;
+		shaderStageInfo.module = *pShaderModule;
+		shaderStageInfo.pName = sEntrypoint.c_str();
+
+		return shaderStageInfo;
+	}
+
 	void Render::UpdateUniformBuffers( UBOMatrices *uboMatrices, Buffer *buffer, RenderSceneBase *renderable, XrMatrix4x4f *matViewProjection, XrPosef *eyePose )
 	{
 		if ( !renderable->bIsVisible )
@@ -1923,6 +1992,152 @@ namespace xrvk
 		{
 			SetupNodeDescriptorSet( child );
 		}
+	}
+
+	void Render::PrepareShapesPipeline( Shapes::Shape *shape, std::string sVertexShader, std::string sFragmentShader, VkPolygonMode vkPolygonMode )
+	{
+		assert( shape );
+
+		// (1) Create pipeline layout if it doesn't exist
+		if ( vkPipelineLayoutShapes == VK_NULL_HANDLE )
+		{
+			VkPushConstantRange vkPCR = {};
+			vkPCR.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+			vkPCR.offset = 0;
+			vkPCR.size = 4 * 4 * sizeof( float );
+
+			VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+			pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+			pipelineLayoutCreateInfo.pPushConstantRanges = &vkPCR;
+			vkCreatePipelineLayout( m_pVulkanDevice->logicalDevice, &pipelineLayoutCreateInfo, nullptr, &vkPipelineLayoutShapes );
+		}
+
+		// (2) Define programmable stages
+		auto vertShader = CreateShaderModule( sVertexShader );
+		auto fragShader = CreateShaderModule( sFragmentShader );
+
+		std::string sFunctionEntrypoint = "main";
+		auto vertShaderStage = CreateShaderStage( VK_SHADER_STAGE_VERTEX_BIT, &vertShader, sFunctionEntrypoint );
+		auto fragShaderStage = CreateShaderStage( VK_SHADER_STAGE_FRAGMENT_BIT, &fragShader, sFunctionEntrypoint );
+
+		std::vector< VkPipelineShaderStageCreateInfo > shaderStages = { vertShaderStage, fragShaderStage };
+
+		// (3) Create and allocate memory buffers
+		uint32_t unCountIndices = static_cast< uint32_t >( shape->vecIndicies.size() );
+		uint32_t unCountVertices = static_cast< uint32_t >( shape->vecVerticies.size() );
+
+		shape->indexBuffer.create(
+			m_pVulkanDevice,
+			VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			sizeof( uint16_t ) * unCountIndices,
+			shape->vecIndicies.data() );
+
+		shape->indexBuffer.count = unCountIndices;
+
+		shape->vertexBuffer.create(
+			m_pVulkanDevice,
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			sizeof( Shapes::Vertex ) * unCountVertices,
+			shape->vecVerticies.data() );
+
+		shape->vertexBuffer.count = unCountVertices;
+
+		// (4) Define fixed Function stages
+		VkVertexInputBindingDescription vertexInputBinding = { 0, sizeof( Shapes::Vertex ), VK_VERTEX_INPUT_RATE_VERTEX };
+		std::vector< VkVertexInputAttributeDescription > vertexInputAttributes = {
+			{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof( Shapes::Vertex, Position ) }, { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof( Shapes::Vertex, Color ) } };
+
+		VkPipelineVertexInputStateCreateInfo vertexInputInfo { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+		vertexInputInfo.vertexBindingDescriptionCount = 1;
+		vertexInputInfo.pVertexBindingDescriptions = &vertexInputBinding;
+		vertexInputInfo.vertexAttributeDescriptionCount = static_cast< uint32_t >( vertexInputAttributes.size() );
+		vertexInputInfo.pVertexAttributeDescriptions = vertexInputAttributes.data();
+
+		std::vector< VkDynamicState > vecDynamicStates; // = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+		VkPipelineDynamicStateCreateInfo dynamicState { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+		dynamicState.dynamicStateCount = static_cast< uint32_t >( vecDynamicStates.size() );
+		dynamicState.pDynamicStates = vecDynamicStates.data();
+
+		VkPipelineInputAssemblyStateCreateInfo inputAssembly { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+		inputAssembly.primitiveRestartEnable = VK_FALSE;
+		inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+		VkPipelineRasterizationStateCreateInfo rasterizer { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+		rasterizer.polygonMode = vkPolygonMode; // todo: enable dynamic state for this
+		rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+		rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+		rasterizer.depthClampEnable = VK_FALSE;
+		rasterizer.rasterizerDiscardEnable = VK_FALSE;
+		rasterizer.depthBiasEnable = VK_FALSE;
+		rasterizer.depthBiasConstantFactor = 0;
+		rasterizer.depthBiasClamp = 0;
+		rasterizer.depthBiasSlopeFactor = 0;
+		rasterizer.lineWidth = 1.0f;
+
+		VkPipelineColorBlendAttachmentState colorBlendAttachment {};
+		colorBlendAttachment.blendEnable = 0;
+		colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+		colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+		colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+		colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+		colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+		colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+		colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+		VkPipelineColorBlendStateCreateInfo colorBlending { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+		colorBlending.attachmentCount = 1;
+		colorBlending.pAttachments = &colorBlendAttachment;
+		colorBlending.logicOpEnable = VK_FALSE;
+		colorBlending.logicOp = VK_LOGIC_OP_NO_OP;
+		colorBlending.blendConstants[ 0 ] = 1.0f;
+		colorBlending.blendConstants[ 1 ] = 1.0f;
+		colorBlending.blendConstants[ 2 ] = 1.0f;
+		colorBlending.blendConstants[ 3 ] = 1.0f;
+
+		VkRect2D scissor = { { 0, 0 }, vkExtent };
+
+		// Will invert y after projection
+		VkViewport viewport = { 0.0f, 0.0f, ( float )vkExtent.width, ( float )vkExtent.height, 0.0f, 1.0f };
+
+		VkPipelineViewportStateCreateInfo viewportState { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+		viewportState.viewportCount = 1;
+		viewportState.pViewports = &viewport;
+		viewportState.scissorCount = 1;
+		viewportState.pScissors = &scissor;
+
+		VkPipelineMultisampleStateCreateInfo multisampling { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+		multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+		VkGraphicsPipelineCreateInfo pipeInfo { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+		pipeInfo.stageCount = ( uint32_t )shaderStages.size();
+		pipeInfo.pStages = shaderStages.data();
+		pipeInfo.pVertexInputState = &vertexInputInfo;
+		pipeInfo.pInputAssemblyState = &inputAssembly;
+		pipeInfo.pTessellationState = nullptr;
+		pipeInfo.pViewportState = &viewportState;
+		pipeInfo.pRasterizationState = &rasterizer;
+		pipeInfo.pMultisampleState = &multisampling;
+		pipeInfo.pDepthStencilState = nullptr;
+		pipeInfo.pColorBlendState = &colorBlending;
+
+		if ( dynamicState.dynamicStateCount > 0 )
+		{
+			pipeInfo.pDynamicState = &dynamicState;
+		}
+
+		pipeInfo.layout = vkPipelineLayoutShapes;
+		pipeInfo.renderPass = m_vecRenderPasses[ 0 ];
+		pipeInfo.subpass = 0;
+
+		// (5) Finally, create the graphics pipeline - whew!
+		VkPipeline shapesPipeline = VK_NULL_HANDLE;
+		VkResult vkResult = vkCreateGraphicsPipelines( m_pVulkanDevice->logicalDevice, VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &shape->pipeline );
+
+		// (6) Cleanup
+		vkDestroyShaderModule( m_pVulkanDevice->logicalDevice, vertShader, nullptr );
+		vkDestroyShaderModule( m_pVulkanDevice->logicalDevice, fragShader, nullptr );
 	}
 
 	void Render::PreparePipelines()

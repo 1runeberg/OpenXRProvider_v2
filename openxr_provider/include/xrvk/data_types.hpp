@@ -199,7 +199,7 @@ namespace xrvk
 
 		// functions
 		glm::vec3 GetScale() { return glm::vec3( currentScale.x, currentScale.y, currentScale.z ); }
-		glm::vec3 GetPosition() { return glm::vec3( currentPose.position.x, currentPose.position.y, currentPose.position.z ); }
+		virtual glm::vec3 GetPosition() = 0;
 		glm::quat GetRotation() { return glm::quat( currentPose.orientation.w, currentPose.orientation.x, currentPose.orientation.y, currentPose.orientation.z ); }
 	};
 
@@ -211,6 +211,7 @@ namespace xrvk
 		}
 		~RenderScene() {}
 
+		glm::vec3 GetPosition() override { return glm::vec3( currentPose.position.x, currentPose.position.y, currentPose.position.z ); }
 		void GetMatrix( XrMatrix4x4f *matrix ) override;
 	};
 
@@ -224,6 +225,7 @@ namespace xrvk
 		}
 		~RenderSector() {}
 
+		glm::vec3 GetPosition() override { return glm::vec3( currentPose.position.x, currentPose.position.y, currentPose.position.z ); }
 		void GetMatrix( XrMatrix4x4f *matrix ) override;
 	};
 
@@ -240,6 +242,19 @@ namespace xrvk
 		}
 		~RenderModel() {}
 
+		uint32_t unOffset = 0;
+		glm::vec3 GetPosition() override
+		{ 
+			XrVector3f newPos;
+			XrVector3f_Add(&newPos, &currentPose.position, &offsetPosition);
+
+			 LogDebug( "NewPos: %f, %f, %f",
+				offsetPosition.x,
+				offsetPosition.y,
+				offsetPosition.z);
+
+			return glm::vec3( newPos.x, newPos.y, newPos.z );
+		}
 		void GetMatrix( XrMatrix4x4f *matrix ) override;
 	};
 } // namespace xrvk

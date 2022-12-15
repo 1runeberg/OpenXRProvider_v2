@@ -134,7 +134,7 @@ namespace oxr
 
 		XrResult xrResult = xrLocateHandJointsEXT( bIsLeftHand ? m_HandTracker_Left : m_HandTracker_Right, &xrHandJointsLocateInfo, bIsLeftHand ? &m_xrLocations_Left : &m_xrLocations_Right );
 
-		if ( XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 		{
 			LogWarning( LOG_CATEGORY_HANDTRACKING, "Unable to retrieve handtracking data in this frame: %s", XrEnumToString( xrResult ) );
 			return false;

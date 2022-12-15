@@ -41,45 +41,72 @@ namespace oxr
 	class ExtFBPassthrough : public ExtBase
 	{
 
-public:
+	  public:
+		enum class EPassthroughMode
+		{
+			EPassthroughMode_Basic = 0,
+			EPassthroughMode_DynamicRamp = 1,
+			EPassthroughMode_GreenRampYellowEdges = 2,
+			EPassthroughMode_Masked = 3,
+			EPassthroughMode_ProjQuad = 4,
+			EPassthroughMode_Stopped = 5,
+			EPassthroughMode_Max
+		};
+		/// <summary>
+		///
+		/// </summary>
+		/// <param name="appSpace"></param>
+		/// <returns></returns>
+		ExtFBPassthrough( XrInstance xrInstance, XrSession xrSession );
 
-	enum class EPassthroughMode
-	{
-		EPassthroughMode_Basic = 0,
-		EPassthroughMode_DynamicRamp = 1,
-		EPassthroughMode_GreenRampYellowEdges = 2,
-		EPassthroughMode_Masked = 3,
-		EPassthroughMode_ProjQuad = 4,
-		EPassthroughMode_Stopped = 5,
-		EPassthroughMode_Max
-	};
+		XrResult Init( XrSpace appSpace );
 
-		ExtFBPassthrough(XrInstance xrInstance, XrSession xrSession);
-	
-		XrResult Init(XrSpace appSpace);
+		XrResult SetPassThroughStyle( EPassthroughMode eMode );
 
-		XrResult SetPassThroughStyle(EPassthroughMode eMode);
 		XrResult StartPassThrough();
 
-		XrCompositionLayerPassthroughFB* GetCompositionLayer() { return &m_FBPassthroughCompositionLayer; }
+		void SetPassThroughOpacityFactor( float fTextureOpacityFactor ) { style.textureOpacityFactor = fTextureOpacityFactor; }
 
-	private:
+		void SetPassThroughEdgeColor( XrColor4f xrEdgeColor ) { style.edgeColor = xrEdgeColor; }
+
+		void SetPassThroughParams( float fTextureOpacityFactor, XrColor4f xrEdgeColor );
+
+		XrResult SetModeToDefault();
+
+		XrResult SetModeToMono();
+
+		XrResult SetModeToColorMap( bool bRed, bool bGreen, bool bBlue, float fAlpha = 1.0f );
+
+		/// <summary>
+		/// Sets the passthrough mode style to BrightnessContrastSaturation,
+		/// allowing you change the brightness, contrast and saturation independently of one another.
+		/// Note that the default values are the "neutral" values (i.e. no effect against default/basic style)
+		/// </summary>
+		/// <param name="fBrightness">Brightness adjustment value in the range[ -100, 100 ] Neutral is 0.0f</param>
+		/// <param name="fContrast">Contrast adjustment value in the range[ 0, Infinity ] Neutral element is 1.0f</param>
+		/// <param name="fSaturation">Saturation adjustment value in the range[ 0, Infinity ] Neutral element is 1.0f</param>
+		/// <returns>Result mode change from the runtime</returns>
+		XrResult SetModeToBCS( float fBrightness = 0.0f, float fContrast = 1.0f, float fSaturation = 1.0f );
+
+		XrCompositionLayerPassthroughFB *GetCompositionLayer() { return &m_FBPassthroughCompositionLayer; }
+
+	  private:
 		XrInstance m_xrInstance = XR_NULL_HANDLE;
 		XrSession m_xrSession = XR_NULL_HANDLE;
 
 		// function pointers for this spec
-		PFN_xrCreatePassthroughFB  xrCreatePassthroughFB = nullptr;
+		PFN_xrCreatePassthroughFB xrCreatePassthroughFB = nullptr;
 		PFN_xrDestroyPassthroughFB xrDestroyPassthroughFB = nullptr;
-		PFN_xrPassthroughStartFB  xrPassthroughStartFB = nullptr;
+		PFN_xrPassthroughStartFB xrPassthroughStartFB = nullptr;
 		PFN_xrPassthroughPauseFB xrPassthroughPauseFB = nullptr;
-		PFN_xrCreatePassthroughLayerFB  xrCreatePassthroughLayerFB = nullptr;
+		PFN_xrCreatePassthroughLayerFB xrCreatePassthroughLayerFB = nullptr;
 		PFN_xrDestroyPassthroughLayerFB xrDestroyPassthroughLayerFB = nullptr;
 		PFN_xrPassthroughLayerSetStyleFB xrPassthroughLayerSetStyleFB = nullptr;
 		PFN_xrPassthroughLayerPauseFB xrPassthroughLayerPauseFB = nullptr;
-		PFN_xrPassthroughLayerResumeFB  xrPassthroughLayerResumeFB = nullptr;
+		PFN_xrPassthroughLayerResumeFB xrPassthroughLayerResumeFB = nullptr;
 		PFN_xrCreateTriangleMeshFB xrCreateTriangleMeshFB = nullptr;
 		PFN_xrDestroyTriangleMeshFB xrDestroyTriangleMeshFB = nullptr;
-		PFN_xrTriangleMeshGetVertexBufferFB  xrTriangleMeshGetVertexBufferFB = nullptr;
+		PFN_xrTriangleMeshGetVertexBufferFB xrTriangleMeshGetVertexBufferFB = nullptr;
 		PFN_xrTriangleMeshGetIndexBufferFB xrTriangleMeshGetIndexBufferFB = nullptr;
 		PFN_xrTriangleMeshBeginUpdateFB xrTriangleMeshBeginUpdateFB = nullptr;
 		PFN_xrTriangleMeshEndUpdateFB xrTriangleMeshEndUpdateFB = nullptr;
@@ -92,14 +119,14 @@ public:
 		XrPassthroughLayerFB passthroughLayer = XR_NULL_HANDLE;
 		XrPassthroughLayerFB reconPassthroughLayer = XR_NULL_HANDLE;
 		XrPassthroughLayerFB geomPassthroughLayer = XR_NULL_HANDLE;
-		//XrGeometryInstanceFB geomInstance = XR_NULL_HANDLE;
+		// XrGeometryInstanceFB geomInstance = XR_NULL_HANDLE;
 
 		// passthrough style
-		XrPassthroughStyleFB style{XR_TYPE_PASSTHROUGH_STYLE_FB};
-	    float clearColor[4] = {0.0f, 0.0f, 0.0f, 0.2f};
+		XrPassthroughStyleFB style { XR_TYPE_PASSTHROUGH_STYLE_FB };
+		float clearColor[ 4 ] = { 0.0f, 0.0f, 0.0f, 0.2f };
 
 		// layers
-		XrCompositionLayerPassthroughFB m_FBPassthroughCompositionLayer{XR_TYPE_COMPOSITION_LAYER_PASSTHROUGH_FB};
+		XrCompositionLayerPassthroughFB m_FBPassthroughCompositionLayer { XR_TYPE_COMPOSITION_LAYER_PASSTHROUGH_FB };
 	};
 
 } // namespace oxr

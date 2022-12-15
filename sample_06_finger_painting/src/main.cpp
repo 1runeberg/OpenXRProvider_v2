@@ -46,6 +46,7 @@ XrSessionState g_sessionState = XR_SESSION_STATE_UNKNOWN;
 XrFrameState m_xrFrameState { XR_TYPE_FRAME_STATE };
 std::vector< XrCompositionLayerProjectionView > g_vecFrameLayerProjectionViews;
 std::vector< XrCompositionLayerBaseHeader * > g_vecFrameLayers;
+XrTime g_LastPredictedDisplayTime = 0;
 
 /**
  * These are utility functions to check game loop conditions
@@ -101,6 +102,14 @@ bool CheckGameLoopExit( oxr::Provider *oxrProvider ) { return oxrProvider->Sessi
 void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 {
 	g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
+
+	// Finger paint every half a second
+	if ((m_xrFrameState.predictedDisplayTime - g_LastPredictedDisplayTime) > 500000000 )
+	{
+		g_LastPredictedDisplayTime = m_xrFrameState.predictedDisplayTime;
+		
+		//oxr::LogInfo(LOG_CATEGORY_DEMO, "Add vertex here %" PRIu64, g_LastPredictedDisplayTime);
+	}
 }
 
 void PostRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex ) { g_pRender->EndRender(); }
@@ -202,7 +211,7 @@ XrResult demo_openxr_start()
 	if ( g_extFBPassthrough && g_pSession->GetAppSpace() != XR_NULL_HANDLE )
 	{
 		if ( XR_UNQUALIFIED_SUCCESS( g_extFBPassthrough->Init( g_pSession->GetAppSpace() ) ) )
-			g_extFBPassthrough->SetPassThroughStyle( oxr::ExtFBPassthrough::EPassthroughMode::EPassthroughMode_Basic );
+			g_extFBPassthrough->SetPassThroughStyle( oxr::ExtFBPassthrough::EPassthroughMode::EPassthroughMode_GreenRampYellowEdges );
 	}
 	// (7) Create swapchains for rendering
 
@@ -232,8 +241,17 @@ XrResult demo_openxr_start()
 	// (8.2) Initialize render resources
 	g_pRender->CreateRenderResources( g_pSession, selectedTextureFormats.vkColorTextureFormat, selectedTextureFormats.vkDepthTextureFormat, vkExtent );
 
+	// (8.3) Optional: Add any shape pipelines
+	Shapes::Shape_Cube cubeIndex{};
+	g_pRender->PrepareShapesPipeline(&cubeIndex, "shaders/shape.vert.spv", "shaders/shape.frag.spv");
+
+	g_pRender->vecShapes.push_back(&cubeIndex);
+
 	// (8.3) Add Render Scenes to render (will spawn in world origin)
 	g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
+	//g_pRender->AddRenderModel( "models/test_sphere.glb", { .01f, .01f, .01f } );
+	//g_pRender->AddRenderScene( "models/openxr_proxy_right.glb", { .1f, .1f, .1f } );
+
 
 	// (8.4) Add Render Sectors and Render Models (will spawn based on defined reference space and/or offsets from world origin)
 	XrSpace spaceFront;
@@ -243,7 +261,7 @@ XrResult demo_openxr_start()
 	// oxrProvider->Session()->CreateReferenceSpace( &spaceLeft, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.5f, 0.5f, -0.5f, 0.5f }, { -1.0f, 1.0f, 0.0f } } ); // 1m left 1m up, rotated x: 90, y: 0, z: 90
 
 	// g_pRender->AddRenderModel( "models/DamagedHelmet.glb", { 0.25f, 0.25f, 0.25f }, spaceLeft );
-	g_pRender->AddRenderSector( "models/EnvironmentTest/EnvironmentTest.gltf", { 0.2f, 0.2f, 0.2f }, spaceFront );
+	//g_pRender->AddRenderSector( "models/EnvironmentTest/EnvironmentTest.gltf", { 0.2f, 0.2f, 0.2f }, spaceFront );
 
 	// (8.5) Optional - Set vismask if present
 	oxr::ExtVisMask *pVisMask = static_cast< oxr::ExtVisMask * >( oxrProvider->Instance()->extHandler.GetExtension( XR_KHR_VISIBILITY_MASK_EXTENSION_NAME ) );
@@ -355,6 +373,7 @@ XrResult demo_openxr_start()
 
 			//  (13.1) Define projection layers to render
 			XrCompositionLayerFlags xrCompositionLayerFlags = 0;
+			g_vecFrameLayers.clear();
 			if ( g_extFBPassthrough )
 			{
 				xrCompositionLayerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT | 
@@ -366,6 +385,38 @@ XrResult demo_openxr_start()
 
 			g_vecFrameLayerProjectionViews.resize( oxrProvider->Session()->GetSwapchains().size(), { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } );
 			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, g_vecFrameLayers, &m_xrFrameState, xrCompositionLayerFlags );
+
+			// (14) ...
+			if ( g_extHandTracking && m_xrFrameState.shouldRender )
+			{
+				// TODO: move to callbacks
+				g_extHandTracking->LocateHandJoints( XR_HAND_LEFT_EXT, g_pSession->GetAppSpace(), m_xrFrameState.predictedDisplayTime );
+				g_extHandTracking->LocateHandJoints( XR_HAND_RIGHT_EXT, g_pSession->GetAppSpace(), m_xrFrameState.predictedDisplayTime );
+
+				XrHandJointLocationsEXT *xrHandJointLocations_Left = g_extHandTracking->GetHandJointLocations( XR_HAND_LEFT_EXT );
+
+				if ( xrHandJointLocations_Left->isActive )
+				{
+					Shapes::Shape* cubeRef = g_pRender->vecShapes.back();
+					
+					if (cubeRef)
+					{
+						cubeRef->pose = xrHandJointLocations_Left->jointLocations[XR_HAND_JOINT_INDEX_TIP_EXT].pose;
+						cubeRef->scale = { xrHandJointLocations_Left->jointLocations->radius, xrHandJointLocations_Left->jointLocations->radius, xrHandJointLocations_Left->jointLocations->radius };
+					
+						Shapes::Shape_Cube *newShape = new Shapes::Shape_Cube;
+						newShape->indexBuffer = cubeRef->indexBuffer;
+						newShape->vertexBuffer = cubeRef->vertexBuffer;
+						newShape->pipeline = cubeRef->pipeline;
+						newShape->pose = cubeRef->pose;
+						newShape->scale = cubeRef->scale;
+
+						g_pRender->vecShapes.push_back( newShape );
+					
+					}
+				}
+
+			}
 		}
 	}
 
