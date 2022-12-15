@@ -59,7 +59,19 @@ bool g_bSaturationAdjustmentActivated = false;
 float g_fSaturationValueOnActivation = 0.0f;
 float g_fCurrentSaturationValue = 0.0f;
 
+bool g_bClapActive = false;
+uint16_t g_unPassthroughFXCycleStage = 0;
+enum class EPassthroughFXMode
+{
+	EPassthroughFXMode_None = 0,
+	EPassthroughFXMode_EdgeOn = 1,
+	EPassthroughFXMode_Amber = 2,
+	EPassthroughFXMode_Purple = 3,
+	EPassthroughMode_Max
+} g_eCurrentPassthroughFXMode;
+
 static const float k_fGestureActivationThreshold = 0.025f;
+static const float k_fClapActivationThreshold = 0.07f;
 static const float k_fSkyboxScalingStride = 0.05f;
 static const float k_fSaturationAdjustmentStride = 0.1f;
 
@@ -200,38 +212,34 @@ bool IsTwoHandedGestureActive(
 	bool *outActivated,
 	float *fCacheValue )
 {
-	// Check if hand tracking is available
-	if ( g_extHandTracking )
+	// Get latest hand joints
+	XrHandJointLocationsEXT *leftHand = g_extHandTracking->GetHandJointLocations( XR_HAND_LEFT_EXT );
+	XrHandJointLocationsEXT *rightHand = g_extHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT );
+
+	XrHandJointLocationEXT *leftJoints = leftHand->jointLocations;
+	XrHandJointLocationEXT *rightJoints = rightHand->jointLocations;
+
+	// Check if both left and right hands are tracking
+	// and the provided joint a and joint b on both hands have valid positions
+	if ( leftHand->isActive && rightHand->isActive && ( leftJoints[ leftJointA ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
+		 ( leftJoints[ leftJointB ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 && ( rightJoints[ rightJointA ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
+		 ( rightJoints[ rightJointB ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
 	{
-		// Get latest hand joints
-		XrHandJointLocationsEXT *leftHand = g_extHandTracking->GetHandJointLocations( XR_HAND_LEFT_EXT );
-		XrHandJointLocationsEXT *rightHand = g_extHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT );
+		// Check gesture
+		float fDistance = 0.0f;
 
-		XrHandJointLocationEXT *leftJoints = leftHand->jointLocations;
-		XrHandJointLocationEXT *rightJoints = rightHand->jointLocations;
+		*outReferencePosition_Left = leftJoints[ leftJointB ].pose.position;
+		XrVector3f_Distance( &fDistance, &leftJoints[ leftJointA ].pose.position, outReferencePosition_Left );
 
-		// Check if both left and right hands are tracking
-		// and the provided joint a and joint b on both hands have valid positions
-		if ( leftHand->isActive && rightHand->isActive && ( leftJoints[ leftJointA ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
-			 ( leftJoints[ leftJointB ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 && ( rightJoints[ rightJointA ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
-			 ( rightJoints[ rightJointB ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
+		if ( fDistance < k_fGestureActivationThreshold )
 		{
-			// Check gesture
-			float fDistance = 0.0f;
-
-			*outReferencePosition_Left = leftJoints[ leftJointB ].pose.position;
-			XrVector3f_Distance( &fDistance, &leftJoints[ leftJointA ].pose.position, outReferencePosition_Left );
+			*outReferencePosition_Right = rightJoints[ rightJointB ].pose.position;
+			XrVector3f_Distance( &fDistance, &rightJoints[ rightJointA ].pose.position, outReferencePosition_Right );
 
 			if ( fDistance < k_fGestureActivationThreshold )
 			{
-				*outReferencePosition_Right = rightJoints[ rightJointB ].pose.position;
-				XrVector3f_Distance( &fDistance, &rightJoints[ rightJointA ].pose.position, outReferencePosition_Right );
-
-				if ( fDistance < k_fGestureActivationThreshold )
-				{
-					*outActivated = true;
-					return true;
-				}
+				*outActivated = true;
+				return true;
 			}
 		}
 	}
@@ -271,6 +279,10 @@ bool IsSaturationAdjustmentActive( XrVector3f *outThumbPosition_Left, XrVector3f
 
 void ScaleSkybox()
 {
+	// Check for required extensions
+	if ( g_extHandTracking == nullptr )
+		return;
+
 	// Check if gesture was activated on a previous frame
 	bool bGestureActivedOnPreviousFrame = g_bSkyboxScalingActivated;
 
@@ -300,8 +312,8 @@ void ScaleSkybox()
 
 void AdjustPassthroughSaturation()
 {
-	// Check for passthrough extension
-	if ( g_extFBPassthrough == nullptr )
+	// Check for required extensions
+	if ( g_extFBPassthrough == nullptr || g_extHandTracking == nullptr )
 		return;
 
 	// Check if gesture was activated on a previous frame
@@ -327,8 +339,77 @@ void AdjustPassthroughSaturation()
 
 		g_fCurrentSaturationValue = fGestureDistanceFromPreviousFrame * k_fSaturationAdjustmentStride * 100;
 		g_fCurrentSaturationValue = g_fCurrentSaturationValue < 0.0f ? 0.0f : g_fCurrentSaturationValue;
-		g_extFBPassthrough->SetModeToBCS(0.0f, 1.0f, g_fCurrentSaturationValue);
+		g_extFBPassthrough->SetModeToBCS( 0.0f, 1.0f, g_fCurrentSaturationValue );
 	}
+}
+
+void CyclePassthroughFX()
+{
+	switch (g_eCurrentPassthroughFXMode)
+	{
+	case EPassthroughFXMode::EPassthroughFXMode_None:
+		// Enable edges
+		g_extFBPassthrough->SetModeToDefault();
+		g_extFBPassthrough->SetPassThroughEdgeColor({ 0.0f, 1.0f, 1.0f, 1.0f });
+		g_eCurrentPassthroughFXMode = EPassthroughFXMode::EPassthroughFXMode_EdgeOn;
+		break;
+	case EPassthroughFXMode::EPassthroughFXMode_EdgeOn:
+		// Set to amber
+		g_extFBPassthrough->SetModeToColorMap(true, true, false);
+		g_eCurrentPassthroughFXMode = EPassthroughFXMode::EPassthroughFXMode_Amber;
+		break;
+	case EPassthroughFXMode::EPassthroughFXMode_Amber:
+		// Set to purple
+		g_extFBPassthrough->SetModeToColorMap(true, false, true);
+		g_eCurrentPassthroughFXMode = EPassthroughFXMode::EPassthroughFXMode_Purple;
+		break;
+	case EPassthroughFXMode::EPassthroughFXMode_Purple:
+	case EPassthroughFXMode::EPassthroughMode_Max:
+	default:
+		// Reset
+		g_extFBPassthrough->SetModeToDefault();
+		g_eCurrentPassthroughFXMode = EPassthroughFXMode::EPassthroughFXMode_None;
+		break;
+	}
+}
+
+void Clap()
+{
+	// Check for required extensions
+	if ( g_extFBPassthrough == nullptr || g_extHandTracking == nullptr )
+		return;
+
+	// Get latest hand joints
+	XrHandJointLocationsEXT *leftHand = g_extHandTracking->GetHandJointLocations( XR_HAND_LEFT_EXT );
+	XrHandJointLocationsEXT *rightHand = g_extHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT );
+
+	// Gesture: palms of left and right hands are touching
+	if ( leftHand->isActive && rightHand->isActive && ( leftHand->jointLocations[ XR_HAND_JOINT_PALM_EXT ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
+		 ( rightHand->jointLocations[ XR_HAND_JOINT_PALM_EXT ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
+	{
+		float fDistance = 0.0f;
+		XrVector3f_Distance( &fDistance, &leftHand->jointLocations[ XR_HAND_JOINT_PALM_EXT ].pose.position, &rightHand->jointLocations[ XR_HAND_JOINT_PALM_EXT ].pose.position );
+
+		if ( fDistance < k_fClapActivationThreshold )
+		{
+			// Gesture activated - set the previous clap state for checking on successive frame
+			g_bClapActive = true;
+			return;
+		}
+
+		// Hands are active but not in clap gesture
+		if (g_bClapActive)
+		{
+			// If previous clap state is true, then perform action
+			CyclePassthroughFX();
+
+			g_bClapActive = false;
+			return;
+		}
+	}
+
+	// Hands were inactive or not giving valid data
+	g_bClapActive = false;
 }
 
 /**
@@ -401,6 +482,7 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 
 		// Passthrough adjustments
 		AdjustPassthroughSaturation();
+		Clap();
 	}
 }
 

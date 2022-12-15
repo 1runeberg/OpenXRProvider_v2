@@ -165,7 +165,15 @@ namespace oxr
 	{
 		m_fbPassthroughStyle.textureOpacityFactor = fTextureOpacityFactor;
 
-		XrResult xrResult = xrPassthroughLayerSetStyleFB( m_fbPassthroughLayer_FullScreen, &m_fbPassthroughStyle );
+		// Start passthrough layer
+		XrResult xrResult = xrPassthroughLayerResumeFB( m_fbPassthroughLayer_FullScreen );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error starting passthrough layer: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		xrResult = xrPassthroughLayerSetStyleFB( m_fbPassthroughLayer_FullScreen, &m_fbPassthroughStyle );
 
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 		{
@@ -179,7 +187,15 @@ namespace oxr
 	{
 		m_fbPassthroughStyle.edgeColor = xrEdgeColor;
 
-		XrResult xrResult = xrPassthroughLayerSetStyleFB( m_fbPassthroughLayer_FullScreen, &m_fbPassthroughStyle );
+		// Start passthrough layer
+		XrResult xrResult = xrPassthroughLayerResumeFB( m_fbPassthroughLayer_FullScreen );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error starting passthrough layer: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		xrResult = xrPassthroughLayerSetStyleFB( m_fbPassthroughLayer_FullScreen, &m_fbPassthroughStyle );
 
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 		{
@@ -230,6 +246,7 @@ namespace oxr
 		}
 
 		// Default
+		m_fbPassthroughStyle.next = nullptr;
 		m_fbPassthroughStyle.textureOpacityFactor = 1.0f;
 		m_fbPassthroughStyle.edgeColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
