@@ -189,11 +189,15 @@ void Paint( XrHandEXT hand )
 	}
 }
 
-bool IsTwoHandedGestureActive( 
-	XrHandJointEXT leftJointA, XrHandJointEXT leftJointB,
-	XrHandJointEXT rightJointA, XrHandJointEXT rightJointB,
-	XrVector3f *outReferencePosition_Left,	XrVector3f *outReferencePosition_Right, 
-	bool *outActivated, float* fCacheValue )
+bool IsTwoHandedGestureActive(
+	XrHandJointEXT leftJointA,
+	XrHandJointEXT leftJointB,
+	XrHandJointEXT rightJointA,
+	XrHandJointEXT rightJointB,
+	XrVector3f *outReferencePosition_Left,
+	XrVector3f *outReferencePosition_Right,
+	bool *outActivated,
+	float *fCacheValue )
 {
 	// Check if hand tracking is available
 	if ( g_extHandTracking )
@@ -207,11 +211,9 @@ bool IsTwoHandedGestureActive(
 
 		// Check if both left and right hands are tracking
 		// and the provided joint a and joint b on both hands have valid positions
-		if ( leftHand->isActive && rightHand->isActive && 
-		   ( leftJoints[ leftJointA ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
-		   ( leftJoints[ leftJointB ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
-		   ( rightJoints[ rightJointA ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
-		   ( rightJoints[ rightJointB ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
+		if ( leftHand->isActive && rightHand->isActive && ( leftJoints[ leftJointA ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
+			 ( leftJoints[ leftJointB ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 && ( rightJoints[ rightJointA ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
+			 ( rightJoints[ rightJointB ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
 		{
 			// Check gesture
 			float fDistance = 0.0f;
@@ -241,15 +243,29 @@ bool IsTwoHandedGestureActive(
 bool IsSkyboxScalingActive( XrVector3f *outThumbPosition_Left, XrVector3f *outThumbPosition_Right )
 {
 	// Gesture - middle and thumb tips are touching on both hands
-	return IsTwoHandedGestureActive(XR_HAND_JOINT_MIDDLE_TIP_EXT, XR_HAND_JOINT_THUMB_TIP_EXT, XR_HAND_JOINT_MIDDLE_TIP_EXT, XR_HAND_JOINT_THUMB_TIP_EXT,
-		outThumbPosition_Left, outThumbPosition_Right, &g_bSkyboxScalingActivated, &g_fSkyboxScaleGestureDistanceOnActivate );
+	return IsTwoHandedGestureActive(
+		XR_HAND_JOINT_MIDDLE_TIP_EXT,
+		XR_HAND_JOINT_THUMB_TIP_EXT,
+		XR_HAND_JOINT_MIDDLE_TIP_EXT,
+		XR_HAND_JOINT_THUMB_TIP_EXT,
+		outThumbPosition_Left,
+		outThumbPosition_Right,
+		&g_bSkyboxScalingActivated,
+		&g_fSkyboxScaleGestureDistanceOnActivate );
 }
 
 bool IsSaturationAdjustmentActive( XrVector3f *outThumbPosition_Left, XrVector3f *outThumbPosition_Right )
 {
 	// Gesture - ring and thumb tips are touching on both hands
-	return IsTwoHandedGestureActive(XR_HAND_JOINT_RING_TIP_EXT, XR_HAND_JOINT_THUMB_TIP_EXT, XR_HAND_JOINT_RING_TIP_EXT, XR_HAND_JOINT_THUMB_TIP_EXT,
-									outThumbPosition_Left, outThumbPosition_Right, &g_bSaturationAdjustmentActivated, &g_fSkyboxScaleGestureDistanceOnActivate );
+	return IsTwoHandedGestureActive(
+		XR_HAND_JOINT_RING_TIP_EXT,
+		XR_HAND_JOINT_THUMB_TIP_EXT,
+		XR_HAND_JOINT_RING_TIP_EXT,
+		XR_HAND_JOINT_THUMB_TIP_EXT,
+		outThumbPosition_Left,
+		outThumbPosition_Right,
+		&g_bSaturationAdjustmentActivated,
+		&g_fSkyboxScaleGestureDistanceOnActivate );
 }
 
 void ScaleSkybox()
@@ -271,8 +287,8 @@ void ScaleSkybox()
 		float currentDistance = 0.0f;
 		XrVector3f_Distance( &currentDistance, &leftThumb, &rightThumb );
 
-        float fGestureDistanceFromPreviousFrame = currentDistance - g_fSkyboxScaleGestureDistanceOnActivate;
-		if (abs(fGestureDistanceFromPreviousFrame ) < k_fSkyboxScalingStride )
+		float fGestureDistanceFromPreviousFrame = currentDistance - g_fSkyboxScaleGestureDistanceOnActivate;
+		if ( abs( fGestureDistanceFromPreviousFrame ) < k_fSkyboxScalingStride )
 			return;
 
 		float fScaleFactor = fGestureDistanceFromPreviousFrame * k_fSkyboxScalingStride;
@@ -443,15 +459,24 @@ XrResult demo_openxr_start()
 	if ( g_extHandTracking )
 	{
 		xrResult = g_extHandTracking->Init();
+
+		if ( !XR_UNQUALIFIED_SUCCESS( g_extHandTracking->Init() ) )
+			delete g_extHandTracking;
 	}
 
 	g_extFBPassthrough = static_cast< oxr::ExtFBPassthrough * >( oxrProvider->Instance()->extHandler.GetExtension( XR_FB_PASSTHROUGH_EXTENSION_NAME ) );
-	// Initialize any extensions we need
 	if ( g_extFBPassthrough && g_pSession->GetAppSpace() != XR_NULL_HANDLE )
 	{
-		if ( XR_UNQUALIFIED_SUCCESS( g_extFBPassthrough->Init( g_pSession->GetAppSpace() ) ) )
-			g_extFBPassthrough->SetPassThroughStyle( oxr::ExtFBPassthrough::EPassthroughMode::EPassthroughMode_GreenRampYellowEdges );
+		if ( !XR_UNQUALIFIED_SUCCESS( g_extFBPassthrough->Init() ) )
+		{
+			delete g_extFBPassthrough;
+		}
+		else
+		{
+			g_extFBPassthrough->SetModeToDefault();
+		}
 	}
+
 	// (7) Create swapchains for rendering
 
 	// (7.1) Specify color formats

@@ -40,36 +40,34 @@ namespace oxr
 {
 	class ExtFBPassthrough : public ExtBase
 	{
-
 	  public:
+
 		enum class EPassthroughMode
 		{
-			EPassthroughMode_Basic = 0,
-			EPassthroughMode_DynamicRamp = 1,
-			EPassthroughMode_GreenRampYellowEdges = 2,
-			EPassthroughMode_Masked = 3,
-			EPassthroughMode_ProjQuad = 4,
-			EPassthroughMode_Stopped = 5,
+			EPassthroughMode_Stopped = 0,
+			EPassthroughMode_Started = 1,
+			EPassthroughMode_Default = 2,
+			EPassthroughMode_Mono = 3,
+			EPassthroughMode_ColorMapped = 4,
+			EPassthroughMode_BCS = 5,
 			EPassthroughMode_Max
 		};
-		/// <summary>
-		///
-		/// </summary>
-		/// <param name="appSpace"></param>
-		/// <returns></returns>
+
 		ExtFBPassthrough( XrInstance xrInstance, XrSession xrSession );
 
-		XrResult Init( XrSpace appSpace );
+		XrResult Init();
 
-		XrResult SetPassThroughStyle( EPassthroughMode eMode );
+		XrResult StartPassThrough(bool bStartDefaultMode = false);
 
-		XrResult StartPassThrough();
+		XrResult StopPassThrough();
 
-		void SetPassThroughOpacityFactor( float fTextureOpacityFactor ) { style.textureOpacityFactor = fTextureOpacityFactor; }
+		XrResult PausePassThroughLayer();
 
-		void SetPassThroughEdgeColor( XrColor4f xrEdgeColor ) { style.edgeColor = xrEdgeColor; }
+		XrResult SetPassThroughOpacityFactor(float fTextureOpacityFactor);
 
-		void SetPassThroughParams( float fTextureOpacityFactor, XrColor4f xrEdgeColor );
+		XrResult SetPassThroughEdgeColor(XrColor4f xrEdgeColor);
+
+		XrResult SetPassThroughParams( float fTextureOpacityFactor, XrColor4f xrEdgeColor );
 
 		XrResult SetModeToDefault();
 
@@ -93,6 +91,7 @@ namespace oxr
 	  private:
 		XrInstance m_xrInstance = XR_NULL_HANDLE;
 		XrSession m_xrSession = XR_NULL_HANDLE;
+		EPassthroughMode m_eCurrentMode = EPassthroughMode::EPassthroughMode_Stopped;
 
 		// function pointers for this spec
 		PFN_xrCreatePassthroughFB xrCreatePassthroughFB = nullptr;
@@ -115,14 +114,11 @@ namespace oxr
 		PFN_xrGeometryInstanceSetTransformFB xrGeometryInstanceSetTransformFB = nullptr;
 
 		// objects for this spec
-		XrPassthroughFB passthrough = XR_NULL_HANDLE;
-		XrPassthroughLayerFB passthroughLayer = XR_NULL_HANDLE;
-		XrPassthroughLayerFB reconPassthroughLayer = XR_NULL_HANDLE;
-		XrPassthroughLayerFB geomPassthroughLayer = XR_NULL_HANDLE;
-		// XrGeometryInstanceFB geomInstance = XR_NULL_HANDLE;
+		XrPassthroughFB m_fbPassthrough = XR_NULL_HANDLE;
+		XrPassthroughLayerFB m_fbPassthroughLayer_FullScreen = XR_NULL_HANDLE; 
 
 		// passthrough style
-		XrPassthroughStyleFB style { XR_TYPE_PASSTHROUGH_STYLE_FB };
+		XrPassthroughStyleFB m_fbPassthroughStyle { XR_TYPE_PASSTHROUGH_STYLE_FB };
 		float clearColor[ 4 ] = { 0.0f, 0.0f, 0.0f, 0.2f };
 
 		// layers

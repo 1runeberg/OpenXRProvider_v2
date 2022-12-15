@@ -56,194 +56,338 @@ namespace oxr
 		INIT_PFN( m_xrInstance, xrGeometryInstanceSetTransformFB );
 	}
 
-	XrResult ExtFBPassthrough::Init( XrSpace appSpace )
+	XrResult ExtFBPassthrough::Init()
 	{
 		// Create passthrough objects
-		XrPassthroughCreateInfoFB ptci = { XR_TYPE_PASSTHROUGH_CREATE_INFO_FB };
-		XrResult result = xrCreatePassthroughFB( m_xrSession, &ptci, &passthrough );
+		XrPassthroughCreateInfoFB xrPassthroughCI = { XR_TYPE_PASSTHROUGH_CREATE_INFO_FB };
+		XrResult xrResult = xrCreatePassthroughFB( m_xrSession, &xrPassthroughCI, &m_fbPassthrough );
 
-
-		if ( XR_SUCCEEDED( result ) )
+		if ( XR_SUCCEEDED( xrResult ) )
 		{
-			XrPassthroughLayerCreateInfoFB plci = { XR_TYPE_PASSTHROUGH_LAYER_CREATE_INFO_FB };
-			plci.passthrough = passthrough;
-			plci.purpose = XR_PASSTHROUGH_LAYER_PURPOSE_RECONSTRUCTION_FB;
-			result = xrCreatePassthroughLayerFB( m_xrSession, &plci, &reconPassthroughLayer );
+			// todo: support other passthrough types
+			XrPassthroughLayerCreateInfoFB xrPassthroughLayerCI = { XR_TYPE_PASSTHROUGH_LAYER_CREATE_INFO_FB };
+			xrPassthroughLayerCI.passthrough = m_fbPassthrough;
+			xrPassthroughLayerCI.purpose = XR_PASSTHROUGH_LAYER_PURPOSE_RECONSTRUCTION_FB;
+			xrResult = xrCreatePassthroughLayerFB( m_xrSession, &xrPassthroughLayerCI, &m_fbPassthroughLayer_FullScreen );
 
-			if (!XR_SUCCEEDED(result))
+			if ( !XR_SUCCEEDED( xrResult ) )
 			{
-				LogError(LOG_CATEGORY_EXTFBPASSTHROUGH, "FB Passthrough - xrCreatePassthroughLayerFB: %s", XrEnumToString(result));
-				return result;
+				LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error - unable to create a full screen passthrough layer: %s", XrEnumToString( xrResult ) );
+				return xrResult;
 			}
 		}
 		else
 		{
-			LogInfo( LOG_CATEGORY_EXTFBPASSTHROUGH, "FB Passthrough - xrCreatePassthroughFB: %s", XrEnumToString( result ) );
-			return result;
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error - Unable to create fb passthrough: %s", XrEnumToString( xrResult ) );
+			return xrResult;
 		}
-
-		if ( XR_SUCCEEDED( result ) )
-		{
-			XrPassthroughLayerCreateInfoFB plci = { XR_TYPE_PASSTHROUGH_LAYER_CREATE_INFO_FB };
-			plci.passthrough = passthrough;
-			plci.purpose = XR_PASSTHROUGH_LAYER_PURPOSE_PROJECTED_FB;
-			result = xrCreatePassthroughLayerFB( m_xrSession, &plci, &geomPassthroughLayer );
-			if (!XR_SUCCEEDED(result))
-			{
-				LogError(LOG_CATEGORY_EXTFBPASSTHROUGH, "FB Passthrough - xrCreatePassthroughLayerFB: %s", XrEnumToString(result));
-				return result;
-			}
-		}
-		else
-		{
-			LogInfo( LOG_CATEGORY_EXTFBPASSTHROUGH, "FB Passthrough - xrCreateGeometryInstanceFB: %s", XrEnumToString( result ) );
-			return result;
-		}
-
-		if ( XR_UNQUALIFIED_SUCCESS( result ) )
-		{
-			LogInfo( LOG_CATEGORY_EXTFBPASSTHROUGH, "FB Passthrough initialized: %s", XrEnumToString( result ) );
-			return XR_SUCCESS;
-		}
-
-		LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Unable to initialize FB Passthrough: %s", XrEnumToString( result ) );
-		return result;
-	}
-
-	XrResult ExtFBPassthrough::SetPassThroughStyle( EPassthroughMode eMode )
-	{
-		XrResult result = XR_SUCCESS;
-
-		switch ( eMode )
-		{
-			case EPassthroughMode::EPassthroughMode_Basic:
-				passthroughLayer = reconPassthroughLayer;
-				result = xrPassthroughLayerResumeFB( passthroughLayer );
-				style.textureOpacityFactor = 0.5f;
-				style.edgeColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-				result = xrPassthroughLayerSetStyleFB( passthroughLayer, &style );
-				break;
-
-			case EPassthroughMode::EPassthroughMode_DynamicRamp:
-				passthroughLayer = reconPassthroughLayer;
-				xrPassthroughLayerResumeFB( passthroughLayer );
-				style.textureOpacityFactor = 0.5f;
-				style.edgeColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-				xrPassthroughLayerSetStyleFB( passthroughLayer, &style );
-				break;
-
-			case EPassthroughMode::EPassthroughMode_GreenRampYellowEdges:
-			{
-				passthroughLayer = reconPassthroughLayer;
-				result = xrPassthroughLayerResumeFB( passthroughLayer );
-
-				// Create a color map which maps each input value to a green ramp
-				//XrPassthroughColorMapMonoToRgbaFB colorMap = { XR_TYPE_PASSTHROUGH_COLOR_MAP_MONO_TO_RGBA_FB };
-				//for ( int i = 0; i < XR_PASSTHROUGH_COLOR_MAP_MONO_SIZE_FB; ++i )
-				//{
-				//	float colorValue = (i / 255.0f) * .5;
-				//	colorMap.textureColorMap[ i ] = { colorValue, colorValue, colorValue, 1.0f };
-				//}
-
-				//style.textureOpacityFactor = 0.5f;
-				//style.edgeColor = { 1.0f, 1.0f, 0.0f, 0.5f };
-				//style.next = &colorMap;
-				//result = xrPassthroughLayerSetStyleFB( passthroughLayer, &style );
-
-
-				//XrPassthroughColorMapMonoToMonoFB colorMap = { XR_TYPE_PASSTHROUGH_COLOR_MAP_MONO_TO_MONO_FB }; 
-				//for ( int i = 0; i < XR_PASSTHROUGH_COLOR_MAP_MONO_SIZE_FB; ++i )
-				//{
-				//	uint8_t colorValue = i;
-				//	colorMap.textureColorMap[ i ] = colorValue;
-				//}
-
-				XrPassthroughBrightnessContrastSaturationFB colorMap = { XR_TYPE_PASSTHROUGH_BRIGHTNESS_CONTRAST_SATURATION_FB };
-				colorMap.brightness = 0.0f;
-				colorMap.contrast = 1.0f;
-				colorMap.saturation = 1.5f;
-
-				style.textureOpacityFactor = 1.0f;
-				//style.edgeColor = { 1.0f, 1.0f, 1.0f, 0.5f };
-				style.next = &colorMap;
-				result = xrPassthroughLayerSetStyleFB( passthroughLayer, &style );
-			}
-			break;
-
-			case EPassthroughMode::EPassthroughMode_Masked:
-				passthroughLayer = reconPassthroughLayer;
-				result = xrPassthroughLayerResumeFB( passthroughLayer );
-
-				clearColor[ 3 ] = 1.0f;
-				style.textureOpacityFactor = 0.5f;
-				style.edgeColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-				result = xrPassthroughLayerSetStyleFB( passthroughLayer, &style );
-				break;
-
-			case EPassthroughMode::EPassthroughMode_ProjQuad:
-				passthroughLayer = geomPassthroughLayer;
-				result = xrPassthroughLayerResumeFB( passthroughLayer );
-				break;
-
-			case EPassthroughMode::EPassthroughMode_Stopped:
-				result = xrPassthroughPauseFB( passthrough );
-				break;
-
-			default:
-				break;
-		}
-
-		LogInfo( LOG_CATEGORY_EXTFBPASSTHROUGH, "FB Passthrough - xrPassthroughLayerSetStyleFB: %s", XrEnumToString( result ) );
 
 		// Initialize passthrough composition layer
-		m_FBPassthroughCompositionLayer.layerHandle = passthroughLayer;
+		m_FBPassthroughCompositionLayer.layerHandle = m_fbPassthroughLayer_FullScreen;
 		m_FBPassthroughCompositionLayer.flags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
 		m_FBPassthroughCompositionLayer.space = XR_NULL_HANDLE;
 
-		StartPassThrough();
-
-		return result;
+		return xrResult;
 	}
 
-	XrResult ExtFBPassthrough::StartPassThrough() 
+	XrResult ExtFBPassthrough::StartPassThrough( bool bStartDefaultMode )
 	{
-		XrResult result = xrPassthroughStartFB(passthrough);
+		if ( m_eCurrentMode != EPassthroughMode::EPassthroughMode_Stopped )
+			return XR_SUCCESS;
 
-		if ( XR_UNQUALIFIED_SUCCESS( result ) )
-			LogInfo( LOG_CATEGORY_EXTFBPASSTHROUGH, "FB Passthrough started: %s", XrEnumToString( result ) );
+		// Start passthrough
+		XrResult xrResult = xrPassthroughStartFB( m_fbPassthrough );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error - Unable to start passthrough: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		m_eCurrentMode = EPassthroughMode::EPassthroughMode_Started;
+		if ( !bStartDefaultMode )
+			return xrResult;
+
+		// Start default mode
+		xrResult = SetModeToDefault();
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error - Unable to set mode to default while starting the passthrough: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		// change mode
+		m_eCurrentMode = EPassthroughMode::EPassthroughMode_Default;
+		return XR_SUCCESS;
+	}
+
+	XrResult ExtFBPassthrough::StopPassThrough()
+	{
+		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Stopped )
+			return XR_SUCCESS;
+
+		// pause passthrough layer
+		XrResult xrResult = PausePassThroughLayer();
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error - Unable to pause passthrough layer while stoppign passthrough: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		// stop passthrough
+		xrResult = xrPassthroughPauseFB( m_fbPassthrough );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error - Unable to stop passthrough: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		// change mode
+		m_eCurrentMode = EPassthroughMode::EPassthroughMode_Stopped;
+		return XR_SUCCESS;
+	}
+
+	XrResult ExtFBPassthrough::PausePassThroughLayer()
+	{
+		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Stopped )
+			return XR_SUCCESS;
+
+		XrResult xrResult = xrPassthroughLayerPauseFB( m_fbPassthroughLayer_FullScreen );
+
+		if ( XR_UNQUALIFIED_SUCCESS( xrResult ) )
+			LogInfo( LOG_CATEGORY_EXTFBPASSTHROUGH, "Passthrough layer paused: %s", XrEnumToString( xrResult ) );
 		else
-			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error - Unable to start passthrough: %s", XrEnumToString( result ) );
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error - Unable to pause passthrough layer: %s", XrEnumToString( xrResult ) );
 
-		return result;
+		return xrResult;
 	}
 
-	void ExtFBPassthrough::SetPassThroughParams( float fTextureOpacityFactor, XrColor4f xrEdgeColor ) 
+	XrResult ExtFBPassthrough::SetPassThroughOpacityFactor( float fTextureOpacityFactor )
 	{
-		SetPassThroughOpacityFactor(fTextureOpacityFactor);
-		SetPassThroughEdgeColor(xrEdgeColor);
+		m_fbPassthroughStyle.textureOpacityFactor = fTextureOpacityFactor;
+
+		XrResult xrResult = xrPassthroughLayerSetStyleFB( m_fbPassthroughLayer_FullScreen, &m_fbPassthroughStyle );
+
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error changing passhtrough parameter - opacity factor: %s", XrEnumToString( xrResult ) );
+		}
+
+		return xrResult;
+	}
+
+	XrResult ExtFBPassthrough::SetPassThroughEdgeColor( XrColor4f xrEdgeColor )
+	{
+		m_fbPassthroughStyle.edgeColor = xrEdgeColor;
+
+		XrResult xrResult = xrPassthroughLayerSetStyleFB( m_fbPassthroughLayer_FullScreen, &m_fbPassthroughStyle );
+
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error changing passhtrough parameter - edge color: %s", XrEnumToString( xrResult ) );
+		}
+
+		return xrResult;
+	}
+
+	XrResult ExtFBPassthrough::SetPassThroughParams( float fTextureOpacityFactor, XrColor4f xrEdgeColor )
+	{
+		m_fbPassthroughStyle.textureOpacityFactor = fTextureOpacityFactor;
+		m_fbPassthroughStyle.edgeColor = xrEdgeColor;
+
+		XrResult xrResult = xrPassthroughLayerSetStyleFB( m_fbPassthroughLayer_FullScreen, &m_fbPassthroughStyle );
+
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error changing passthrough parameters: %s", XrEnumToString( xrResult ) );
+		}
+
+		return xrResult;
 	}
 
 	XrResult ExtFBPassthrough::SetModeToDefault()
 	{
+		XrResult xrResult = XR_SUCCESS;
+
+		// Check if we're already in requested mode
+		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Default )
+			return xrResult;
+
+		// Start passthrough if it's not started
+		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Stopped )
+		{
+			xrResult = StartPassThrough();
+
+			if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+				return xrResult;
+		}
+
+		// Start passthrough layer
+		xrResult = xrPassthroughLayerResumeFB(m_fbPassthroughLayer_FullScreen);
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error starting passthrough layer: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		// Default
+		m_fbPassthroughStyle.textureOpacityFactor = 1.0f;
+		m_fbPassthroughStyle.edgeColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		xrResult = xrPassthroughLayerSetStyleFB( m_fbPassthroughLayer_FullScreen, &m_fbPassthroughStyle );
+
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error changing passhtrough mode to Default: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		// Change current mode
+		m_eCurrentMode = EPassthroughMode::EPassthroughMode_Default;
 		return XR_SUCCESS;
 	}
 
-
-	XrResult ExtFBPassthrough::SetModeToMono() 
+	XrResult ExtFBPassthrough::SetModeToMono()
 	{
+		XrResult xrResult = XR_SUCCESS;
+
+		// Check if we're already in requested mode
+		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Mono )
+			return xrResult;
+
+		// Start passthrough if it's not started
+		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Stopped )
+		{
+			xrResult = StartPassThrough();
+
+			if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+				return xrResult;
+		}
+
+		// Start passthrough layer
+		xrResult = xrPassthroughLayerResumeFB( m_fbPassthroughLayer_FullScreen );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error starting passthrough layer: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		// Mono
+		XrPassthroughColorMapMonoToMonoFB colorMap_Mono = { XR_TYPE_PASSTHROUGH_COLOR_MAP_MONO_TO_MONO_FB };
+		for ( int i = 0; i < XR_PASSTHROUGH_COLOR_MAP_MONO_SIZE_FB; ++i )
+		{
+			uint8_t colorMono = i;
+			colorMap_Mono.textureColorMap[ i ] = colorMono;
+		}
+
+		m_fbPassthroughStyle.textureOpacityFactor = 1.0f;
+		m_fbPassthroughStyle.next = &colorMap_Mono;
+
+		xrResult = xrPassthroughLayerSetStyleFB( m_fbPassthroughLayer_FullScreen, &m_fbPassthroughStyle );
+
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error changing passhtrough mode to Mono: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		// Change current mode
+		m_eCurrentMode = EPassthroughMode::EPassthroughMode_Mono;
 		return XR_SUCCESS;
 	}
 
-	XrResult ExtFBPassthrough::SetModeToColorMap( bool bRed, bool bGreen, bool bBlue, float fAlpha /*= 1.0f*/ ) 
+	XrResult ExtFBPassthrough::SetModeToColorMap( bool bRed, bool bGreen, bool bBlue, float fAlpha /*= 1.0f*/ )
 	{
+		XrResult xrResult = XR_SUCCESS;
+
+		// Check if we're already in requested mode
+		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_ColorMapped )
+			return xrResult;
+
+		// Start passthrough if it's not started
+		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Stopped )
+		{
+			xrResult = StartPassThrough();
+
+			if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+				return xrResult;
+		}
+
+		// Start passthrough layer
+		xrResult = xrPassthroughLayerResumeFB( m_fbPassthroughLayer_FullScreen );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error starting passthrough layer: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		// Color Mapped
+		XrPassthroughColorMapMonoToRgbaFB colorMap_RGBA = { XR_TYPE_PASSTHROUGH_COLOR_MAP_MONO_TO_RGBA_FB };
+		for ( int i = 0; i < XR_PASSTHROUGH_COLOR_MAP_MONO_SIZE_FB; ++i )
+		{
+			float color_rgb = i / 255.0f;
+			colorMap_RGBA.textureColorMap[ i ] = { bRed ? color_rgb : 0.0f, bGreen ? color_rgb : 0.0f, bBlue ? color_rgb : 0.0f, fAlpha };
+		}
+
+		m_fbPassthroughStyle.textureOpacityFactor = 1.0f;
+		m_fbPassthroughStyle.next = &colorMap_RGBA;
+
+		xrResult = xrPassthroughLayerSetStyleFB( m_fbPassthroughLayer_FullScreen, &m_fbPassthroughStyle );
+
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error changing passhtrough mode to ColorMapped: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		// Change current mode
+		m_eCurrentMode = EPassthroughMode::EPassthroughMode_ColorMapped;
 		return XR_SUCCESS;
 	}
 
-	
-
-	XrResult ExtFBPassthrough::SetModeToBCS( float fBrightness /*= 0.0f*/, float fContrast /*= 1.0f*/, float fSaturation /*= 1.0f*/ ) 
+	XrResult ExtFBPassthrough::SetModeToBCS( float fBrightness /*= 0.0f*/, float fContrast /*= 1.0f*/, float fSaturation /*= 1.0f*/ )
 	{
+		XrResult xrResult = XR_SUCCESS;
+
+		// Check if we're already in requested mode
+		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_BCS )
+			return xrResult;
+
+		// Start passthrough if it's not started
+		if ( m_eCurrentMode == EPassthroughMode::EPassthroughMode_Stopped )
+		{
+			xrResult = StartPassThrough();
+
+			if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+				return xrResult;
+		}
+
+		// Start passthrough layer
+		xrResult = xrPassthroughLayerResumeFB( m_fbPassthroughLayer_FullScreen );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error starting passthrough layer: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		// BCS - Brightness, Contrast and Saturation channels
+		XrPassthroughBrightnessContrastSaturationFB bcs = { XR_TYPE_PASSTHROUGH_BRIGHTNESS_CONTRAST_SATURATION_FB };
+		bcs.brightness = fBrightness;
+		bcs.contrast = fContrast;
+		bcs.saturation = fSaturation;
+
+		m_fbPassthroughStyle.textureOpacityFactor = 1.0f;
+		m_fbPassthroughStyle.next = &bcs;
+
+		xrResult = xrPassthroughLayerSetStyleFB( m_fbPassthroughLayer_FullScreen, &m_fbPassthroughStyle );
+
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error changing passhtrough mode to BCS: %s", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		// Change current mode
+		m_eCurrentMode = EPassthroughMode::EPassthroughMode_BCS;
 		return XR_SUCCESS;
 	}
 
