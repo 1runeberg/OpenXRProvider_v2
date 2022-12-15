@@ -40,13 +40,108 @@
 
 // global vars
 XrEventDataBaseHeader *g_xrEventDataBaseheader = nullptr;
+
 std::unique_ptr< xrvk::Render > g_pRender = nullptr;
+
 oxr::Session *g_pSession = nullptr;
+oxr::ExtHandTracking *g_extHandTracking = nullptr;
+oxr::ExtFBPassthrough *g_extFBPassthrough = nullptr;
+
 XrSessionState g_sessionState = XR_SESSION_STATE_UNKNOWN;
 XrFrameState m_xrFrameState { XR_TYPE_FRAME_STATE };
 std::vector< XrCompositionLayerProjectionView > g_vecFrameLayerProjectionViews;
 std::vector< XrCompositionLayerBaseHeader * > g_vecFrameLayers;
-XrTime g_LastPredictedDisplayTime = 0;
+
+// Color constants for finger painting
+constexpr XrVector3f colorRed { 1, 0, 0 };
+constexpr XrVector3f colorGreen { 0, 1, 0 };
+constexpr XrVector3f colorBlue { 0, 0, 1 };
+constexpr XrVector3f colorPurple { 1, 0, 1 };
+constexpr XrVector3f colorYellow { 1, 1, 0 };
+constexpr XrVector3f colorCyan { 0, 1, 1 };
+
+// Cube vertices for finger painting
+constexpr XrVector3f LBB { -0.5f, -0.5f, -0.5f };
+constexpr XrVector3f LBF { -0.5f, -0.5f, 0.5f };
+constexpr XrVector3f LTB { -0.5f, 0.5f, -0.5f };
+constexpr XrVector3f LTF { -0.5f, 0.5f, 0.5f };
+constexpr XrVector3f RBB { 0.5f, -0.5f, -0.5f };
+constexpr XrVector3f RBF { 0.5f, -0.5f, 0.5f };
+constexpr XrVector3f RTB { 0.5f, 0.5f, -0.5f };
+constexpr XrVector3f RTF { 0.5f, 0.5f, 0.5f };
+
+std::vector< Shapes::Vertex > g_vecCubeVertices = 
+{
+	CUBE_SIDE( LTB, LBF, LBB, LTB, LTF, LBF, colorCyan ) // -X
+	CUBE_SIDE( RTB, RBB, RBF, RTB, RBF, RTF, colorCyan ) // +X
+	CUBE_SIDE( LBB, LBF, RBF, LBB, RBF, RBB, colorCyan ) // -Y
+	CUBE_SIDE( LTB, RTB, RTF, LTB, RTF, LTF, colorCyan ) // +Y
+	CUBE_SIDE( LBB, RBB, RTB, LBB, RTB, LTB, colorCyan ) // -Z
+	CUBE_SIDE( LBF, LTF, RTF, LBF, RTF, RBF, colorCyan ) // +Z
+};
+
+/**
+ * These are utility functions for the extensions we will be using in this demo
+ */
+
+void PopulateHandShapes( Shapes::Shape *shapePalm )
+{
+	assert( g_pRender );
+	assert( shapePalm );
+
+	// a cube per joint per hand - we'll match the indices with the hand tracking extension's
+	// so we can easily refer to them later on to update the current tracked poses
+	uint32_t unTotalHandJoints = XR_HAND_JOINT_COUNT_EXT * 2;
+	g_pRender->vecShapes.resize( unTotalHandJoints );
+
+	// zero out the scale so cubes won't immediately appear until after the first frame of poses come in
+	shapePalm->scale = { 0.0f, 0.0f, 0.0f };
+
+	// XR_HAND_JOINT_PALM_EXT (0) - Use as a reference
+	g_pRender->vecShapes[ XR_HAND_JOINT_PALM_EXT ] = shapePalm;
+
+	// left hand will use the first XR_HAND_JOINT_COUNT_EXT indices
+	// right hand will use specHandJointIndex + XR_HAND_JOINT_COUNT_EXT indices
+	for ( uint32_t i = 1; i < unTotalHandJoints; i++ )
+	{
+		g_pRender->vecShapes[ i ] = shapePalm->Duplicate();
+	}
+}
+
+void UpdateHandJoints( XrHandEXT hand, XrHandJointLocationEXT *handJoints )
+{
+	uint8_t unOffset = hand == XR_HAND_LEFT_EXT ? 0 : XR_HAND_JOINT_COUNT_EXT;
+
+	for ( uint32_t i = 0; i < XR_HAND_JOINT_COUNT_EXT; i++ )
+	{
+		if ( ( handJoints[ i ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
+		{
+			g_pRender->vecShapes[ i + unOffset ]->pose = handJoints[ i ].pose;
+			g_pRender->vecShapes[ i + unOffset ]->scale = { handJoints[ i ].radius, handJoints[ i ].radius, handJoints[ i ].radius };
+		}
+	}
+}
+
+void UpdateHandTrackingPoses( oxr::ExtHandTracking *pHandTracking, XrFrameState *frameState )
+{
+	if ( pHandTracking && frameState->shouldRender )
+	{
+		// Update the hand joints poses for this frame
+		pHandTracking->LocateHandJoints( XR_HAND_LEFT_EXT, g_pSession->GetAppSpace(), frameState->predictedDisplayTime );
+		pHandTracking->LocateHandJoints( XR_HAND_RIGHT_EXT, g_pSession->GetAppSpace(), frameState->predictedDisplayTime );
+
+		// Retrieve updated hand poses
+		XrHandJointLocationsEXT *leftHand = pHandTracking->GetHandJointLocations( XR_HAND_LEFT_EXT );
+		XrHandJointLocationsEXT *rightHand = pHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT );
+
+		// Finally, update cube poses representing the hand joints
+		if ( leftHand->isActive )
+			UpdateHandJoints( XR_HAND_LEFT_EXT, leftHand->jointLocations );
+
+		if ( rightHand->isActive )
+			UpdateHandJoints( XR_HAND_RIGHT_EXT, pHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT )->jointLocations );
+	}
+}
 
 /**
  * These are utility functions to check game loop conditions
@@ -101,6 +196,10 @@ bool CheckGameLoopExit( oxr::Provider *oxrProvider ) { return oxrProvider->Sessi
  */
 void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 {
+	// Hand tracking updates
+	UpdateHandTrackingPoses( g_extHandTracking, &m_xrFrameState );
+
+	// Render
 	g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
 
 	// Finger paint every half a second
@@ -113,66 +212,6 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 }
 
 void PostRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex ) { g_pRender->EndRender(); }
-
-/**
- * These are utility functions for the extensions we will be using in this demo
- */
-
-void PopulateHandShapes( Shapes::Shape *shapePalm )
-{
-	assert( g_pRender );
-	assert( shapePalm );
-
-	// a cube per joint per hand - we'll match the indices with the hand tracking extension's
-	// so we can easily refer to them later on to update the current tracked poses
-	uint32_t unTotalHandJoints = XR_HAND_JOINT_COUNT_EXT * 2;
-	g_pRender->vecShapes.resize( unTotalHandJoints );
-
-	// XR_HAND_JOINT_PALM_EXT (0) - Use as a reference
-	g_pRender->vecShapes[ XR_HAND_JOINT_PALM_EXT ] = shapePalm;
-
-	// left hand will use the first XR_HAND_JOINT_COUNT_EXT indices
-	// right hand will use specHandJointIndex + XR_HAND_JOINT_COUNT_EXT indices
-	for ( uint32_t i = 1; i < unTotalHandJoints; i++ )
-	{
-		g_pRender->vecShapes[ i ] = shapePalm->Duplicate();
-	}
-}
-
-void UpdateHandJoints( XrHandEXT hand, XrHandJointLocationEXT *handJoints )
-{
-	uint8_t unOffset = hand == XR_HAND_LEFT_EXT ? 0 : XR_HAND_JOINT_COUNT_EXT;
-
-	for ( uint32_t i = 0; i < XR_HAND_JOINT_COUNT_EXT; i++ )
-	{
-		if ( ( handJoints[ i ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
-		{
-			g_pRender->vecShapes[ i + unOffset ]->pose = handJoints[ i ].pose;
-			g_pRender->vecShapes[ i + unOffset ]->scale = { handJoints[ i ].radius, handJoints[ i ].radius, handJoints[ i ].radius };
-		}
-	}
-}
-
-void UpdateHandTrackingPoses( oxr::ExtHandTracking *pHandTracking, XrFrameState *frameState )
-{
-	if ( frameState->shouldRender )
-	{
-		// Update the hand joints poses for this frame
-		pHandTracking->LocateHandJoints( XR_HAND_LEFT_EXT, g_pSession->GetAppSpace(), frameState->predictedDisplayTime );
-		pHandTracking->LocateHandJoints( XR_HAND_RIGHT_EXT, g_pSession->GetAppSpace(), frameState->predictedDisplayTime );
-
-		// Retrieve updated hand poses
-		XrHandJointLocationsEXT *leftHand = pHandTracking->GetHandJointLocations( XR_HAND_LEFT_EXT );
-		XrHandJointLocationsEXT *rightHand = pHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT );
-
-		// Finally, update cube poses representing the hand joints
-		if (leftHand->isActive)
-			UpdateHandJoints( XR_HAND_LEFT_EXT, leftHand->jointLocations );
-
-		if (rightHand->isActive)
-			UpdateHandJoints( XR_HAND_RIGHT_EXT, pHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT )->jointLocations );
-	}
-}
 
 /**
  * This is the application openxr flow and is numbered
@@ -260,13 +299,13 @@ XrResult demo_openxr_start()
 	g_pSession = oxrProvider->Session();
 
 	// (6.1) Get any extensions that requires an active openxr instance and session
-	oxr::ExtHandTracking *g_extHandTracking = static_cast< oxr::ExtHandTracking * >( oxrProvider->Instance()->extHandler.GetExtension( XR_EXT_HAND_TRACKING_EXTENSION_NAME ) );
+	g_extHandTracking = static_cast< oxr::ExtHandTracking * >( oxrProvider->Instance()->extHandler.GetExtension( XR_EXT_HAND_TRACKING_EXTENSION_NAME ) );
 	if ( g_extHandTracking )
 	{
 		xrResult = g_extHandTracking->Init();
 	}
 
-	oxr::ExtFBPassthrough *g_extFBPassthrough = static_cast< oxr::ExtFBPassthrough * >( oxrProvider->Instance()->extHandler.GetExtension( XR_FB_PASSTHROUGH_EXTENSION_NAME ) );
+	g_extFBPassthrough = static_cast< oxr::ExtFBPassthrough * >( oxrProvider->Instance()->extHandler.GetExtension( XR_FB_PASSTHROUGH_EXTENSION_NAME ) );
 	// Initialize any extensions we need
 	if ( g_extFBPassthrough && g_pSession->GetAppSpace() != XR_NULL_HANDLE )
 	{
@@ -302,10 +341,13 @@ XrResult demo_openxr_start()
 	g_pRender->CreateRenderResources( g_pSession, selectedTextureFormats.vkColorTextureFormat, selectedTextureFormats.vkDepthTextureFormat, vkExtent );
 
 	// (8.3) Optional: Add any shape pipelines
-	Shapes::Shape_Cube cubePalmLeft {};
-	g_pRender->PrepareShapesPipeline( &cubePalmLeft, "shaders/shape.vert.spv", "shaders/shape.frag.spv" );
+	if (g_extHandTracking)
+	{
+		Shapes::Shape_Cube cubePalmLeft {};
+		g_pRender->PrepareShapesPipeline( &cubePalmLeft, "shaders/shape.vert.spv", "shaders/shape.frag.spv" );
 
-	PopulateHandShapes( &cubePalmLeft );
+		PopulateHandShapes( &cubePalmLeft );
+	}
 
 	// (8.3) Add Render Scenes to render (will spawn in world origin)
 	g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
@@ -442,30 +484,6 @@ XrResult demo_openxr_start()
 
 			g_vecFrameLayerProjectionViews.resize( oxrProvider->Session()->GetSwapchains().size(), { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } );
 			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, g_vecFrameLayers, &m_xrFrameState, xrCompositionLayerFlags );
-
-			// (14) ...
-			if ( g_extHandTracking && m_xrFrameState.shouldRender )
-			{
-				// TODO: move to callbacks
-				g_extHandTracking->LocateHandJoints( XR_HAND_LEFT_EXT, g_pSession->GetAppSpace(), m_xrFrameState.predictedDisplayTime );
-				g_extHandTracking->LocateHandJoints( XR_HAND_RIGHT_EXT, g_pSession->GetAppSpace(), m_xrFrameState.predictedDisplayTime );
-
-				UpdateHandJoints( XR_HAND_LEFT_EXT, g_extHandTracking->GetHandJointLocations( XR_HAND_LEFT_EXT )->jointLocations );
-				UpdateHandJoints( XR_HAND_RIGHT_EXT, g_extHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT )->jointLocations );
-
-				// if ( xrHandJointLocations_Left->isActive )
-				//{
-				//	Shapes::Shape *cubeRef = g_pRender->vecShapes.back();
-
-				//	if ( cubeRef )
-				//	{
-				//		cubeRef->pose = xrHandJointLocations_Left->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose;
-				//		cubeRef->scale = { xrHandJointLocations_Left->jointLocations->radius, xrHandJointLocations_Left->jointLocations->radius, xrHandJointLocations_Left->jointLocations->radius };
-
-				//		g_pRender->vecShapes.push_back( cubeRef->Duplicate() );
-				//	}
-				//}
-			}
 		}
 	}
 
