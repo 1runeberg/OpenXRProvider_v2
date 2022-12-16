@@ -19,6 +19,7 @@ GESTURES:
 
 
 - *Two-handed*: Ring finger tip and thumb tips together on BOTH hands, spread apart to add saturation, inwards for less. Saturation is commensurate to distance of thumb tips.
+- *Clap*: Clap hands to cycle through edge detection, amber colormap, purple colormap, normal.
 
 https://user-images.githubusercontent.com/17371351/208169673-5f6e63f2-b7fc-4a38-b1dc-7d7e5c55f4cb.mp4
 
