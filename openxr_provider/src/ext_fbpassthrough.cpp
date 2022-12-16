@@ -238,7 +238,7 @@ namespace oxr
 		}
 
 		// Start passthrough layer
-		xrResult = xrPassthroughLayerResumeFB(m_fbPassthroughLayer_FullScreen);
+		xrResult = xrPassthroughLayerResumeFB( m_fbPassthroughLayer_FullScreen );
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 		{
 			LogError( LOG_CATEGORY_EXTFBPASSTHROUGH, "Error starting passthrough layer: %s", XrEnumToString( xrResult ) );
