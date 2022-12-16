@@ -10,3 +10,8 @@ In the next demo app, we'll build this sample further and introduce the OpenXR I
 paths with the input system to expand our list of supported devices.
 
 To build and find pre-built apks, visit the main project readme: https://github.com/1runeberg/OpenXRProvider_v2
+
+
+
+https://user-images.githubusercontent.com/17371351/208169673-5f6e63f2-b7fc-4a38-b1dc-7d7e5c55f4cb.mp4
+
