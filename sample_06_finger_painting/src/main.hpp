@@ -38,29 +38,45 @@
 
 #include "xrvk/xrvk.hpp"
 
-// global vars
+// Event data packet sent by the openxr runtime during polling
 XrEventDataBaseHeader *g_xrEventDataBaseheader = nullptr;
 
-std::unique_ptr< xrvk::Render > g_pRender = nullptr;
 
+// Pointer to session handling object of the openxr provider library
 oxr::Session *g_pSession = nullptr;
-oxr::ExtHandTracking *g_extHandTracking = nullptr;
-oxr::ExtFBPassthrough *g_extFBPassthrough = nullptr;
 
+// Current openxr session state
 XrSessionState g_sessionState = XR_SESSION_STATE_UNKNOWN;
+
+// Latest openxr framestate - this is filled in on the render call
 XrFrameState m_xrFrameState { XR_TYPE_FRAME_STATE };
+
+// Projection viewss and layers to be rendered
 std::vector< XrCompositionLayerProjectionView > g_vecFrameLayerProjectionViews;
 std::vector< XrCompositionLayerBaseHeader * > g_vecFrameLayers;
 
+// Pointer to the the xrvk renderer class
+std::unique_ptr< xrvk::Render > g_pRender = nullptr;
+
+// Hand tracking extension implementation, if present
+oxr::ExtHandTracking *g_extHandTracking = nullptr;
+
+// FB Passthrough extnesion implementation, if present
+oxr::ExtFBPassthrough *g_extFBPassthrough = nullptr;
+
+// Skybox manipulation vars
 bool g_bSkyboxScalingActivated = false;
 float g_fSkyboxScaleGestureDistanceOnActivate = 0.0f;
 
+// Passthrough adjustments
 bool g_bSaturationAdjustmentActivated = false;
 float g_fSaturationValueOnActivation = 0.0f;
 float g_fCurrentSaturationValue = 0.0f;
 
+// Clap mechanic and passthrough effects
 bool g_bClapActive = false;
 uint16_t g_unPassthroughFXCycleStage = 0;
+
 enum class EPassthroughFXMode
 {
 	EPassthroughFXMode_None = 0,
@@ -70,19 +86,15 @@ enum class EPassthroughFXMode
 	EPassthroughMode_Max
 } g_eCurrentPassthroughFXMode;
 
+
+// Gesture constants
 static const float k_fGestureActivationThreshold = 0.025f;
 static const float k_fClapActivationThreshold = 0.07f;
 static const float k_fSkyboxScalingStride = 0.05f;
 static const float k_fSaturationAdjustmentStride = 0.1f;
 
-// Color constants for finger painting
-constexpr XrVector3f colorRed { 1, 0, 0 };
-constexpr XrVector3f colorGreen { 0, 1, 0 };
-constexpr XrVector3f colorBlue { 0, 0, 1 };
-constexpr XrVector3f colorPurple { 1, 0, 1 };
-constexpr XrVector3f colorYellow { 1, 1, 0 };
-constexpr XrVector3f colorCyan { 0, 1, 1 };
 
+// Painting constants
 // Cube vertices for finger painting
 constexpr XrVector3f LBB { -0.5f, -0.5f, -0.5f };
 constexpr XrVector3f LBF { -0.5f, -0.5f, 0.5f };
@@ -92,6 +104,7 @@ constexpr XrVector3f RBB { 0.5f, -0.5f, -0.5f };
 constexpr XrVector3f RBF { 0.5f, -0.5f, 0.5f };
 constexpr XrVector3f RTB { 0.5f, 0.5f, -0.5f };
 constexpr XrVector3f RTF { 0.5f, 0.5f, 0.5f };
+constexpr XrVector3f colorCyan { 0, 1, 1 };
 
 std::vector< Shapes::Vertex > g_vecPaintCubeVertices = {
 	CUBE_SIDE( LTB, LBF, LBB, LTB, LTF, LBF, colorCyan ) // -X
@@ -104,6 +117,7 @@ std::vector< Shapes::Vertex > g_vecPaintCubeVertices = {
 
 // Reference shape for painting
 Shapes::Shape *g_pReferencePaint = nullptr;
+
 
 /**
  * These are utility functions for the extensions we will be using in this demo
@@ -164,14 +178,6 @@ void UpdateHandTrackingPoses( XrFrameState *frameState )
 
 		if ( rightHand->isActive )
 			UpdateHandJoints( XR_HAND_RIGHT_EXT, g_extHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT )->jointLocations );
-	}
-}
-
-void UpdatePaintColor( XrVector3f *newColor )
-{
-	for ( auto &cubeVertices : g_vecPaintCubeVertices )
-	{
-		cubeVertices.Color = *newColor;
 	}
 }
 
