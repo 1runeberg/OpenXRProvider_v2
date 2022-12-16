@@ -15,7 +15,7 @@ GESTURES:
 - *Either hand*: Index tip and thumb tibs together to draw
 
 
-- *Two-handed*: Middle finger tip and thumb tips together on BOTH hands, spread apart to scale skybox up, spread in to scale skybox down. Scale is commensurate to distance of thumb tips.
+- *Two-handed*: Middle finger tip and thumb tips together on BOTH hands, spread apart to scale skybox up, inwards to scale skybox down. Scale is commensurate to distance of thumb tips.
 
 
 - *Two-handed*: Ring finger tip and thumb tips together on BOTH hands, spread apart to add saturation, inwards for less. Saturation is commensurate to distance of thumb tips.
