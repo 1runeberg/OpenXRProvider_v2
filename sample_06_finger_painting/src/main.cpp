@@ -179,18 +179,6 @@ XrResult demo_openxr_start()
 
 	// (8.3) Add Render Scenes to render (will spawn in world origin)
 	g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
-	// g_pRender->AddRenderModel( "models/test_sphere.glb", { .01f, .01f, .01f } );
-	// g_pRender->AddRenderScene( "models/openxr_proxy_right.glb", { .1f, .1f, .1f } );
-
-	// (8.4) Add Render Sectors and Render Models (will spawn based on defined reference space and/or offsets from world origin)
-	XrSpace spaceFront;
-	oxrProvider->Session()->CreateReferenceSpace( &spaceFront, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, -3.0f, -1.0f } } ); // 3m down, no rotation
-
-	// XrSpace spaceLeft;
-	// oxrProvider->Session()->CreateReferenceSpace( &spaceLeft, XR_REFERENCE_SPACE_TYPE_STAGE, { { 0.5f, 0.5f, -0.5f, 0.5f }, { -1.0f, 1.0f, 0.0f } } ); // 1m left 1m up, rotated x: 90, y: 0, z: 90
-
-	// g_pRender->AddRenderModel( "models/DamagedHelmet.glb", { 0.25f, 0.25f, 0.25f }, spaceLeft );
-	// g_pRender->AddRenderSector( "models/EnvironmentTest/EnvironmentTest.gltf", { 0.2f, 0.2f, 0.2f }, spaceFront );
 
 	// (8.5) Optional - Set vismask if present
 	oxr::ExtVisMask *pVisMask = static_cast< oxr::ExtVisMask * >( oxrProvider->Instance()->extHandler.GetExtension( XR_KHR_VISIBILITY_MASK_EXTENSION_NAME ) );
