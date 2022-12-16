@@ -1,9 +1,12 @@
 # OpenXR Provider Library v2
 # Sample 06 - Finger Painting
 
-Demo application ...
+Demonstrates use of multi-vendor extensions (Handtracking) and single vendor (Meta/FB Passthrough).
 
-PC VR users note that the renderer doesn't render/blit to a desktop mirror. You'll need to use the OpenXR runtime's built-in mirror. 
+Designed for the Quest Pro on standalone mode - this shows how to unlock the potential of new devices with OpenXR. 
+However, also demonstrates how your app's device support can be made too narrow.
 
-- SteamVR: Click on the hamburger/system icon beside the version number and select "Display VR View"
-- Meta: https://developer.oculus.com/documentation/native/pc/dg-compositor-mirror/ 
+In the next demo app, we'll build this sample further and introduce the OpenXR Input system. We'll backup interaction
+paths with the input system to expand our list of supported devices.
+
+To build and find pre-built apks, visit the main project readme: https://github.com/1runeberg/OpenXRProvider_v2

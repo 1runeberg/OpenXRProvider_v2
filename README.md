@@ -19,13 +19,15 @@ Currently an active work in progress with testing done in both **Android (Meta Q
 
 ### Current demos and tutorials:
 
-| Name                    | Description                            | YouTube Tutorial  |
-|-------------------------|----------------------------------------|-------------------|
-| sample_01_hello         | Runtime querying and instance creation | TBD               |
-| sample_02_hello_exts    | Extensions handling                    | TBD               |
-| sample_03_hello_session | Session creation                       | TBD               |
-| sample_04_hello_cube    | Event Polling and Session  Lifecycle   | TBD               |
-| sample_05_hello_pbr     | Complex rendering and intro xrvk module| TBD               |
+| Name                      | Description                            | YouTube Tutorial  |
+|---------------------------|----------------------------------------|-------------------|
+| sample_01_hello           | Runtime querying and instance creation | TBD               |
+| sample_02_hello_exts      | Extensions handling                    | TBD               |
+| sample_03_hello_session   | Session creation                       | TBD               |
+| sample_04_hello_cube      | Event Polling and Session Lifecycle    | TBD               |
+| sample_05_hello_pbr       | Complex rendering and intro xrvk module| TBD               |
+| sample_06_finger_painting | Multi-and-single vendor extensions     | TBD               |
+
   
 ## I. Pre-built binaries
 
