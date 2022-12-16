@@ -49,7 +49,7 @@ namespace oxr
 	{
 	}
 
-	XrResult Session::Init( XrSessionCreateInfo *pSessionCreateInfo )
+	XrResult Session::Init( XrSessionCreateInfo *pSessionCreateInfo, XrReferenceSpaceType xrRefSpaceType, XrPosef xrReferencePose )
 	{
 		assert( m_pInstance->xrInstance != XR_NULL_HANDLE );
 
@@ -66,6 +66,9 @@ namespace oxr
 
 				if ( extensionName == XR_EXT_HAND_TRACKING_EXTENSION_NAME )
 					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_EXT_HAND_TRACKING_EXTENSION_NAME );
+
+				if ( extensionName == XR_FB_PASSTHROUGH_EXTENSION_NAME )
+					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_FB_PASSTHROUGH_EXTENSION_NAME );
 			}
 
 			// Log session supported reference space types (debug only)
@@ -79,38 +82,39 @@ namespace oxr
 					oxr::LogDebug( m_sLogCategory, "\t%s", XrEnumToString( xrReferenceSpaceType ) );
 				}
 			}
+
+			// Create reference space
+			XrReferenceSpaceCreateInfo xrReferenceSpaceCreateInfo { XR_TYPE_REFERENCE_SPACE_CREATE_INFO };
+			xrReferenceSpaceCreateInfo.poseInReferenceSpace = xrReferencePose;
+			xrReferenceSpaceCreateInfo.referenceSpaceType = xrRefSpaceType;
+			xrResult = xrCreateReferenceSpace( m_xrSession, &xrReferenceSpaceCreateInfo, &m_xrReferenceSpace );
+
+			if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+				return xrResult;
+
+			oxr::LogDebug( m_sLogCategory, "Reference space of type (%s) created with handle (%" PRIu64 ").", XrEnumToString( xrRefSpaceType ), ( uint64_t )m_xrReferenceSpace );
+
+			// Create app space
+			xrReferenceSpaceCreateInfo.poseInReferenceSpace = xrReferencePose;
+			xrReferenceSpaceCreateInfo.referenceSpaceType = xrRefSpaceType;
+			xrResult = xrCreateReferenceSpace( m_xrSession, &xrReferenceSpaceCreateInfo, &m_xrAppSpace );
+
+			if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+				return xrResult;
+
+			oxr::LogDebug( m_sLogCategory, "App Reference space of type (%s) created with handle (%" PRIu64 ").", XrEnumToString( xrRefSpaceType ), ( uint64_t )m_xrReferenceSpace );
+
 		}
 
 		return xrResult;
 	}
 
-	XrResult Session::Begin( XrViewConfigurationType xrViewConfigurationType, XrReferenceSpaceType xrRefSpaceType, XrPosef xrReferencePose, void *pvOtherBeginInfo, void *pvOtherReferenceSpaceInfo )
+	XrResult Session::Begin( XrViewConfigurationType xrViewConfigurationType, void *pvOtherBeginInfo, void *pvOtherReferenceSpaceInfo )
 	{
 		// Check if session was initialized correctly
 		XrResult xrResult = CheckIfInitCalled();
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
-
-		// Create reference space
-		XrReferenceSpaceCreateInfo xrReferenceSpaceCreateInfo { XR_TYPE_REFERENCE_SPACE_CREATE_INFO };
-		xrReferenceSpaceCreateInfo.poseInReferenceSpace = xrReferencePose;
-		xrReferenceSpaceCreateInfo.referenceSpaceType = xrRefSpaceType;
-		xrResult = xrCreateReferenceSpace( m_xrSession, &xrReferenceSpaceCreateInfo, &m_xrReferenceSpace );
-
-		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
-			return xrResult;
-
-		oxr::LogDebug( m_sLogCategory, "Reference space of type (%s) created with handle (%" PRIu64 ").", XrEnumToString( xrRefSpaceType ), ( uint64_t )m_xrReferenceSpace );
-
-		// Create app space
-		xrReferenceSpaceCreateInfo.poseInReferenceSpace = xrReferencePose;
-		xrReferenceSpaceCreateInfo.referenceSpaceType = xrRefSpaceType;
-		xrResult = xrCreateReferenceSpace( m_xrSession, &xrReferenceSpaceCreateInfo, &m_xrAppSpace );
-
-		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
-			return xrResult;
-
-		oxr::LogDebug( m_sLogCategory, "App Reference space of type (%s) created with handle (%" PRIu64 ").", XrEnumToString( xrRefSpaceType ), ( uint64_t )m_xrReferenceSpace );
 
 		// Begin session
 		XrSessionBeginInfo xrSessionBeginInfo { XR_TYPE_SESSION_BEGIN_INFO };
@@ -538,11 +542,36 @@ namespace oxr
 	void Session::RenderFrame(
 		std::vector< XrCompositionLayerProjectionView > &vecFrameLayerProjectionViews,
 		XrFrameState *pFrameState,
+		XrCompositionLayerFlags xrCompositionLayerFlags,
 		XrEnvironmentBlendMode xrEnvironmentBlendMode,
 		XrOffset2Di xrRectOffset,
 		XrExtent2Di xrRectExtent,
 		bool bIsarray,
 		uint32_t unArrayIndex )
+	{
+		std::vector< XrCompositionLayerBaseHeader * > xrFrameLayers;
+		RenderFrame(
+			vecFrameLayerProjectionViews,
+			xrFrameLayers,
+			pFrameState,
+			xrCompositionLayerFlags,
+			xrEnvironmentBlendMode,
+			xrRectOffset,
+			xrRectExtent,
+			bIsarray,
+			unArrayIndex);
+	}
+
+	void Session::RenderFrame(
+		std::vector< XrCompositionLayerProjectionView > &vecFrameLayerProjectionViews,
+		std::vector< XrCompositionLayerBaseHeader* > &vecFrameLayers,
+		XrFrameState *pFrameState,
+		XrCompositionLayerFlags xrCompositionLayerFlags /*= 0 */,
+		XrEnvironmentBlendMode xrEnvironmentBlendMode /*= XR_ENVIRONMENT_BLEND_MODE_OPAQUE*/,
+		/* vr */ XrOffset2Di xrRectOffset /*= { 0, 0 }*/,
+		XrExtent2Di xrRectExtent /*= { 0, 0 }*/,
+		bool bIsarray /*= false*/,
+		uint32_t unArrayIndex /*= 0 */ )
 	{
 		// Check if there's a valid session and swapchains to work with
 		if ( m_xrSession == XR_NULL_HANDLE || m_vecSwapchains.empty() )
@@ -563,7 +592,6 @@ namespace oxr
 		if ( xrBeginFrame( m_xrSession, &xrBeginFrameInfo ) != XR_SUCCESS )
 			return;
 
-		std::vector< XrCompositionLayerBaseHeader * > xrFrameLayers;
 		XrCompositionLayerProjection xrFrameLayerProjection { XR_TYPE_COMPOSITION_LAYER_PROJECTION };
 
 		if ( pFrameState->shouldRender )
@@ -645,11 +673,11 @@ namespace oxr
 
 				// (4.9) Assemble projection layer
 				xrFrameLayerProjection.space = m_xrAppSpace;
-				xrFrameLayerProjection.layerFlags = 0;
+				xrFrameLayerProjection.layerFlags = xrCompositionLayerFlags;
 				xrFrameLayerProjection.viewCount = ( uint32_t )vecFrameLayerProjectionViews.size();
 				xrFrameLayerProjection.views = vecFrameLayerProjectionViews.data();
 
-				xrFrameLayers.push_back( reinterpret_cast< XrCompositionLayerBaseHeader * >( &xrFrameLayerProjection ) );
+				vecFrameLayers.push_back( reinterpret_cast< XrCompositionLayerBaseHeader * >( &xrFrameLayerProjection ) );
 			}
 		}
 
@@ -658,8 +686,8 @@ namespace oxr
 		XrFrameEndInfo xrEndFrameInfo { XR_TYPE_FRAME_END_INFO };
 		xrEndFrameInfo.displayTime = pFrameState->predictedDisplayTime;
 		xrEndFrameInfo.environmentBlendMode = xrEnvironmentBlendMode;
-		xrEndFrameInfo.layerCount = ( uint32_t )xrFrameLayers.size();
-		xrEndFrameInfo.layers = xrFrameLayers.data();
+		xrEndFrameInfo.layerCount = ( uint32_t )vecFrameLayers.size();
+		xrEndFrameInfo.layers = vecFrameLayers.data();
 
 		xrEndFrame( m_xrSession, &xrEndFrameInfo );
 	}

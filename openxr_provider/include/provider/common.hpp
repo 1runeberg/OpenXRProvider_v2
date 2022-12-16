@@ -58,4 +58,6 @@ namespace oxr
 	XR_ENUM_TYPE_STRINGIFY( XrViewConfigurationType );
 	XR_ENUM_TYPE_STRINGIFY( XrSessionState );
 	XR_ENUM_TYPE_STRINGIFY( XrReferenceSpaceType );
+
+#define INIT_PFN(instance, pfn) xrGetInstanceProcAddr(instance, #pfn, (PFN_xrVoidFunction*)(&pfn));
 } // namespace oxr

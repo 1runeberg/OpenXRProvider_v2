@@ -34,6 +34,7 @@
 
 #include "ext_base.hpp"
 #include "ext_handtracking.hpp"
+#include "ext_fbpassthrough.hpp"
 #define LOG_CATEGORY_EXT "OpenXRProvider-Ext"
 
 namespace oxr

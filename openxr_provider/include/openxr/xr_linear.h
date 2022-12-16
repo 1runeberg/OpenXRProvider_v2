@@ -799,4 +799,9 @@ inline static void XrPosef_Identity( XrPosef *v )
     XrQuaternionf_Identity(&v->orientation);
 }
 
+inline static void XrVector3f_Distance(float *fDistance, XrVector3f *pointA, XrVector3f *pointB)
+{
+    *fDistance = pow((pow((pointB->x - pointA->x), 2.0f) + pow((pointB->y - pointA->y), 2.0f) + pow((pointB->z - pointA->z), 2.0f)), 0.5f);
+}
+
 #endif  // XR_LINEAR_H_
