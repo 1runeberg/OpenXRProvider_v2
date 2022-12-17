@@ -4,7 +4,7 @@
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 # third party sdks
-openxr_provider/third_party/ovr_openxr_mobile
+openxr_provider/third_party/openxr_meta
 
 # build directories
 **/build/
