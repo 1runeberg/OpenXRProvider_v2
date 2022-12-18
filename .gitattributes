@@ -1,0 +1,1 @@
+bin_prebuilt/sample_07_finger_painting2/android/sample_07_finger_painting2-Vulkan-debug.apk filter=lfs diff=lfs merge=lfs -text

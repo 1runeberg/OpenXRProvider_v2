@@ -27,6 +27,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <future>
 
 #include "assert.h"
 #include "data_types.hpp"
