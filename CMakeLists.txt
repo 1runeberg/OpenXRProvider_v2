@@ -48,6 +48,9 @@ add_subdirectory("sample_05_hello_pbr")
 # Sample 06 - Finger Painting
 add_subdirectory("sample_06_finger_painting")
 
+# Sample 07 - Finger Painting 2
+add_subdirectory("sample_07_finger_painting2")
+
 # Set a sample app as the startup project in VS
-set_property (DIRECTORY PROPERTY VS_STARTUP_PROJECT "sample_06_finger_painting")
-message("[${MAIN_PROJECT}] Startup project for VS set to: sample_06_finger_painting")
+set_property (DIRECTORY PROPERTY VS_STARTUP_PROJECT "sample_07_finger_painting2")
+message("[${MAIN_PROJECT}] Startup project for VS set to: sample_07_finger_painting2")
