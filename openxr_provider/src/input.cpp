@@ -58,14 +58,8 @@ namespace oxr
 		return false;
 	}
 
-	XrResult Action::Init(
-		XrInstance xrInstance,
-		ActionSet *pActionSet,
-		XrActionType actionType,
-		std::string sName,
-		std::string sLocalizedName,
-		std::vector< std::string > vecSubpaths,
-		void *pOtherInfo )
+	XrResult
+		Action::Init( XrInstance xrInstance, ActionSet *pActionSet, XrActionType actionType, std::string sName, std::string sLocalizedName, std::vector< std::string > vecSubpaths, void *pOtherInfo )
 	{
 		assert( xrInstance != XR_NULL_HANDLE );
 
@@ -104,13 +98,17 @@ namespace oxr
 
 		xrResult = xrCreateAction( pActionSet->xrActionSetHandle, &xrActionCreateInfo, &xrActionHandle );
 
-		// Add to action set
-		if ( XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 		{
-			pActionSet->vecActions.push_back( this );
+			LogError( LOG_CATEGORY_INPUT, "Error creating action %s : %s", sName.c_str(), XrEnumToString( xrResult ) );
+			return xrResult;
 		}
 
-		return xrResult;
+		// Add this action to the action set
+		pActionSet->vecActions.push_back( this );
+
+		LogInfo( LOG_CATEGORY_INPUT, "Action created (%s) : %s", sName.c_str(), sLocalizedName.c_str() );
+		return XR_SUCCESS;
 	}
 
 	XrResult Action::AddSubActionPath( std::vector< XrPath > &outSubactionPaths, XrInstance xrInstance, std::string sPath )
@@ -129,9 +127,47 @@ namespace oxr
 		return XR_SUCCESS;
 	}
 
-	Input::Input( oxr::Instance *pInstance ) {}
+	Input::Input( oxr::Instance *pInstance, ELogLevel eLoglevel /*= ELogLevel::LogInfo */ )
+		: m_eMinLogLevel( eLoglevel )
+	{
+		assert(pInstance);
+		m_pInstance = pInstance;
+	}
 
 	Input::~Input() {}
+
+	void Input::Init( oxr::Session *pSession )
+	{
+		assert( pSession );
+		m_pSession = pSession;
+	}
+
+	XrResult Input::CreateActionSet( ActionSet *outActionSet, std::string sName, std::string sLocalizedName, uint32_t unPriority /*= 0*/, void *pOtherInfo /*= nullptr*/ ) 
+	{
+		return outActionSet->Init(m_pInstance->xrInstance, sName, sLocalizedName, unPriority, pOtherInfo);
+	}
+
+	XrResult Input::CreateAction(
+		Action *outAction,
+		ActionSet *pActionSet,
+		XrActionType actionType,
+		std::string sName,
+		std::string sLocalizedName,
+		std::vector< std::string > vecSubpaths /*= {}*/,
+		void *pOtherInfo /*= nullptr */ )
+	{
+		return outAction->Init(m_pInstance->xrInstance, pActionSet, actionType, sName, sLocalizedName, vecSubpaths, pOtherInfo);
+	}
+
+	XrResult Input::AddBinding( Controller *controller, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) 
+	{
+		return controller->AddBinding(m_pInstance->xrInstance, action, hand, component, qualifier);
+	}
+
+	XrResult Input::SuggestBindings( Controller *controller, void *pOtherInfo ) 
+	{
+		return controller->SuggestBindings(m_pInstance->xrInstance, pOtherInfo);
+	}
 
 	XrResult Input::StringToXrPath( const char *string, XrPath *xrPath )
 	{
@@ -163,21 +199,24 @@ namespace oxr
 		return XR_SUCCESS;
 	}
 
-	XrResult Input::AddActionsetForSync( ActionSet *pActionSet, std::string subpath ) 
+	XrResult Input::AddActionsetForSync( ActionSet *pActionSet, std::string subpath )
 	{
-		XrPath xrPath;
-		XrResult xrResult = StringToXrPath(subpath.c_str(), &xrPath);
+		XrPath xrPath = XR_NULL_PATH;
+		if (!subpath.empty())
+		{
+			XrResult xrResult = StringToXrPath( subpath.c_str(), &xrPath );
 
-		if (!XR_UNQUALIFIED_SUCCESS(xrResult))
-			return xrResult;
+			if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+				return xrResult;
+		}
 
-		m_vecActiveActionSets.push_back(pActionSet);
-		m_vecXrActiveActionSets.push_back({ pActionSet->xrActionSetHandle, xrPath });
+		m_vecActiveActionSets.push_back( pActionSet );
+		m_vecXrActiveActionSets.push_back( { pActionSet->xrActionSetHandle, xrPath } );
 
 		return XR_SUCCESS;
 	}
 
-	XrResult Input::RemoveActionsetForSync( ActionSet *pActionSet, std::string subpath ) 
+	XrResult Input::RemoveActionsetForSync( ActionSet *pActionSet, std::string subpath )
 	{
 		XrPath xrPath;
 		XrResult xrResult = StringToXrPath( subpath.c_str(), &xrPath );
@@ -186,9 +225,7 @@ namespace oxr
 			return xrResult;
 
 		// Remove from Active ActiveActionsets
-		auto end_actionset = 
-			std::remove_if( m_vecActiveActionSets.begin(), m_vecActiveActionSets.end(), 
-				[pActionSet]( const ActionSet* actionset ) { return actionset == pActionSet; } );
+		auto end_actionset = std::remove_if( m_vecActiveActionSets.begin(), m_vecActiveActionSets.end(), [ pActionSet ]( const ActionSet *actionset ) { return actionset == pActionSet; } );
 
 		m_vecActiveActionSets.erase( end_actionset, m_vecActiveActionSets.end() );
 
@@ -208,18 +245,18 @@ namespace oxr
 		XrSessionActionSetsAttachInfo xrSessionActionSetsAttachInfo { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
 		xrSessionActionSetsAttachInfo.countActionSets = unActionSetCount;
 		xrSessionActionSetsAttachInfo.actionSets = arrActionSets;
-		
+
 		XrResult xrResult = xrAttachSessionActionSets( m_pSession->GetXrSession(), &xrSessionActionSetsAttachInfo );
 
-		if ( XR_UNQUALIFIED_SUCCESS(xrResult) )
+		if ( XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			LogInfo( LOG_CATEGORY_INPUT, "%i action sets attached to this session", unActionSetCount );
 		else
-			LogError( LOG_CATEGORY_INPUT, "Error attaching action sets to this session: %s", XrEnumToString(xrResult) );
+			LogError( LOG_CATEGORY_INPUT, "Error attaching action sets to this session: %s", XrEnumToString( xrResult ) );
 
 		return xrResult;
 	}
 
-	XrResult Input::SyncActionsets()
+	XrResult Input::ProcessInput()
 	{
 		if ( m_vecXrActiveActionSets.size() < 1 )
 			return XR_SUCCESS;
@@ -244,9 +281,6 @@ namespace oxr
 				// if we've hit max threads, wait for first thread to finish
 				if ( m_unFutureIndex >= k_unMaxInputThreads )
 					m_arrFutures[ 0 ].wait();
-
-				// todo: run action callbacks here
-
 			}
 		}
 
@@ -290,6 +324,16 @@ namespace oxr
 				break;
 		}
 
+		// todo: run action callbacks here
+		if ( pAction->IsActive() )
+		{
+			// callback here
+			if (pAction->actionState.stateBoolean.currentState == XR_TRUE)
+			{
+				LogDebug( m_sLogCategory, "[thread] Action callback called!" );
+			}
+		}
+
 		m_mutexFutureIndex.lock();
 		m_unFutureIndex--;
 		m_mutexFutureIndex.unlock();
@@ -297,7 +341,7 @@ namespace oxr
 		return xrResult;
 	}
 
-	const char *Input::GetCurrentInteractionProfile( const char *sUserPath ) 
+	const char *Input::GetCurrentInteractionProfile( const char *sUserPath )
 	{
 		XrPath xrPath;
 		XrResult xrResult = StringToXrPath( sUserPath, &xrPath );
@@ -312,16 +356,16 @@ namespace oxr
 			return "";
 
 		std::string sInteractionProfile;
-		xrResult = XrPathToString(sInteractionProfile, &xrInteractionProfileState.interactionProfile);
+		xrResult = XrPathToString( sInteractionProfile, &xrInteractionProfileState.interactionProfile );
 
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return "";
 
-		LogInfo(LOG_CATEGORY_INPUT, "Current interaction profile (%s) : %s", sUserPath, sInteractionProfile.c_str());
+		LogInfo( LOG_CATEGORY_INPUT, "Current interaction profile (%s) : %s", sUserPath, sInteractionProfile.c_str() );
 		return sInteractionProfile.c_str();
 	}
 
-	XrResult Input::GenerateHaptic( XrAction xrAction, uint64_t nDuration /*= XR_MIN_HAPTIC_DURATION*/, float fAmplitude /*= 0.5f*/, float fFrequency /*= XR_FREQUENCY_UNSPECIFIED */ ) 
+	XrResult Input::GenerateHaptic( XrAction xrAction, uint64_t nDuration /*= XR_MIN_HAPTIC_DURATION*/, float fAmplitude /*= 0.5f*/, float fFrequency /*= XR_FREQUENCY_UNSPECIFIED */ )
 	{
 		XrHapticVibration xrHapticVibration { XR_TYPE_HAPTIC_VIBRATION };
 		xrHapticVibration.duration = nDuration;

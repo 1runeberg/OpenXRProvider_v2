@@ -128,6 +128,7 @@ namespace oxr
 		}
 
 		XrInteractionProfileSuggestedBinding xrInteractionProfileSuggestedBinding { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
+		xrInteractionProfileSuggestedBinding.next = pOtherInfo;
 		xrInteractionProfileSuggestedBinding.interactionProfile = xrPath;
 		xrInteractionProfileSuggestedBinding.suggestedBindings = vecSuggestedBindings.data();
 		xrInteractionProfileSuggestedBinding.countSuggestedBindings = static_cast< uint32_t >( vecSuggestedBindings.size() );
@@ -139,6 +140,122 @@ namespace oxr
 			LogError( LOG_CATEGORY_INPUT, "Error suggesting bindings (%s) for %s", XrEnumToString( xrResult ), Path() );
 		}
 
+		LogInfo( LOG_CATEGORY_INPUT, "All action bindings sent to runtime for: (%s)",  Path() );
+		return xrResult;
+	}
+
+	XrResult OculusTouch::AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) 
+	{
+		std::string sBinding = ( hand == XR_HAND_LEFT_EXT ) ? k_pccLeftHand : k_pccRightHand;
+		sBinding += ( component == Controller::Component::Haptic ) ? k_pccOutput : k_pccInput;
+
+		// Map requested binding configuration for this controller
+		switch ( component )
+		{
+			case Controller::Component::GripPose:
+				sBinding += k_pccGripPose;
+				break;
+			case Controller::Component::AimPose:
+				sBinding += k_pccAimPose;
+				break;
+			case Controller::Component::Trigger:
+			{
+				sBinding += k_pccTrigger;
+				if ( qualifier == Controller::Qualifier::Touch )
+					sBinding += k_pccTouch;
+				else
+					sBinding += k_pccValue;
+			}
+			break;
+			case Controller::Component::PrimaryButton:
+			{
+				sBinding += ( hand == XR_HAND_LEFT_EXT ) ? k_pccX : k_pccA;
+				if ( qualifier == Controller::Qualifier::Touch )
+					sBinding += k_pccTouch;
+				else
+					sBinding += k_pccClick;
+			}
+			break;
+			case Controller::Component::SecondaryButton:
+			{
+				sBinding += ( hand == XR_HAND_LEFT_EXT ) ? k_pccY : k_pccB;
+				if ( qualifier == Controller::Qualifier::Touch )
+					sBinding += k_pccTouch;
+				else
+					sBinding += k_pccClick;
+			}
+			break;
+			case Controller::Component::AxisControl:
+			{
+				sBinding += k_pccThumbstick;
+				if ( qualifier == Controller::Qualifier::Click )
+					sBinding += k_pccClick;
+				else if ( qualifier == Controller::Qualifier::Touch )
+					sBinding += k_pccTouch;
+				else if ( qualifier == Controller::Qualifier::X )
+					sBinding += k_pccX;
+				else if ( qualifier == Controller::Qualifier::Y )
+					sBinding += k_pccY;
+			}
+			break;
+			case Controller::Component::Squeeze:
+			{
+				sBinding += k_pccSqueeze;
+				if ( qualifier == Controller::Qualifier::Value )
+					sBinding += k_pccValue;
+			}
+			break;
+			case Controller::Component::Haptic:
+				sBinding += k_pccHaptic;
+				break;
+			default:
+				break;
+		}
+
+		// Convert binding to path
+		XrPath xrPath = XR_NULL_PATH;
+		XrResult xrResult = xrStringToPath( xrInstance, sBinding.c_str(), &xrPath );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_INPUT, "Error adding binding path [%s]: (%s) for: (%s)", XrEnumToString( xrResult ), sBinding.c_str(), Path() );
+			return xrResult;
+		}
+
+		XrActionSuggestedBinding suggestedBinding {};
+		suggestedBinding.action = action;
+		suggestedBinding.binding = xrPath;
+
+		vecSuggestedBindings.push_back( suggestedBinding );
+
+		LogInfo( LOG_CATEGORY_INPUT, "Added binding path: (%s) for: (%s)", sBinding.c_str(), Path() );
+		return XR_SUCCESS;
+	}
+
+	XrResult OculusTouch::SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) 
+	{
+		// Convert interaction profile path to an xrpath
+		XrPath xrPath = XR_NULL_PATH;
+		XrResult xrResult = xrStringToPath( xrInstance, Path(), &xrPath );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_INPUT, "Error converting interaction profile to an xrpath (%s): %s", XrEnumToString( xrResult ), Path() );
+			return xrResult;
+		}
+
+		XrInteractionProfileSuggestedBinding xrInteractionProfileSuggestedBinding { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
+		xrInteractionProfileSuggestedBinding.next = pOtherInfo;
+		xrInteractionProfileSuggestedBinding.interactionProfile = xrPath;
+		xrInteractionProfileSuggestedBinding.suggestedBindings = vecSuggestedBindings.data();
+		xrInteractionProfileSuggestedBinding.countSuggestedBindings = static_cast< uint32_t >( vecSuggestedBindings.size() );
+
+		xrResult = xrSuggestInteractionProfileBindings( xrInstance, &xrInteractionProfileSuggestedBinding );
+
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_INPUT, "Error suggesting bindings (%s) for %s", XrEnumToString( xrResult ), Path() );
+		}
+
+		LogInfo( LOG_CATEGORY_INPUT, "All action bindings sent to runtime for: (%s)", Path() );
 		return xrResult;
 	}
 

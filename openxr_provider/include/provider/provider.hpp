@@ -25,6 +25,7 @@
 
 // Add common headers - this includes openxr headers
 #include "provider/common.hpp"
+#include "provider/input.hpp"
 #include "provider/session.hpp"
 
 #define LOG_CATEGORY_PROVIDER "OpenXRProvider"
@@ -288,6 +289,12 @@ namespace oxr
 		oxr::Session *Session();
 
 		/// <summary>
+		/// Retrieves a pointer to the active Input class. Contains pertinent functions and state for openxr input handling.
+		/// </summary>
+		/// <returns>The pointer to the active Input class native to this library</returns>
+		oxr::Input *Input();
+
+		/// <summary>
 		/// Retrieves the extensions currently enabled in the active openxr instance
 		/// </summary>
 		/// <returns>Vector of enabled extension names in the openxr instance</returns>
@@ -305,6 +312,9 @@ namespace oxr
 
 		// Pointer to a native Session class that contains functions and state handling for an openxr session
 		oxr::Session *m_pSession = nullptr;
+
+		// Pointer to a native Input class that contains functions and state for openxr input handling
+		oxr::Input *m_pInput = nullptr;
 
 		// Latest event buffer for the last call to PollXrEvents()
 		XrEventDataBuffer m_xrEventDataBuffer;

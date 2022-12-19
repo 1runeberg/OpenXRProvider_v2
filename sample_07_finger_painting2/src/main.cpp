@@ -219,8 +219,62 @@ XrResult demo_openxr_start()
 	oxrProvider->Instance()->androidApp->onAppCmd = app_handle_cmd;
 #endif
 
+	// (12) Setup input
+
+	// (12.1) Retrieve input object from provider - this is created during provider init()
+	oxr::Input *g_pInput = oxrProvider->Input();
+	if ( g_pInput == nullptr || oxrProvider->Session() == nullptr )
+	{
+		oxr::LogError( LOG_CATEGORY_DEMO, "Error getting input object from the provider library or init failed." );
+		return XR_ERROR_INITIALIZATION_FAILED;
+	}
+
+	// (12.2) Create actionset(s) - these are collections of actions that can be activated based on game state
+	//								(e.g. one actionset for locomotion and another for ui handling)
+	//								you can optionally provide a priority and other info (e.g. via extensions)
+	oxr::ActionSet actionsetMain {};
+	g_pInput->CreateActionSet( &actionsetMain, "main", "main actions" );
+
+	// (12.3) Create action(s) - these represent actions that will be triggered based on hardware state from the openxr runtime
+	oxr::Action actionPaint {};
+	g_pInput->CreateAction( &actionPaint, &actionsetMain, XR_ACTION_TYPE_BOOLEAN_INPUT, "paint", "Draw in 3D space" );
+
+	// (12.4) Create supported controllers
+	oxr::ValveIndex controllerIndex {};
+	oxr::OculusTouch controllerTouch {};
+
+	// (12.5) Create action to controller bindings
+	//		  The use of the "BaseController" here is optional. It's a convenience controller handle that will auto-map
+	//		  basic controller components to every supported controller it knows of.
+	//
+	//		  Alternatively (or in addition), you can directly add bindings per controller
+	//		  e.g. controllerVive.AddBinding(...)
+	oxr::BaseController baseController {};
+	baseController.vecSupportedControllers.push_back( &controllerIndex );
+	baseController.vecSupportedControllers.push_back( &controllerTouch );
+
+	g_pInput->AddBinding( &baseController, actionPaint.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::Trigger, oxr::Controller::Qualifier::Click );
+
+	// (12.6) Suggest bindings to the active openxr runtime
+	//        As with adding bindings, you can also suggest bindings manually per controller
+	//        e.g. controllerIndex.SuggestBindings(...)
+	g_pInput->SuggestBindings( &baseController, nullptr );
+
+	// (12.7) Initialize input with session - required for succeeding calls
+	g_pInput->Init( oxrProvider->Session() );
+
+	// (12.8) Attach actionset(s) to session
+	std::vector< XrActionSet > vecActionSets = { actionsetMain.xrActionSetHandle };
+	g_pInput->AttachActionSetsToSession( vecActionSets.data(), static_cast< uint32_t >( vecActionSets.size() ) );
+
+	// (12.9) Add actionset(s) that will be active during input sync with the openxr runtime
+	//		  these are the action sets (and their actions) whose state will be checked in the successive frames.
+	//		  you can change this anytime (e.g. changing game mode to locomotion vs ui)
+	g_pInput->AddActionsetForSync( &actionsetMain ); //  optional sub path is a filter if made available with the action - e.g /user/hand/left
+
 	// Main game loop
 	bool bProcessRenderFrame = false;
+	bool bProcessInputFrame = false;
 	while ( CheckGameLoopExit( oxrProvider.get() ) )
 	{
 #ifdef XR_USE_PLATFORM_ANDROID
@@ -245,10 +299,10 @@ XrResult demo_openxr_start()
 			}
 		}
 #endif
-		// (12) Poll runtime for openxr events
+		// (13) Poll runtime for openxr events
 		g_xrEventDataBaseheader = oxrProvider->PollXrEvents();
 
-		// Handle events
+		// (14) Handle events
 		if ( g_xrEventDataBaseheader )
 		{
 			// Handle session state changes
@@ -272,9 +326,17 @@ XrResult demo_openxr_start()
 						oxr::LogError( LOG_CATEGORY_DEMO, "Unable to start openxr session (%s)", oxr::XrEnumToString( xrResult ) );
 					}
 				}
+				else if ( g_sessionState == XR_SESSION_STATE_FOCUSED )
+				{
+					// (14.1) Start input
+					bProcessInputFrame = true;
+				}
 				else if ( g_sessionState == XR_SESSION_STATE_STOPPING )
 				{
-					// (12.2) End session - end the app's frame loop here
+					// (14.2) End session - end input
+					bProcessRenderFrame = false;
+
+					// (14.3) End session - end the app's frame loop here
 					oxr::LogInfo( LOG_CATEGORY_DEMO, "App frame loop ends here." );
 					if ( oxrProvider->Session()->End() == XR_SUCCESS )
 						bProcessRenderFrame = false;
@@ -282,12 +344,12 @@ XrResult demo_openxr_start()
 			}
 		}
 
-		// Render loop
+		// (15) Render loop
 		if ( bProcessRenderFrame )
 		{
-			// (13) Call render frame - this will call our registered callback at the appropriate times
+			// (15.1) Call render frame - this will call our registered callback at the appropriate times
 
-			//  (13.1) Define projection layers to render
+			//  (15.2) Define projection layers to render
 			XrCompositionLayerFlags xrCompositionLayerFlags = 0;
 			g_vecFrameLayers.clear();
 			if ( g_extFBPassthrough )
@@ -299,6 +361,12 @@ XrResult demo_openxr_start()
 
 			g_vecFrameLayerProjectionViews.resize( oxrProvider->Session()->GetSwapchains().size(), { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } );
 			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, g_vecFrameLayers, &m_xrFrameState, xrCompositionLayerFlags );
+		}
+
+		// (16) Input loop
+		if (bProcessInputFrame && g_pInput)
+		{
+			g_pInput->ProcessInput();
 		}
 	}
 

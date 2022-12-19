@@ -104,9 +104,9 @@ namespace oxr
 
 	struct OculusTouch : Controller
 	{
-		const char *Path() override { return "base"; }
-		XrResult AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) override {}
-		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override {};
+		const char *Path() override { return "/interaction_profiles/oculus/touch_controller"; }
+		XrResult AddBinding(XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier) override;
+		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override;
 	};
 
 	struct ValveIndex : public Controller
@@ -124,15 +124,30 @@ namespace oxr
 		XrResult xrResult = XR_SUCCESS;
 		XrResult AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) override
 		{
-			for ( auto &interactionProfile : m_vecSupportedControllers )
+			for ( auto &interactionProfile : vecSupportedControllers )
 			{
 				xrResult = interactionProfile->AddBinding( xrInstance, action, hand, component, qualifier );
 
 				if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 					return xrResult;
 			}
+
+			return XR_SUCCESS;
+		}
+		
+		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override
+		{
+			for ( auto &interactionProfile : vecSupportedControllers )
+			{
+				xrResult = interactionProfile->SuggestBindings( xrInstance, pOtherInfo );
+
+				if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+					return xrResult;
+			}
+
+			return XR_SUCCESS;
 		}
 
-		std::vector< Controller * > m_vecSupportedControllers;
+		std::vector< Controller * > vecSupportedControllers;
 	};
 } // namespace oxr

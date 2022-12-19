@@ -63,16 +63,15 @@ namespace oxr
 		XrAction xrActionHandle = XR_NULL_HANDLE;
 		ActionSet *pActionSet = nullptr;
 	};
-	
-	
+
 	struct ActionSet
 	{
 		XrActionSet xrActionSetHandle = XR_NULL_HANDLE;
 		uint32_t unPriority = 0;
-		
-		std::vector < Action* > vecActions;
 
-		ActionSet()	{}
+		std::vector< Action * > vecActions;
+
+		ActionSet() {}
 
 		~ActionSet()
 		{
@@ -90,38 +89,65 @@ namespace oxr
 				return XR_SUCCESS;
 
 			XrActionSetCreateInfo xrActionSetCreateInfo { XR_TYPE_ACTION_SET_CREATE_INFO };
+			xrActionSetCreateInfo.next = pOtherInfo;
 			xrActionSetCreateInfo.priority = unPriority;
 			strcpy_s( xrActionSetCreateInfo.actionSetName, XR_MAX_ACTION_SET_NAME_SIZE, sName.c_str() );
 			strcpy_s( xrActionSetCreateInfo.localizedActionSetName, XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE, sLocalizedName.c_str() );
 
-			return xrCreateActionSet( xrInstance, &xrActionSetCreateInfo, &xrActionSetHandle );
+			XrResult xrResult = xrCreateActionSet( xrInstance, &xrActionSetCreateInfo, &xrActionSetHandle );
+
+			if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+			{
+				LogError( LOG_CATEGORY_INPUT, "Error creating actionset %s : %s", sName.c_str(), XrEnumToString( xrResult ) );
+				return xrResult;
+			}
+
+			LogInfo( LOG_CATEGORY_INPUT, "Actionset created (%s) : %s", sName.c_str(), sLocalizedName.c_str() );
+			return XR_SUCCESS;
 		}
 	};
 
+	class Session;
 	class Input
 	{
 	  public:
-
 		static const uint8_t k_unMaxInputThreads = 4;
 
-		Input( oxr::Instance *pInstance );
+		Input( oxr::Instance *pInstance, ELogLevel eLoglevel = ELogLevel::LogInfo );
 		~Input();
+
+		void Init( oxr::Session *pSession );
+
+		XrResult CreateActionSet(ActionSet* outActionSet, std::string sName, std::string sLocalizedName, uint32_t unPriority = 0, void *pOtherInfo = nullptr);
+
+		XrResult CreateAction(
+			Action *outAction,
+			ActionSet *pActionSet,
+			XrActionType actionType,
+			std::string sName,
+			std::string sLocalizedName,
+			std::vector< std::string > vecSubpaths = {},
+			void *pOtherInfo = nullptr );
+
+		XrResult AddBinding(Controller* controller, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier);
+
+		XrResult SuggestBindings(Controller* controller, void* pOtherInfo);
 
 		XrResult StringToXrPath( const char *string, XrPath *xrPath );
 
-		XrResult XrPathToString( std::string &outString, XrPath *xrPath  );
+		XrResult XrPathToString( std::string &outString, XrPath *xrPath );
 
-		XrResult AddActionsetForSync( ActionSet* pActionSet, std::string subpath );
+		XrResult AddActionsetForSync( ActionSet *pActionSet, std::string subpath = "" );
 
-		XrResult RemoveActionsetForSync( ActionSet* pActionSet, std::string subpath );
+		XrResult RemoveActionsetForSync( ActionSet *pActionSet, std::string subpath );
 
-		XrResult AttachActionSetsToSession( XrActionSet* arrActionSets, uint32_t unActionSetCount );
+		XrResult AttachActionSetsToSession( XrActionSet *arrActionSets, uint32_t unActionSetCount );
 
-		XrResult SyncActionsets();
+		XrResult ProcessInput();
 
-		XrResult GetActionPose( XrSpaceLocation *outSpaceLocation, Action* pAction, XrTime xrTime );
+		XrResult GetActionPose( XrSpaceLocation *outSpaceLocation, Action *pAction, XrTime xrTime );
 
-		XrResult GetActionState( Action* pAction  );
+		XrResult GetActionState( Action *pAction );
 
 		const char *GetCurrentInteractionProfile( const char *sUserPath );
 
@@ -137,15 +163,15 @@ namespace oxr
 		// Pointer to instance state from the Provider class
 		Instance *m_pInstance = nullptr;
 
-		Session* m_pSession = nullptr;
+		Session *m_pSession = nullptr;
 
 		std::mutex m_mutexFutureIndex;
 		uint8_t m_unFutureIndex = 0;
-		std::array<std::future<XrResult>, k_unMaxInputThreads> m_arrFutures;
+		std::array< std::future< XrResult >, k_unMaxInputThreads > m_arrFutures;
 
 		// Active action sets
 		std::vector< XrActiveActionSet > m_vecXrActiveActionSets;
-		std::vector< ActionSet* > m_vecActiveActionSets;
+		std::vector< ActionSet * > m_vecActiveActionSets;
 	};
 
 } // namespace oxr
