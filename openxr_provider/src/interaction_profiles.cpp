@@ -27,6 +27,27 @@
 
 namespace oxr
 {
+	XrResult Controller::AddBinding( XrInstance xrInstance, XrAction action, std::string sFullBindingPath ) 
+	{
+		// Convert binding to path
+		XrPath xrPath = XR_NULL_PATH;
+		XrResult xrResult = xrStringToPath( xrInstance, sFullBindingPath.c_str(), &xrPath );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_INPUT, "Error adding binding path [%s]: (%s) for: (%s)", XrEnumToString( xrResult ), sFullBindingPath.c_str(), Path() );
+			return xrResult;
+		}
+
+		XrActionSuggestedBinding suggestedBinding {};
+		suggestedBinding.action = action;
+		suggestedBinding.binding = xrPath;
+
+		vecSuggestedBindings.push_back( suggestedBinding );
+
+		LogInfo( LOG_CATEGORY_INPUT, "Added binding path: (%s) for: (%s)", sFullBindingPath.c_str(), Path() );
+		return XR_SUCCESS;
+	}
+
 	XrResult ValveIndex::AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier )
 	{
 		std::string sBinding = ( hand == XR_HAND_LEFT_EXT ) ? k_pccLeftHand : k_pccRightHand;

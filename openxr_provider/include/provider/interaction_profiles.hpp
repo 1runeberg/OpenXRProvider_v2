@@ -81,11 +81,14 @@ namespace oxr
 			ComponentEMax
 		};
 
+		std::vector< XrActionSuggestedBinding > vecSuggestedBindings;
+
 		virtual const char *Path() = 0;
 		virtual XrResult AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) = 0;
 		virtual XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) = 0;
 
-		std::vector< XrActionSuggestedBinding > vecSuggestedBindings;
+		XrResult AddBinding(XrInstance xrInstance, XrAction action, std::string sFullBindingPath);
+
 	};
 
 	struct HTCVive : Controller

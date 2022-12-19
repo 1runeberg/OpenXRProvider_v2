@@ -236,8 +236,11 @@ XrResult demo_openxr_start()
 	g_pInput->CreateActionSet( &actionsetMain, "main", "main actions" );
 
 	// (12.3) Create action(s) - these represent actions that will be triggered based on hardware state from the openxr runtime
-	oxr::Action actionPaint {};
-	g_pInput->CreateAction( &actionPaint, &actionsetMain, XR_ACTION_TYPE_BOOLEAN_INPUT, "paint", "Draw in 3D space" );
+	oxr::Action actionPose (XR_ACTION_TYPE_POSE_INPUT);
+	g_pInput->CreateAction(&actionPose, &actionsetMain, XR_ACTION_TYPE_POSE_INPUT, "pose", "controller pose", {"/user/hand/left", "/user/hand/right"});
+	
+	oxr::Action actionPaint (XR_ACTION_TYPE_BOOLEAN_INPUT);
+	g_pInput->CreateAction( &actionPaint, &actionsetMain, XR_ACTION_TYPE_BOOLEAN_INPUT, "paint", "Draw in 3D space", {"/user/hand/left", "/user/hand/right"} );
 
 	// (12.4) Create supported controllers
 	oxr::ValveIndex controllerIndex {};
@@ -253,7 +256,13 @@ XrResult demo_openxr_start()
 	baseController.vecSupportedControllers.push_back( &controllerIndex );
 	baseController.vecSupportedControllers.push_back( &controllerTouch );
 
+	// poses
+	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::GripPose, oxr::Controller::Qualifier::None);
+	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::GripPose, oxr::Controller::Qualifier::None);
+
+	// paint
 	g_pInput->AddBinding( &baseController, actionPaint.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::Trigger, oxr::Controller::Qualifier::Click );
+	g_pInput->AddBinding( &baseController, actionPaint.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::Trigger, oxr::Controller::Qualifier::Click );
 
 	// (12.6) Suggest bindings to the active openxr runtime
 	//        As with adding bindings, you can also suggest bindings manually per controller
@@ -271,6 +280,14 @@ XrResult demo_openxr_start()
 	//		  these are the action sets (and their actions) whose state will be checked in the successive frames.
 	//		  you can change this anytime (e.g. changing game mode to locomotion vs ui)
 	g_pInput->AddActionsetForSync( &actionsetMain ); //  optional sub path is a filter if made available with the action - e.g /user/hand/left
+
+	// (12.10) Create action spaces for pose actions
+	XrPosef poseInSpace;
+	XrPosef_Identity( &poseInSpace );
+
+	//g_pInput->CreateActionSpace( &actionPose, &poseInSpace, "user/hand/left");  // one for each subpath defined during action creation
+	//g_pInput->CreateActionSpace( &actionPose, &poseInSpace, "user/hand/right"); // one for each subpath defined during action creation
+	g_pInput->CreateActionSpaces(&actionPose, &poseInSpace);
 
 	// Main game loop
 	bool bProcessRenderFrame = false;
@@ -367,6 +384,37 @@ XrResult demo_openxr_start()
 		if (bProcessInputFrame && g_pInput)
 		{
 			g_pInput->ProcessInput();
+
+			// callback here
+			if ( actionPose.vecActionSpaces[0] != XR_NULL_HANDLE )
+			{
+				XrSpaceLocation spaceLocation{XR_TYPE_SPACE_LOCATION};
+				g_pInput->GetActionPose(&spaceLocation, &actionPose, 0, m_xrFrameState.predictedDisplayTime);
+				oxr::LogDebug( LOG_CATEGORY_DEMO, "LEFT Pose loc(%f, %f, %f) : rot(%f, %f, %f, %f)", 
+					spaceLocation.pose.position.x, 
+					spaceLocation.pose.position.y, 
+					spaceLocation.pose.position.z, 
+					spaceLocation.pose.orientation.x, 
+					spaceLocation.pose.orientation.y, 
+					spaceLocation.pose.orientation.z, 
+					spaceLocation.pose.orientation.w);
+			}
+
+			if ( actionPose.vecActionSpaces[ 1 ] != XR_NULL_HANDLE )
+			{
+				XrSpaceLocation spaceLocation { XR_TYPE_SPACE_LOCATION };
+				g_pInput->GetActionPose( &spaceLocation, &actionPose, 1, m_xrFrameState.predictedDisplayTime );
+				oxr::LogDebug(
+					LOG_CATEGORY_DEMO,
+					"RIGHT Pose loc(%f, %f, %f) : rot(%f, %f, %f, %f)",
+					spaceLocation.pose.position.x,
+					spaceLocation.pose.position.y,
+					spaceLocation.pose.position.z,
+					spaceLocation.pose.orientation.x,
+					spaceLocation.pose.orientation.y,
+					spaceLocation.pose.orientation.z,
+					spaceLocation.pose.orientation.w );
+			}
 		}
 	}
 

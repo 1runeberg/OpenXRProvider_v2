@@ -32,7 +32,12 @@ namespace oxr
 	struct ActionSet;
 	struct Action
 	{
-		XrSpace xrSpace = XR_NULL_HANDLE;
+		XrActionType xrActionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
+
+		XrAction xrActionHandle = XR_NULL_HANDLE;
+
+		ActionSet *pActionSet = nullptr;
+
 		std::mutex mutexActionState;
 
 		union ActionState
@@ -41,27 +46,24 @@ namespace oxr
 			XrActionStateFloat stateFloat;
 			XrActionStateVector2f stateVector2f;
 			XrActionStatePose statePose;
-		} actionState;
+		};
 
-		Action() {}
+		std::vector< ActionState > vecActionStates;
+		std::vector< XrPath > vecSubactionpaths;
+		std::vector< XrSpace > vecActionSpaces;
+
+		Action( XrActionType actionType )
+			: xrActionType( actionType )
+		{
+		}
 		~Action();
 
-		bool IsActive();
+		bool IsActive( uint32_t unActionStateIndex = 0 );
+		void SetActionStateType( uint32_t unActionStateIndex = 0 );
 
-		XrResult Init(
-			XrInstance xrInstance,
-			ActionSet *pActionSet,
-			XrActionType actionType,
-			std::string sName,
-			std::string sLocalizedName,
-			std::vector< std::string > vecSubpaths = {},
-			void *pOtherInfo = nullptr );
+		XrResult Init( XrInstance xrInstance, ActionSet *pActionSet, std::string sName, std::string sLocalizedName, std::vector< std::string > vecSubpaths = {}, void *pOtherInfo = nullptr );
 
 		XrResult AddSubActionPath( std::vector< XrPath > &outSubactionPaths, XrInstance xrInstance, std::string sPath );
-
-		XrActionType xrActionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
-		XrAction xrActionHandle = XR_NULL_HANDLE;
-		ActionSet *pActionSet = nullptr;
 	};
 
 	struct ActionSet
@@ -118,7 +120,7 @@ namespace oxr
 
 		void Init( oxr::Session *pSession );
 
-		XrResult CreateActionSet(ActionSet* outActionSet, std::string sName, std::string sLocalizedName, uint32_t unPriority = 0, void *pOtherInfo = nullptr);
+		XrResult CreateActionSet( ActionSet *outActionSet, std::string sName, std::string sLocalizedName, uint32_t unPriority = 0, void *pOtherInfo = nullptr );
 
 		XrResult CreateAction(
 			Action *outAction,
@@ -129,9 +131,15 @@ namespace oxr
 			std::vector< std::string > vecSubpaths = {},
 			void *pOtherInfo = nullptr );
 
-		XrResult AddBinding(Controller* controller, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier);
+		XrResult CreateActionSpace( Action *outAction, XrPosef *poseInSpace, std::string subpath = "", void *pOtherInfo = nullptr );
 
-		XrResult SuggestBindings(Controller* controller, void* pOtherInfo);
+		XrResult CreateActionSpaces( Action *outAction, XrPosef *poseInSpace, void *pOtherInfo = nullptr );
+
+		XrResult AddBinding( Controller *controller, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier );
+
+		XrResult AddBinding( Controller *controller, XrAction action, std::string sFullBindingPath );
+
+		XrResult SuggestBindings( Controller *controller, void *pOtherInfo );
 
 		XrResult StringToXrPath( const char *string, XrPath *xrPath );
 
@@ -145,7 +153,7 @@ namespace oxr
 
 		XrResult ProcessInput();
 
-		XrResult GetActionPose( XrSpaceLocation *outSpaceLocation, Action *pAction, XrTime xrTime );
+		XrResult GetActionPose( XrSpaceLocation *outSpaceLocation, Action *pAction, uint32_t unSpaceIndex, XrTime xrTime );
 
 		XrResult GetActionState( Action *pAction );
 

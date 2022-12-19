@@ -34,21 +34,21 @@ namespace oxr
 		}
 	}
 
-	bool Action::IsActive()
+	bool Action::IsActive( uint32_t unActionStateIndex )
 	{
 		switch ( xrActionType )
 		{
 			case XR_ACTION_TYPE_BOOLEAN_INPUT:
-				return actionState.stateBoolean.isActive;
+				return vecActionStates[unActionStateIndex].stateBoolean.isActive;
 				break;
 			case XR_ACTION_TYPE_FLOAT_INPUT:
-				return actionState.stateFloat.isActive;
+				return vecActionStates[unActionStateIndex].stateFloat.isActive;
 				break;
 			case XR_ACTION_TYPE_VECTOR2F_INPUT:
-				return actionState.stateVector2f.isActive;
+				return vecActionStates[unActionStateIndex].stateVector2f.isActive;
 				break;
 			case XR_ACTION_TYPE_POSE_INPUT:
-				return actionState.statePose.isActive;
+				return vecActionStates[unActionStateIndex].statePose.isActive;
 				break;
 			case XR_ACTION_TYPE_MAX_ENUM:
 			default:
@@ -58,8 +58,29 @@ namespace oxr
 		return false;
 	}
 
-	XrResult
-		Action::Init( XrInstance xrInstance, ActionSet *pActionSet, XrActionType actionType, std::string sName, std::string sLocalizedName, std::vector< std::string > vecSubpaths, void *pOtherInfo )
+	void Action::SetActionStateType(uint32_t unActionStateIndex) 
+	{
+		switch ( xrActionType )
+		{
+			case XR_ACTION_TYPE_BOOLEAN_INPUT:
+				vecActionStates[ unActionStateIndex ].stateBoolean.type = XR_TYPE_ACTION_STATE_BOOLEAN;
+				break;
+			case XR_ACTION_TYPE_FLOAT_INPUT:
+				vecActionStates[ unActionStateIndex ].stateFloat.type = XR_TYPE_ACTION_STATE_FLOAT;
+				break;
+			case XR_ACTION_TYPE_VECTOR2F_INPUT:
+				vecActionStates[ unActionStateIndex ].stateVector2f.type = XR_TYPE_ACTION_STATE_VECTOR2F;
+				break;
+			case XR_ACTION_TYPE_POSE_INPUT:
+				vecActionStates[ unActionStateIndex ].statePose.type = XR_TYPE_ACTION_STATE_POSE;
+				break;
+			case XR_ACTION_TYPE_MAX_ENUM:
+			default:
+				break;
+		}	
+	}
+
+	XrResult Action::Init( XrInstance xrInstance, ActionSet *pActionSet, std::string sName, std::string sLocalizedName, std::vector< std::string > vecSubpaths, void *pOtherInfo )
 	{
 		assert( xrInstance != XR_NULL_HANDLE );
 
@@ -67,8 +88,6 @@ namespace oxr
 			return XR_SUCCESS;
 
 		// Get subaction paths if available
-		std::vector< XrPath > vecSubactionpaths;
-
 		XrResult xrResult = XR_SUCCESS;
 		for ( auto &path : vecSubpaths )
 		{
@@ -89,11 +108,32 @@ namespace oxr
 		{
 			xrActionCreateInfo.countSubactionPaths = unSubpathsCount;
 			xrActionCreateInfo.subactionPaths = vecSubactionpaths.data();
+
+			// Create action states
+			vecActionStates.resize( unSubpathsCount );
+			
+			// Set action state type
+			for (uint32_t i = 0; i < unSubpathsCount; i++)
+				SetActionStateType(i);
+
+			// Create action spaces if this action is a pose
+			if ( xrActionType == XR_ACTION_TYPE_POSE_INPUT )
+				vecActionSpaces.resize( unSubpathsCount, XR_NULL_HANDLE );
 		}
 		else
 		{
 			xrActionCreateInfo.countSubactionPaths = 0;
 			xrActionCreateInfo.subactionPaths = nullptr;
+
+			// Create action state
+			vecActionStates.resize( 1 );
+
+			// Set action state type
+			SetActionStateType( 0 );
+
+			// Create action space
+			if ( xrActionType == XR_ACTION_TYPE_POSE_INPUT )
+				vecActionSpaces.resize( 1, XR_NULL_HANDLE );
 		}
 
 		xrResult = xrCreateAction( pActionSet->xrActionSetHandle, &xrActionCreateInfo, &xrActionHandle );
@@ -119,7 +159,7 @@ namespace oxr
 		XrResult xrResult = xrStringToPath( xrInstance, sPath.c_str(), &xrPath );
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 		{
-			LogError( LOG_CATEGORY_INPUT, "Error creating an openxr subpath - make sure only allowed charaters are used in the path: %s", XrEnumToString( xrResult ) );
+			LogError( LOG_CATEGORY_INPUT, "Error creating an openxr subpath - make sure only allowed characters are used in the path: %s", XrEnumToString( xrResult ) );
 			return xrResult;
 		}
 
@@ -130,7 +170,7 @@ namespace oxr
 	Input::Input( oxr::Instance *pInstance, ELogLevel eLoglevel /*= ELogLevel::LogInfo */ )
 		: m_eMinLogLevel( eLoglevel )
 	{
-		assert(pInstance);
+		assert( pInstance );
 		m_pInstance = pInstance;
 	}
 
@@ -142,9 +182,9 @@ namespace oxr
 		m_pSession = pSession;
 	}
 
-	XrResult Input::CreateActionSet( ActionSet *outActionSet, std::string sName, std::string sLocalizedName, uint32_t unPriority /*= 0*/, void *pOtherInfo /*= nullptr*/ ) 
+	XrResult Input::CreateActionSet( ActionSet *outActionSet, std::string sName, std::string sLocalizedName, uint32_t unPriority /*= 0*/, void *pOtherInfo /*= nullptr*/ )
 	{
-		return outActionSet->Init(m_pInstance->xrInstance, sName, sLocalizedName, unPriority, pOtherInfo);
+		return outActionSet->Init( m_pInstance->xrInstance, sName, sLocalizedName, unPriority, pOtherInfo );
 	}
 
 	XrResult Input::CreateAction(
@@ -156,18 +196,96 @@ namespace oxr
 		std::vector< std::string > vecSubpaths /*= {}*/,
 		void *pOtherInfo /*= nullptr */ )
 	{
-		return outAction->Init(m_pInstance->xrInstance, pActionSet, actionType, sName, sLocalizedName, vecSubpaths, pOtherInfo);
+		return outAction->Init( m_pInstance->xrInstance, pActionSet, sName, sLocalizedName, vecSubpaths, pOtherInfo );
 	}
 
-	XrResult Input::AddBinding( Controller *controller, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) 
+	XrResult Input::CreateActionSpace( Action *outAction, XrPosef *poseInSpace, std::string subpath /*= ""*/, void *pOtherInfo /*= nullptr*/ )
 	{
-		return controller->AddBinding(m_pInstance->xrInstance, action, hand, component, qualifier);
+		assert( outAction->xrActionType == XR_ACTION_TYPE_POSE_INPUT );
+
+		XrResult xrResult = XR_SUCCESS;
+		XrPath xrPath = XR_NULL_PATH;
+		uint32_t unActionStateIndex = 0;
+
+		if (!subpath.empty())
+		{
+			if ( !subpath.empty() )
+			{
+				xrResult = StringToXrPath( subpath.c_str(), &xrPath );
+
+				if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+					return xrResult;
+			}
+
+			auto iter = std::find( outAction->vecSubactionpaths.begin(), outAction->vecSubactionpaths.end(), xrPath );
+			if ( iter != outAction->vecSubactionpaths.end() )
+			{
+				unActionStateIndex = static_cast<uint32_t>(iter - outAction->vecSubactionpaths.begin());
+			}
+		}
+
+		XrActionSpaceCreateInfo xrActionSpaceCreateInfo { XR_TYPE_ACTION_SPACE_CREATE_INFO };
+		xrActionSpaceCreateInfo.action = outAction->xrActionHandle;
+		xrActionSpaceCreateInfo.poseInActionSpace = *poseInSpace;
+		xrActionSpaceCreateInfo.subactionPath = xrPath;
+
+		xrResult = xrCreateActionSpace( m_pSession->GetXrSession(), &xrActionSpaceCreateInfo, &outAction->vecActionSpaces[unActionStateIndex] );
+
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( m_sLogCategory, "Unable to create an action space : ", XrEnumToString( xrResult ) );
+			return xrResult;
+		}
+
+		LogInfo( m_sLogCategory, "Action (%" PRIu64 ") created with reference space handle (%" PRIu64 ")", ( uint64_t )( outAction->xrActionHandle ), ( uint64_t )( outAction->vecActionSpaces[unActionStateIndex] ) );
+		return XR_SUCCESS;
 	}
 
-	XrResult Input::SuggestBindings( Controller *controller, void *pOtherInfo ) 
+	XrResult Input::CreateActionSpaces( Action *outAction, XrPosef *poseInSpace, void *pOtherInfo /*= nullptr*/ )
 	{
-		return controller->SuggestBindings(m_pInstance->xrInstance, pOtherInfo);
+		assert( outAction->xrActionType == XR_ACTION_TYPE_POSE_INPUT );
+		assert( outAction->vecSubactionpaths.size() == outAction->vecActionSpaces.size() );
+
+		XrResult xrResult = XR_SUCCESS;
+
+		XrActionSpaceCreateInfo xrActionSpaceCreateInfo { XR_TYPE_ACTION_SPACE_CREATE_INFO };
+		xrActionSpaceCreateInfo.action = outAction->xrActionHandle;
+		xrActionSpaceCreateInfo.poseInActionSpace = *poseInSpace;
+
+		uint32_t unSize = static_cast<uint32_t>(outAction->vecSubactionpaths.size());
+		for (size_t i = 0; i < unSize; i++)
+		{
+			xrActionSpaceCreateInfo.subactionPath = outAction->vecSubactionpaths[i];
+
+			xrResult = xrCreateActionSpace( m_pSession->GetXrSession(), &xrActionSpaceCreateInfo, &outAction->vecActionSpaces[i] );
+
+			if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+			{
+				LogError( m_sLogCategory, "Unable to create an action space : ", XrEnumToString( xrResult ) );
+				return xrResult;
+			}
+
+			LogInfo( m_sLogCategory, "Action (%" PRIu64 ") created with reference space handle (%" PRIu64 ")", ( uint64_t )( outAction->xrActionHandle ), ( uint64_t )( outAction->vecActionSpaces[i] ) );
+		}
+
+		return XR_SUCCESS;
 	}
+
+	XrResult Input::AddBinding( Controller *controller, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier )
+	{
+		assert(controller);
+
+		return controller->AddBinding( m_pInstance->xrInstance, action, hand, component, qualifier );
+	}
+
+	XrResult Input::AddBinding( Controller *controller, XrAction action, std::string sFullBindingPath ) 
+	{
+		assert(controller);
+
+		return controller->AddBinding( m_pInstance->xrInstance, action, sFullBindingPath );
+	}
+
+	XrResult Input::SuggestBindings( Controller *controller, void *pOtherInfo ) { return controller->SuggestBindings( m_pInstance->xrInstance, pOtherInfo ); }
 
 	XrResult Input::StringToXrPath( const char *string, XrPath *xrPath )
 	{
@@ -202,7 +320,7 @@ namespace oxr
 	XrResult Input::AddActionsetForSync( ActionSet *pActionSet, std::string subpath )
 	{
 		XrPath xrPath = XR_NULL_PATH;
-		if (!subpath.empty())
+		if ( !subpath.empty() )
 		{
 			XrResult xrResult = StringToXrPath( subpath.c_str(), &xrPath );
 
@@ -287,9 +405,12 @@ namespace oxr
 		return xrResult;
 	}
 
-	XrResult Input::GetActionPose( XrSpaceLocation *outSpaceLocation, Action *pAction, XrTime xrTime )
+	XrResult Input::GetActionPose( XrSpaceLocation *outSpaceLocation, Action *pAction, uint32_t unSpaceIndex, XrTime xrTime )
 	{
-		return xrLocateSpace( pAction->xrSpace, m_pSession->GetAppSpace(), xrTime, outSpaceLocation );
+		if ( pAction->vecActionSpaces[unSpaceIndex] == XR_NULL_HANDLE )
+			return XR_ERROR_VALIDATION_FAILURE;
+
+		return xrLocateSpace( pAction->vecActionSpaces[unSpaceIndex], m_pSession->GetAppSpace(), xrTime, outSpaceLocation );
 	}
 
 	XrResult Input::GetActionState( Action *pAction )
@@ -305,32 +426,39 @@ namespace oxr
 
 		// get the action state from the runtime, block other threads while doing so
 		const std::lock_guard< std::mutex > lock( pAction->mutexActionState );
-		switch ( pAction->xrActionType )
-		{
-			case XR_ACTION_TYPE_BOOLEAN_INPUT:
-				xrResult = xrGetActionStateBoolean( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->actionState.stateBoolean );
-				break;
-			case XR_ACTION_TYPE_FLOAT_INPUT:
-				xrResult = xrGetActionStateFloat( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->actionState.stateFloat );
-				break;
-			case XR_ACTION_TYPE_VECTOR2F_INPUT:
-				xrResult = xrGetActionStateVector2f( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->actionState.stateVector2f );
-				break;
-			case XR_ACTION_TYPE_POSE_INPUT:
-				xrResult = xrGetActionStatePose( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->actionState.statePose );
-			case XR_ACTION_TYPE_MAX_ENUM:
-			default:
-				xrResult = XR_ERROR_ACTION_TYPE_MISMATCH;
-				break;
-		}
 
-		// todo: run action callbacks here
-		if ( pAction->IsActive() )
+		size_t unIterations = pAction->vecSubactionpaths.empty() ? 1 : pAction->vecSubactionpaths.size();
+		for ( size_t i = 0; i < unIterations; i++ )
 		{
-			// callback here
-			if (pAction->actionState.stateBoolean.currentState == XR_TRUE)
+			xrActionStateGetInfo.subactionPath = pAction->vecSubactionpaths.empty() ? XR_NULL_PATH : pAction->vecSubactionpaths[ i ];
+
+			switch ( pAction->xrActionType )
 			{
-				LogDebug( m_sLogCategory, "[thread] Action callback called!" );
+				case XR_ACTION_TYPE_BOOLEAN_INPUT:
+					xrResult = xrGetActionStateBoolean( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].stateBoolean );
+					break;
+				case XR_ACTION_TYPE_FLOAT_INPUT:
+					xrResult = xrGetActionStateFloat( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].stateFloat );
+					break;
+				case XR_ACTION_TYPE_VECTOR2F_INPUT:
+					xrResult = xrGetActionStateVector2f( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].stateVector2f );
+					break;
+				case XR_ACTION_TYPE_POSE_INPUT:
+					xrResult = xrGetActionStatePose( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].statePose );
+				case XR_ACTION_TYPE_MAX_ENUM:
+				default:
+					xrResult = XR_ERROR_ACTION_TYPE_MISMATCH;
+					break;
+			}
+
+			// todo: run action callbacks here
+			if ( pAction->IsActive(i) )
+			{
+				// callback here
+				if ( pAction->xrActionType == XR_ACTION_TYPE_BOOLEAN_INPUT && pAction->vecActionStates[ i ].stateBoolean.currentState == XR_TRUE )
+				{
+					LogDebug( m_sLogCategory, "[thread] %s Action callback called!", i == 0 ? "LEFT" : "RIGHT");
+				}
 			}
 		}
 
