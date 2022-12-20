@@ -99,8 +99,8 @@ namespace oxr
 		// Create action
 		XrActionCreateInfo xrActionCreateInfo { XR_TYPE_ACTION_CREATE_INFO };
 		xrActionCreateInfo.next = pOtherInfo;
-		strcpy_s( xrActionCreateInfo.actionName, XR_MAX_ACTION_SET_NAME_SIZE, sName.c_str() );
-		strcpy_s( xrActionCreateInfo.localizedActionName, XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE, sLocalizedName.c_str() );
+		std::strncpy( xrActionCreateInfo.actionName, sName.c_str(), XR_MAX_ACTION_SET_NAME_SIZE );
+		std::strncpy( xrActionCreateInfo.localizedActionName, sLocalizedName.c_str(), XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE );
 		xrActionCreateInfo.actionType = xrActionType;
 
 		uint32_t unSubpathsCount = static_cast< uint32_t >( vecSubactionpaths.size() );

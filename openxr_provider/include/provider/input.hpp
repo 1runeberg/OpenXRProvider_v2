@@ -93,8 +93,8 @@ namespace oxr
 			XrActionSetCreateInfo xrActionSetCreateInfo { XR_TYPE_ACTION_SET_CREATE_INFO };
 			xrActionSetCreateInfo.next = pOtherInfo;
 			xrActionSetCreateInfo.priority = unPriority;
-			strcpy_s( xrActionSetCreateInfo.actionSetName, XR_MAX_ACTION_SET_NAME_SIZE, sName.c_str() );
-			strcpy_s( xrActionSetCreateInfo.localizedActionSetName, XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE, sLocalizedName.c_str() );
+			std::strncpy( xrActionSetCreateInfo.actionSetName, sName.c_str(), XR_MAX_ACTION_SET_NAME_SIZE );
+			std::strncpy( xrActionSetCreateInfo.localizedActionSetName, sLocalizedName.c_str(), XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE );
 
 			XrResult xrResult = xrCreateActionSet( xrInstance, &xrActionSetCreateInfo, &xrActionSetHandle );
 

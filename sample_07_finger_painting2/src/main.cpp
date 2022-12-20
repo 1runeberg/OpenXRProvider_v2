@@ -178,7 +178,9 @@ XrResult demo_openxr_start()
 	}
 
 	// (8.3) Add Render Scenes to render (will spawn in world origin)
-	g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
+	//g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
+	uint32_t unLeftHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { -0.04f, 0.04f, 0.04f } );
+	uint32_t unRightHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { 0.04f, 0.04f, 0.04f } );
 
 	// (8.5) Optional - Set vismask if present
 	oxr::ExtVisMask *pVisMask = static_cast< oxr::ExtVisMask * >( oxrProvider->Instance()->extHandler.GetExtension( XR_KHR_VISIBILITY_MASK_EXTENSION_NAME ) );
@@ -257,8 +259,8 @@ XrResult demo_openxr_start()
 	baseController.vecSupportedControllers.push_back( &controllerTouch );
 
 	// poses
-	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::GripPose, oxr::Controller::Qualifier::None);
-	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::GripPose, oxr::Controller::Qualifier::None);
+	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::AimPose, oxr::Controller::Qualifier::None);
+	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::AimPose, oxr::Controller::Qualifier::None);
 
 	// paint
 	g_pInput->AddBinding( &baseController, actionPaint.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::Trigger, oxr::Controller::Qualifier::Click );
@@ -288,6 +290,9 @@ XrResult demo_openxr_start()
 	//g_pInput->CreateActionSpace( &actionPose, &poseInSpace, "user/hand/left");  // one for each subpath defined during action creation
 	//g_pInput->CreateActionSpace( &actionPose, &poseInSpace, "user/hand/right"); // one for each subpath defined during action creation
 	g_pInput->CreateActionSpaces(&actionPose, &poseInSpace);
+	
+	g_pRender->vecRenderSectors[unLeftHandIndex]->xrSpace = actionPose.vecActionSpaces[0];
+	g_pRender->vecRenderSectors[unRightHandIndex]->xrSpace = actionPose.vecActionSpaces[1];
 
 	// Main game loop
 	bool bProcessRenderFrame = false;
@@ -384,37 +389,6 @@ XrResult demo_openxr_start()
 		if (bProcessInputFrame && g_pInput)
 		{
 			g_pInput->ProcessInput();
-
-			// callback here
-			if ( actionPose.vecActionSpaces[0] != XR_NULL_HANDLE )
-			{
-				XrSpaceLocation spaceLocation{XR_TYPE_SPACE_LOCATION};
-				g_pInput->GetActionPose(&spaceLocation, &actionPose, 0, m_xrFrameState.predictedDisplayTime);
-				oxr::LogDebug( LOG_CATEGORY_DEMO, "LEFT Pose loc(%f, %f, %f) : rot(%f, %f, %f, %f)", 
-					spaceLocation.pose.position.x, 
-					spaceLocation.pose.position.y, 
-					spaceLocation.pose.position.z, 
-					spaceLocation.pose.orientation.x, 
-					spaceLocation.pose.orientation.y, 
-					spaceLocation.pose.orientation.z, 
-					spaceLocation.pose.orientation.w);
-			}
-
-			if ( actionPose.vecActionSpaces[ 1 ] != XR_NULL_HANDLE )
-			{
-				XrSpaceLocation spaceLocation { XR_TYPE_SPACE_LOCATION };
-				g_pInput->GetActionPose( &spaceLocation, &actionPose, 1, m_xrFrameState.predictedDisplayTime );
-				oxr::LogDebug(
-					LOG_CATEGORY_DEMO,
-					"RIGHT Pose loc(%f, %f, %f) : rot(%f, %f, %f, %f)",
-					spaceLocation.pose.position.x,
-					spaceLocation.pose.position.y,
-					spaceLocation.pose.position.z,
-					spaceLocation.pose.orientation.x,
-					spaceLocation.pose.orientation.y,
-					spaceLocation.pose.orientation.z,
-					spaceLocation.pose.orientation.w );
-			}
 		}
 	}
 
