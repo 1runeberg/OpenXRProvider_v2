@@ -30,6 +30,12 @@ namespace oxr
 {
 	class Session;
 	struct ActionSet;
+	struct Action;
+
+	// Callback function for openxr actions - will be called if actionstate has changed since the last input frame
+	// or is active for pose actions
+	typedef void ( *Callback_InputAction )(Action*, uint32_t);
+
 	struct Action
 	{
 		XrActionType xrActionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
@@ -37,6 +43,8 @@ namespace oxr
 		XrAction xrActionHandle = XR_NULL_HANDLE;
 
 		ActionSet *pActionSet = nullptr;
+
+		Callback_InputAction pfnCallback;
 
 		std::mutex mutexActionState;
 
@@ -52,8 +60,9 @@ namespace oxr
 		std::vector< XrPath > vecSubactionpaths;
 		std::vector< XrSpace > vecActionSpaces;
 
-		Action( XrActionType actionType )
-			: xrActionType( actionType )
+		Action( XrActionType actionType, Callback_InputAction callback )
+			: xrActionType( actionType ),
+			 pfnCallback( callback )
 		{
 		}
 		~Action();
@@ -125,7 +134,6 @@ namespace oxr
 		XrResult CreateAction(
 			Action *outAction,
 			ActionSet *pActionSet,
-			XrActionType actionType,
 			std::string sName,
 			std::string sLocalizedName,
 			std::vector< std::string > vecSubpaths = {},

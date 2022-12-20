@@ -41,9 +41,11 @@
 // Event data packet sent by the openxr runtime during polling
 XrEventDataBaseHeader *g_xrEventDataBaseheader = nullptr;
 
-
 // Pointer to session handling object of the openxr provider library
 oxr::Session *g_pSession = nullptr;
+
+// Pointer to input handling object of the openxr provider library
+oxr::Input *g_pInput = nullptr;
 
 // Current openxr session state
 XrSessionState g_sessionState = XR_SESSION_STATE_UNKNOWN;
@@ -77,6 +79,17 @@ float g_fCurrentSaturationValue = 0.0f;
 bool g_bClapActive = false;
 uint16_t g_unPassthroughFXCycleStage = 0;
 
+// ...
+struct
+{
+	bool bIsActive = false;
+	bool bCurrentState = false;
+} g_ActionPainterLeft, g_ActionPainterRight;
+oxr::Action *g_ControllerPoseAction = nullptr;
+
+uint32_t g_unLeftHandIndex = 0;
+uint32_t g_unRightHandIndex = 0;
+
 enum class EPassthroughFXMode
 {
 	EPassthroughFXMode_None = 0,
@@ -86,13 +99,11 @@ enum class EPassthroughFXMode
 	EPassthroughMode_Max
 } g_eCurrentPassthroughFXMode;
 
-
 // Gesture constants
 static const float k_fGestureActivationThreshold = 0.025f;
 static const float k_fClapActivationThreshold = 0.07f;
 static const float k_fSkyboxScalingStride = 0.05f;
 static const float k_fSaturationAdjustmentStride = 0.1f;
-
 
 // Painting constants
 // Cube vertices for finger painting
@@ -118,11 +129,23 @@ std::vector< Shapes::Vertex > g_vecPaintCubeVertices = {
 // Reference shape for painting
 Shapes::Shape *g_pReferencePaint = nullptr;
 
-
 /**
  * These are utility functions for the extensions we will be using in this demo
  */
-void PopulateHandShapes( Shapes::Shape *shapePalm )
+
+inline void HideHandShapes()
+{
+	uint32_t unTotalHandJoints = XR_HAND_JOINT_COUNT_EXT * 2;
+
+	// left hand will use the first XR_HAND_JOINT_COUNT_EXT indices
+	// right hand will use specHandJointIndex + XR_HAND_JOINT_COUNT_EXT indices
+	for ( uint32_t i = 0; i < unTotalHandJoints; i++ )
+	{
+		g_pRender->vecShapes[i]->scale = {0.f, 0.f, 0.f};
+	}
+}
+
+inline void PopulateHandShapes( Shapes::Shape *shapePalm )
 {
 	assert( g_pRender );
 	assert( shapePalm );
@@ -146,7 +169,7 @@ void PopulateHandShapes( Shapes::Shape *shapePalm )
 	}
 }
 
-void UpdateHandJoints( XrHandEXT hand, XrHandJointLocationEXT *handJoints )
+inline void UpdateHandJoints( XrHandEXT hand, XrHandJointLocationEXT *handJoints )
 {
 	uint8_t unOffset = hand == XR_HAND_LEFT_EXT ? 0 : XR_HAND_JOINT_COUNT_EXT;
 
@@ -160,7 +183,7 @@ void UpdateHandJoints( XrHandEXT hand, XrHandJointLocationEXT *handJoints )
 	}
 }
 
-void UpdateHandTrackingPoses( XrFrameState *frameState )
+inline void UpdateHandTrackingPoses( XrFrameState *frameState )
 {
 	if ( g_extHandTracking )
 	{
@@ -181,7 +204,14 @@ void UpdateHandTrackingPoses( XrFrameState *frameState )
 	}
 }
 
-void Paint( XrHandEXT hand )
+inline void Paint( XrPosef pose )
+{
+	Shapes::Shape *newPaint = g_pReferencePaint->Duplicate();
+	newPaint->pose = pose;
+	g_pRender->vecShapes.push_back( newPaint );
+}
+
+inline void Paint( XrHandEXT hand )
 {
 	// Check if hand tracking is available
 	if ( g_extHandTracking )
@@ -200,15 +230,29 @@ void Paint( XrHandEXT hand )
 			if ( fDistance < k_fGestureActivationThreshold )
 			{
 				// Paint from the index tip
-				Shapes::Shape *newPaint = g_pReferencePaint->Duplicate();
-				newPaint->pose = joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose;
-				g_pRender->vecShapes.push_back( newPaint );
+				Paint( joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose );
 			}
 		}
 	}
 }
 
-bool IsTwoHandedGestureActive(
+inline void SetActionPaintCurrentState( oxr::Action *pAction, uint32_t unActionStateIndex )
+{
+	if ( unActionStateIndex == 0 )
+		g_ActionPainterLeft.bCurrentState = pAction->vecActionStates[ unActionStateIndex ].stateBoolean.currentState;
+	else
+		g_ActionPainterRight.bCurrentState = pAction->vecActionStates[ unActionStateIndex ].stateBoolean.currentState;
+}
+
+inline void SetActionPaintIsActive( oxr::Action *pAction, uint32_t unActionStateIndex )
+{
+	if ( unActionStateIndex == 0 )
+		g_ActionPainterLeft.bIsActive = pAction->vecActionStates[ unActionStateIndex ].statePose.isActive;
+	else
+		g_ActionPainterRight.bIsActive = pAction->vecActionStates[ unActionStateIndex ].statePose.isActive;
+}
+
+inline bool IsTwoHandedGestureActive(
 	XrHandJointEXT leftJointA,
 	XrHandJointEXT leftJointB,
 	XrHandJointEXT rightJointA,
@@ -283,7 +327,13 @@ bool IsSaturationAdjustmentActive( XrVector3f *outThumbPosition_Left, XrVector3f
 		&g_fSaturationValueOnActivation );
 }
 
-void ScaleSkybox()
+inline void ScaleSkybox( float fScaleFactor )
+{
+	g_pRender->skybox->currentScale.x += fScaleFactor;
+	g_pRender->skybox->currentScale.y = g_pRender->skybox->currentScale.z = g_pRender->skybox->currentScale.x;
+}
+
+inline void ScaleSkybox()
 {
 	// Check for required extensions
 	if ( g_extHandTracking == nullptr )
@@ -311,12 +361,29 @@ void ScaleSkybox()
 			return;
 
 		float fScaleFactor = fGestureDistanceFromPreviousFrame * k_fSkyboxScalingStride;
-		g_pRender->skybox->currentScale.x += fScaleFactor;
-		g_pRender->skybox->currentScale.y = g_pRender->skybox->currentScale.z = g_pRender->skybox->currentScale.x;
+		ScaleSkybox( fScaleFactor );
 	}
 }
 
-void AdjustPassthroughSaturation()
+inline void ActionScaleSkybox( oxr::Action *pAction, uint32_t unActionStateIndex )
+{
+	if ( pAction->vecActionStates[ unActionStateIndex ].stateFloat.currentState > 0.5f )
+	{
+		ScaleSkybox( k_fSkyboxScalingStride );
+	}
+	else if ( pAction->vecActionStates[ unActionStateIndex ].stateFloat.currentState < -0.5f )
+	{
+		ScaleSkybox( -k_fSkyboxScalingStride );
+	}
+}
+
+inline void AdjustPassthroughSaturation( float fCurrentSaturationValue )
+{
+	g_fCurrentSaturationValue = g_fCurrentSaturationValue < 0.0f ? 0.0f : fCurrentSaturationValue;
+	g_extFBPassthrough->SetModeToBCS( 0.0f, 1.0f, g_fCurrentSaturationValue );
+}
+
+inline void AdjustPassthroughSaturation()
 {
 	// Check for required extensions
 	if ( g_extFBPassthrough == nullptr || g_extHandTracking == nullptr )
@@ -343,13 +410,25 @@ void AdjustPassthroughSaturation()
 		if ( abs( fGestureDistanceFromPreviousFrame ) < k_fSaturationAdjustmentStride )
 			return;
 
-		g_fCurrentSaturationValue = fGestureDistanceFromPreviousFrame * k_fSaturationAdjustmentStride * 100;
-		g_fCurrentSaturationValue = g_fCurrentSaturationValue < 0.0f ? 0.0f : g_fCurrentSaturationValue;
-		g_extFBPassthrough->SetModeToBCS( 0.0f, 1.0f, g_fCurrentSaturationValue );
+		g_fCurrentSaturationValue = fGestureDistanceFromPreviousFrame * k_fSaturationAdjustmentStride * 10;
+		ScaleSkybox( g_fCurrentSaturationValue );
 	}
 }
 
-void CyclePassthroughFX()
+inline void ActionAdjustSaturation( oxr::Action *pAction, uint32_t unActionStateIndex )
+{
+	// As there's finer control with thumbsticks vs gestures, we'll lower adjustment stride
+	if ( pAction->vecActionStates[ unActionStateIndex ].stateFloat.currentState > 0.5f )
+	{
+		AdjustPassthroughSaturation( g_fCurrentSaturationValue + ( k_fSaturationAdjustmentStride / 5 ) );
+	}
+	else if ( pAction->vecActionStates[ unActionStateIndex ].stateFloat.currentState < -0.5f )
+	{
+		AdjustPassthroughSaturation( g_fCurrentSaturationValue - ( k_fSaturationAdjustmentStride / 5 ) );
+	}
+}
+
+inline void CyclePassthroughFX()
 {
 	switch ( g_eCurrentPassthroughFXMode )
 	{
@@ -379,7 +458,7 @@ void CyclePassthroughFX()
 	}
 }
 
-void Clap()
+inline void Clap()
 {
 	// Check for required extensions
 	if ( g_extFBPassthrough == nullptr || g_extHandTracking == nullptr )
@@ -416,6 +495,14 @@ void Clap()
 
 	// Hands were inactive or not giving valid data
 	g_bClapActive = false;
+}
+
+inline void ActionCycleFX( oxr::Action *pAction, uint32_t unActionStateIndex )
+{
+	// we don't really care which hand triggered this action, so just run our internal fx function
+	// if current value is true
+	if ( pAction->vecActionStates[ unActionStateIndex ].stateBoolean.currentState )
+		CyclePassthroughFX();
 }
 
 /**
@@ -473,12 +560,48 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 {
 	if ( m_xrFrameState.shouldRender )
 	{
-		// Hand tracking updates
-		UpdateHandTrackingPoses( &m_xrFrameState );
+		// Hand tracking updates - only if controllers aren't present
+		if ( !g_ActionPainterLeft.bIsActive || !g_ActionPainterRight.bIsActive )
+		{
+			UpdateHandTrackingPoses( &m_xrFrameState );
+		}
 
-		// Painting updates
-		Paint( XR_HAND_LEFT_EXT );
-		Paint( XR_HAND_RIGHT_EXT );
+		// Painting updates - if controller is tracking, use actions, otherwise use hand tracking gestures
+		if ( g_ActionPainterLeft.bIsActive )
+		{
+			g_pRender->vecRenderSectors[ g_unLeftHandIndex ]->bIsVisible = true;
+			HideHandShapes();
+
+			if ( g_ActionPainterLeft.bCurrentState )
+			{
+				XrSpaceLocation xrSpaceLocation { XR_TYPE_SPACE_LOCATION };
+				if ( XR_UNQUALIFIED_SUCCESS( g_pInput->GetActionPose( &xrSpaceLocation, g_ControllerPoseAction, 0, m_xrFrameState.predictedDisplayTime ) ) )
+					Paint( xrSpaceLocation.pose );
+			}
+		}
+		else
+		{
+			g_pRender->vecRenderSectors[ g_unLeftHandIndex ]->bIsVisible = false;
+			Paint( XR_HAND_LEFT_EXT );
+		}
+
+		if ( g_ActionPainterRight.bIsActive )
+		{
+			g_pRender->vecRenderSectors[ g_unRightHandIndex ]->bIsVisible = true;
+			HideHandShapes();
+
+			if ( g_ActionPainterRight.bCurrentState )
+			{
+				XrSpaceLocation xrSpaceLocation { XR_TYPE_SPACE_LOCATION };
+				if ( XR_UNQUALIFIED_SUCCESS( g_pInput->GetActionPose( &xrSpaceLocation, g_ControllerPoseAction, 1, m_xrFrameState.predictedDisplayTime ) ) )
+					Paint( xrSpaceLocation.pose );
+			}
+		}
+		else
+		{
+			g_pRender->vecRenderSectors[ g_unRightHandIndex ]->bIsVisible = false;
+			Paint( XR_HAND_RIGHT_EXT );
+		}
 
 		// Skybox scaling
 		ScaleSkybox();

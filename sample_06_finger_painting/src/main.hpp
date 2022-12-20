@@ -181,7 +181,7 @@ void UpdateHandTrackingPoses( XrFrameState *frameState )
 	}
 }
 
-void Paint( XrHandEXT hand )
+void SetActionPaintCurrentState( XrHandEXT hand )
 {
 	// Check if hand tracking is available
 	if ( g_extHandTracking )
@@ -477,8 +477,8 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 		UpdateHandTrackingPoses( &m_xrFrameState );
 
 		// Painting updates
-		Paint( XR_HAND_LEFT_EXT );
-		Paint( XR_HAND_RIGHT_EXT );
+		SetActionPaintCurrentState( XR_HAND_LEFT_EXT );
+		SetActionPaintCurrentState( XR_HAND_RIGHT_EXT );
 
 		// Skybox scaling
 		ScaleSkybox();

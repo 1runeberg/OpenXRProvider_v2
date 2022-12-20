@@ -178,9 +178,9 @@ XrResult demo_openxr_start()
 	}
 
 	// (8.3) Add Render Scenes to render (will spawn in world origin)
-	//g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
-	uint32_t unLeftHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { -0.04f, 0.04f, 0.04f } );
-	uint32_t unRightHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { 0.04f, 0.04f, 0.04f } );
+	// g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
+	g_unLeftHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { -0.04f, 0.04f, 0.04f } );
+	g_unRightHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { 0.04f, 0.04f, 0.04f } );
 
 	// (8.5) Optional - Set vismask if present
 	oxr::ExtVisMask *pVisMask = static_cast< oxr::ExtVisMask * >( oxrProvider->Instance()->extHandler.GetExtension( XR_KHR_VISIBILITY_MASK_EXTENSION_NAME ) );
@@ -224,7 +224,7 @@ XrResult demo_openxr_start()
 	// (12) Setup input
 
 	// (12.1) Retrieve input object from provider - this is created during provider init()
-	oxr::Input *g_pInput = oxrProvider->Input();
+	g_pInput = oxrProvider->Input();
 	if ( g_pInput == nullptr || oxrProvider->Session() == nullptr )
 	{
 		oxr::LogError( LOG_CATEGORY_DEMO, "Error getting input object from the provider library or init failed." );
@@ -238,11 +238,26 @@ XrResult demo_openxr_start()
 	g_pInput->CreateActionSet( &actionsetMain, "main", "main actions" );
 
 	// (12.3) Create action(s) - these represent actions that will be triggered based on hardware state from the openxr runtime
-	oxr::Action actionPose (XR_ACTION_TYPE_POSE_INPUT);
-	g_pInput->CreateAction(&actionPose, &actionsetMain, XR_ACTION_TYPE_POSE_INPUT, "pose", "controller pose", {"/user/hand/left", "/user/hand/right"});
-	
-	oxr::Action actionPaint (XR_ACTION_TYPE_BOOLEAN_INPUT);
-	g_pInput->CreateAction( &actionPaint, &actionsetMain, XR_ACTION_TYPE_BOOLEAN_INPUT, "paint", "Draw in 3D space", {"/user/hand/left", "/user/hand/right"} );
+
+	oxr::Action actionPose( XR_ACTION_TYPE_POSE_INPUT, &SetActionPaintIsActive );
+	g_pInput->CreateAction( &actionPose, &actionsetMain, "pose", "controller pose", { "/user/hand/left", "/user/hand/right" } );
+
+	// We'll need a reference to this action for painting later on in the render callbacks
+	g_ControllerPoseAction = &actionPose;
+
+	oxr::Action actionPaint( XR_ACTION_TYPE_BOOLEAN_INPUT, &SetActionPaintCurrentState );
+	g_pInput->CreateAction( &actionPaint, &actionsetMain, "paint", "Draw in 3D space", { "/user/hand/left", "/user/hand/right" } );
+
+	oxr::Action actionCycleFX( XR_ACTION_TYPE_BOOLEAN_INPUT, &ActionCycleFX );
+	g_pInput->CreateAction( &actionCycleFX, &actionsetMain, "cycle_fx", "Cycle through colormap fx", { "/user/hand/left", "/user/hand/right" } );
+
+	// todo: note on no filter
+	oxr::Action actionScaleSkybox( XR_ACTION_TYPE_FLOAT_INPUT, &ActionScaleSkybox );
+	g_pInput->CreateAction( &actionScaleSkybox, &actionsetMain, "scale_skybox", "Scale the skybox" );
+
+	oxr::Action actionAdjustSaturation( XR_ACTION_TYPE_FLOAT_INPUT, &ActionAdjustSaturation );
+	g_pInput->CreateAction( &actionAdjustSaturation, &actionsetMain, "adjust_saturation", "Adjust passthrough saturation values" );
+
 
 	// (12.4) Create supported controllers
 	oxr::ValveIndex controllerIndex {};
@@ -259,12 +274,24 @@ XrResult demo_openxr_start()
 	baseController.vecSupportedControllers.push_back( &controllerTouch );
 
 	// poses
-	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::AimPose, oxr::Controller::Qualifier::None);
-	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::AimPose, oxr::Controller::Qualifier::None);
+	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::AimPose, oxr::Controller::Qualifier::None );
+	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::AimPose, oxr::Controller::Qualifier::None );
 
 	// paint
 	g_pInput->AddBinding( &baseController, actionPaint.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::Trigger, oxr::Controller::Qualifier::Click );
 	g_pInput->AddBinding( &baseController, actionPaint.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::Trigger, oxr::Controller::Qualifier::Click );
+
+	// scale skybox
+	g_pInput->AddBinding( &baseController, actionScaleSkybox.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::AxisControl, oxr::Controller::Qualifier::Y );
+
+	// adjust saturation
+	g_pInput->AddBinding( &baseController, actionAdjustSaturation.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::AxisControl, oxr::Controller::Qualifier::Y );
+
+	// cycle through colormap fx
+	g_pInput->AddBinding( &baseController, actionCycleFX.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::PrimaryButton, oxr::Controller::Qualifier::Click );
+	g_pInput->AddBinding( &baseController, actionCycleFX.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::PrimaryButton, oxr::Controller::Qualifier::Click );
+
+	//... todo: note on adding more specific controls ....
 
 	// (12.6) Suggest bindings to the active openxr runtime
 	//        As with adding bindings, you can also suggest bindings manually per controller
@@ -287,12 +314,12 @@ XrResult demo_openxr_start()
 	XrPosef poseInSpace;
 	XrPosef_Identity( &poseInSpace );
 
-	//g_pInput->CreateActionSpace( &actionPose, &poseInSpace, "user/hand/left");  // one for each subpath defined during action creation
-	//g_pInput->CreateActionSpace( &actionPose, &poseInSpace, "user/hand/right"); // one for each subpath defined during action creation
-	g_pInput->CreateActionSpaces(&actionPose, &poseInSpace);
-	
-	g_pRender->vecRenderSectors[unLeftHandIndex]->xrSpace = actionPose.vecActionSpaces[0];
-	g_pRender->vecRenderSectors[unRightHandIndex]->xrSpace = actionPose.vecActionSpaces[1];
+	// g_pInput->CreateActionSpace( &actionPose, &poseInSpace, "user/hand/left");  // one for each subpath defined during action creation
+	// g_pInput->CreateActionSpace( &actionPose, &poseInSpace, "user/hand/right"); // one for each subpath defined during action creation
+	g_pInput->CreateActionSpaces( &actionPose, &poseInSpace );
+
+	g_pRender->vecRenderSectors[ g_unLeftHandIndex ]->xrSpace = actionPose.vecActionSpaces[ 0 ];
+	g_pRender->vecRenderSectors[ g_unRightHandIndex ]->xrSpace = actionPose.vecActionSpaces[ 1 ];
 
 	// Main game loop
 	bool bProcessRenderFrame = false;
@@ -366,7 +393,13 @@ XrResult demo_openxr_start()
 			}
 		}
 
-		// (15) Render loop
+		// (15) Input loop
+		if ( bProcessInputFrame && g_pInput )
+		{
+			g_pInput->ProcessInput();
+		}
+
+		// (16) Render loop
 		if ( bProcessRenderFrame )
 		{
 			// (15.1) Call render frame - this will call our registered callback at the appropriate times
@@ -383,12 +416,6 @@ XrResult demo_openxr_start()
 
 			g_vecFrameLayerProjectionViews.resize( oxrProvider->Session()->GetSwapchains().size(), { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } );
 			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, g_vecFrameLayers, &m_xrFrameState, xrCompositionLayerFlags );
-		}
-
-		// (16) Input loop
-		if (bProcessInputFrame && g_pInput)
-		{
-			g_pInput->ProcessInput();
 		}
 	}
 

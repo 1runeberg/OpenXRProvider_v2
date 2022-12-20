@@ -190,7 +190,6 @@ namespace oxr
 	XrResult Input::CreateAction(
 		Action *outAction,
 		ActionSet *pActionSet,
-		XrActionType actionType,
 		std::string sName,
 		std::string sLocalizedName,
 		std::vector< std::string > vecSubpaths /*= {}*/,
@@ -427,8 +426,8 @@ namespace oxr
 		// get the action state from the runtime, block other threads while doing so
 		const std::lock_guard< std::mutex > lock( pAction->mutexActionState );
 
-		size_t unIterations = pAction->vecSubactionpaths.empty() ? 1 : pAction->vecSubactionpaths.size();
-		for ( size_t i = 0; i < unIterations; i++ )
+		uint32_t unIterations = static_cast<uint32_t>(pAction->vecSubactionpaths.empty() ? 1 : pAction->vecSubactionpaths.size());
+		for ( uint32_t i = 0; i < unIterations; i++ )
 		{
 			xrActionStateGetInfo.subactionPath = pAction->vecSubactionpaths.empty() ? XR_NULL_PATH : pAction->vecSubactionpaths[ i ];
 
@@ -436,29 +435,27 @@ namespace oxr
 			{
 				case XR_ACTION_TYPE_BOOLEAN_INPUT:
 					xrResult = xrGetActionStateBoolean( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].stateBoolean );
+					if (pAction->vecActionStates[i].stateBoolean.isActive && pAction->vecActionStates[i].stateBoolean.changedSinceLastSync)
+						pAction->pfnCallback(pAction, i);
 					break;
 				case XR_ACTION_TYPE_FLOAT_INPUT:
 					xrResult = xrGetActionStateFloat( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].stateFloat );
+					if ( pAction->vecActionStates[i].stateFloat.isActive && pAction->vecActionStates[ i ].stateFloat.changedSinceLastSync )
+						pAction->pfnCallback(pAction, i);
 					break;
 				case XR_ACTION_TYPE_VECTOR2F_INPUT:
 					xrResult = xrGetActionStateVector2f( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].stateVector2f );
+					if ( pAction->vecActionStates[i].stateVector2f.isActive && pAction->vecActionStates[ i ].stateVector2f.changedSinceLastSync )
+						pAction->pfnCallback(pAction, i);
 					break;
 				case XR_ACTION_TYPE_POSE_INPUT:
 					xrResult = xrGetActionStatePose( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].statePose );
+						pAction->pfnCallback(pAction, i);
+
 				case XR_ACTION_TYPE_MAX_ENUM:
 				default:
 					xrResult = XR_ERROR_ACTION_TYPE_MISMATCH;
 					break;
-			}
-
-			// todo: run action callbacks here
-			if ( pAction->IsActive(i) )
-			{
-				// callback here
-				if ( pAction->xrActionType == XR_ACTION_TYPE_BOOLEAN_INPUT && pAction->vecActionStates[ i ].stateBoolean.currentState == XR_TRUE )
-				{
-					LogDebug( m_sLogCategory, "[thread] %s Action callback called!", i == 0 ? "LEFT" : "RIGHT");
-				}
 			}
 		}
 
