@@ -40,6 +40,9 @@ namespace oxr
 		const char *k_pccThumbstick = "/thumbstick";
 		const char *k_pccTrackpad = "/trackpad";
 		const char *k_pccSqueeze = "/trigger";
+		const char *k_pccMenu = "/menu";
+		const char *k_pccSystem = "/system";
+
 		const char *k_pccGripPose = "/grip/pose";
 		const char *k_pccAimPose = "/aim/pose";
 		const char *k_pccHaptic = "/haptic";
@@ -63,7 +66,9 @@ namespace oxr
 			SecondaryButton = 5,
 			AxisControl = 6,
 			Squeeze = 7,
-			Haptic = 8,
+			Menu = 8,
+			System = 9,
+			Haptic = 10,
 			ComponentEMax
 		};
 
@@ -87,36 +92,36 @@ namespace oxr
 		virtual XrResult AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) = 0;
 		virtual XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) = 0;
 
-		XrResult AddBinding(XrInstance xrInstance, XrAction action, std::string sFullBindingPath);
-
+		XrResult AddBinding( XrInstance xrInstance, XrAction action, std::string sFullBindingPath );
+		XrResult SuggestControllerBindings( XrInstance xrInstance, void *pOtherInfo );
 	};
 
 	struct HTCVive : Controller
 	{
-		const char *Path() override { return "base"; }
-		XrResult AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) override {}
-		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override {};
+		const char *Path() override { return "/interaction_profiles/htc/vive_controller"; }
+		XrResult AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) override;
+		XrResult SuggestBindings(XrInstance xrInstance, void* pOtherInfo) override { return SuggestControllerBindings(xrInstance, pOtherInfo); };
 	};
 
 	struct MicrosoftMixedReality : Controller
 	{
-		const char *Path() override { return "base"; }
-		XrResult AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) override {}
-		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override {};
+		const char *Path() override { return "/interaction_profiles/microsoft/motion_controller"; }
+		XrResult AddBinding(XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier) override;
+		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override { return SuggestControllerBindings( xrInstance, pOtherInfo ); };
 	};
 
 	struct OculusTouch : Controller
 	{
 		const char *Path() override { return "/interaction_profiles/oculus/touch_controller"; }
-		XrResult AddBinding(XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier) override;
-		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override;
+		XrResult AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) override;
+		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override { return SuggestControllerBindings( xrInstance, pOtherInfo ); };
 	};
 
 	struct ValveIndex : public Controller
 	{
 		const char *Path() override { return "/interaction_profiles/valve/index_controller"; }
 		XrResult AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier ) override;
-		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override;
+		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override { return SuggestControllerBindings( xrInstance, pOtherInfo ); };
 	};
 
 	struct BaseController : Controller
@@ -137,7 +142,7 @@ namespace oxr
 
 			return XR_SUCCESS;
 		}
-		
+
 		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override
 		{
 			for ( auto &interactionProfile : vecSupportedControllers )

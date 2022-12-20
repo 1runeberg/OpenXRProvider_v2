@@ -258,10 +258,11 @@ XrResult demo_openxr_start()
 	oxr::Action actionAdjustSaturation( XR_ACTION_TYPE_FLOAT_INPUT, &ActionAdjustSaturation );
 	g_pInput->CreateAction( &actionAdjustSaturation, &actionsetMain, "adjust_saturation", "Adjust passthrough saturation values" );
 
-
 	// (12.4) Create supported controllers
 	oxr::ValveIndex controllerIndex {};
 	oxr::OculusTouch controllerTouch {};
+	oxr::HTCVive controllerVive {};
+	oxr::MicrosoftMixedReality controllerMR {};
 
 	// (12.5) Create action to controller bindings
 	//		  The use of the "BaseController" here is optional. It's a convenience controller handle that will auto-map
@@ -272,6 +273,8 @@ XrResult demo_openxr_start()
 	oxr::BaseController baseController {};
 	baseController.vecSupportedControllers.push_back( &controllerIndex );
 	baseController.vecSupportedControllers.push_back( &controllerTouch );
+	baseController.vecSupportedControllers.push_back( &controllerVive );
+	baseController.vecSupportedControllers.push_back( &controllerMR );
 
 	// poses
 	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::AimPose, oxr::Controller::Qualifier::None );
@@ -291,7 +294,12 @@ XrResult demo_openxr_start()
 	g_pInput->AddBinding( &baseController, actionCycleFX.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::PrimaryButton, oxr::Controller::Qualifier::Click );
 	g_pInput->AddBinding( &baseController, actionCycleFX.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::PrimaryButton, oxr::Controller::Qualifier::Click );
 
-	//... todo: note on adding more specific controls ....
+	// we'll manually define additional controller specific bindings for controllers that don't have a primary button (e.g. a/x)
+	g_pInput->AddBinding(&controllerVive, actionCycleFX.xrActionHandle, "/user/hand/left/input/menu/click");
+	g_pInput->AddBinding(&controllerVive, actionCycleFX.xrActionHandle, "/user/hand/right/input/menu/click");
+
+	g_pInput->AddBinding( &controllerMR, actionCycleFX.xrActionHandle, "/user/hand/left/input/menu/click" );
+	g_pInput->AddBinding( &controllerMR, actionCycleFX.xrActionHandle, "/user/hand/right/input/menu/click" );
 
 	// (12.6) Suggest bindings to the active openxr runtime
 	//        As with adding bindings, you can also suggest bindings manually per controller

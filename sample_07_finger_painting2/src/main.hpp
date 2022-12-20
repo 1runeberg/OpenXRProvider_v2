@@ -410,8 +410,8 @@ inline void AdjustPassthroughSaturation()
 		if ( abs( fGestureDistanceFromPreviousFrame ) < k_fSaturationAdjustmentStride )
 			return;
 
-		g_fCurrentSaturationValue = fGestureDistanceFromPreviousFrame * k_fSaturationAdjustmentStride * 10;
-		ScaleSkybox( g_fCurrentSaturationValue );
+		g_fCurrentSaturationValue = fGestureDistanceFromPreviousFrame * k_fSaturationAdjustmentStride * 80;
+		AdjustPassthroughSaturation( g_fCurrentSaturationValue );
 	}
 }
 
