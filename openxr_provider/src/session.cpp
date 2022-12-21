@@ -550,7 +550,7 @@ namespace oxr
 		uint32_t unArrayIndex )
 	{
 		std::vector< XrCompositionLayerBaseHeader * > xrFrameLayers;
-		RenderFrame(
+		RenderFrameWithLayers(
 			vecFrameLayerProjectionViews,
 			xrFrameLayers,
 			pFrameState,
@@ -562,7 +562,7 @@ namespace oxr
 			unArrayIndex);
 	}
 
-	void Session::RenderFrame(
+	void Session::RenderFrameWithLayers(
 		std::vector< XrCompositionLayerProjectionView > &vecFrameLayerProjectionViews,
 		std::vector< XrCompositionLayerBaseHeader* > &vecFrameLayers,
 		XrFrameState *pFrameState,

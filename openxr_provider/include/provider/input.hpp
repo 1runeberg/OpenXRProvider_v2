@@ -181,10 +181,6 @@ namespace oxr
 
 		Session *m_pSession = nullptr;
 
-		std::mutex m_mutexFutureIndex;
-		uint8_t m_unFutureIndex = 0;
-		std::array< std::future< XrResult >, k_unMaxInputThreads > m_arrFutures;
-
 		// Active action sets
 		std::vector< XrActiveActionSet > m_vecXrActiveActionSets;
 		std::vector< ActionSet * > m_vecActiveActionSets;

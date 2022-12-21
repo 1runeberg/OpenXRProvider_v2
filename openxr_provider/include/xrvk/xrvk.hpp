@@ -90,12 +90,12 @@ namespace Shapes
 
 		VkPipeline pipeline = VK_NULL_HANDLE;
 
-		std::vector< unsigned short >* vecIndices = nullptr;
-		std::vector< Shapes::Vertex >* vecVertices = nullptr;
+		std::vector< unsigned short > *vecIndices = nullptr;
+		std::vector< Shapes::Vertex > *vecVertices = nullptr;
 
-		Shape* Duplicate()
+		Shape *Duplicate()
 		{
-			Shape* shape = new Shape;
+			Shape *shape = new Shape;
 			shape->pose = pose;
 			shape->scale = scale;
 			shape->indexBuffer = indexBuffer;
@@ -110,9 +110,9 @@ namespace Shapes
 
 	struct Shape_Cube : Shape
 	{
-		Shape_Cube() 
-		{ 
-			XrPosef_Identity( &pose ); 
+		Shape_Cube()
+		{
+			XrPosef_Identity( &pose );
 			this->vecIndices = &vecCubeIndices;
 			this->vecVertices = &vecCubeVertices;
 		}
@@ -286,6 +286,7 @@ namespace xrvk
 			XrVector3f v3fScaleEyeView = { 1.0f, 1.0f, 1.0f } );
 
 		void EndRender();
+
 		void RenderNode( RenderSceneBase *renderable, vkglTF::Node *gltfNode, uint32_t unCmdBufIndex, vkglTF::Material::AlphaMode gltfAlphaMode );
 
 		// Asset handling
@@ -314,6 +315,7 @@ namespace xrvk
 		uint32_t AddRenderSector( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f }, XrSpace xrSpace = XR_NULL_HANDLE );
 		uint32_t AddRenderModel( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f }, XrSpace xrSpace = XR_NULL_HANDLE );
 
+		// basic geometry
 		std::vector< Shapes::Shape * > vecShapes;
 
 		void CreateVisMasks( uint32_t unNum );

@@ -178,9 +178,20 @@ XrResult demo_openxr_start()
 	}
 
 	// (8.3) Add Render Scenes to render (will spawn in world origin)
-	// g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
-	g_unLeftHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { -0.04f, 0.04f, 0.04f } );
-	g_unRightHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { 0.04f, 0.04f, 0.04f } );
+	g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
+
+	//g_pRender->AddRenderScene( "models/winter_forest.glb", { 2.0f, 2.0f, 2.0f } );
+	// g_pRender->AddRenderScene( "models/la_helipad.glb", { 2.0f, 2.0f, 2.0f } );
+	// g_pRender->AddRenderScene( "models/grand_canyon_yuma_point.glb", { 2.0f, 2.0f, 2.0f } );
+	// g_pRender->AddRenderScene( "models/barcelona_rooftops.glb", { 2.0f, 2.0f, 2.0f } );
+	// g_pRender->AddRenderScene( "models/milkyway.glb", { 2.0f, 2.0f, 2.0f } );
+
+	// hand proxies
+	// g_unLeftHandIndex = g_pRender->AddRenderSector( "models/openxr_glove_left.glb", { -0.04f, 0.04f, 0.04f } );
+	g_unLeftHandIndex = g_pRender->AddRenderSector( "models/openxr_glove_left/openxr_glove_left.gltf", { 1.0f, 1.0f, 1.0f } );
+	g_unRightHandIndex = g_pRender->AddRenderSector( "models/openxr_glove_right/openxr_glove_right.gltf", { 1.0f, 1.0f, 1.0f } );
+
+	// g_unRightHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { 0.04f, 0.04f, 0.04f } );
 
 	// (8.5) Optional - Set vismask if present
 	oxr::ExtVisMask *pVisMask = static_cast< oxr::ExtVisMask * >( oxrProvider->Instance()->extHandler.GetExtension( XR_KHR_VISIBILITY_MASK_EXTENSION_NAME ) );
@@ -295,8 +306,8 @@ XrResult demo_openxr_start()
 	g_pInput->AddBinding( &baseController, actionCycleFX.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::PrimaryButton, oxr::Controller::Qualifier::Click );
 
 	// we'll manually define additional controller specific bindings for controllers that don't have a primary button (e.g. a/x)
-	g_pInput->AddBinding(&controllerVive, actionCycleFX.xrActionHandle, "/user/hand/left/input/menu/click");
-	g_pInput->AddBinding(&controllerVive, actionCycleFX.xrActionHandle, "/user/hand/right/input/menu/click");
+	g_pInput->AddBinding( &controllerVive, actionCycleFX.xrActionHandle, "/user/hand/left/input/menu/click" );
+	g_pInput->AddBinding( &controllerVive, actionCycleFX.xrActionHandle, "/user/hand/right/input/menu/click" );
 
 	g_pInput->AddBinding( &controllerMR, actionCycleFX.xrActionHandle, "/user/hand/left/input/menu/click" );
 	g_pInput->AddBinding( &controllerMR, actionCycleFX.xrActionHandle, "/user/hand/right/input/menu/click" );
@@ -332,6 +343,7 @@ XrResult demo_openxr_start()
 	// Main game loop
 	bool bProcessRenderFrame = false;
 	bool bProcessInputFrame = false;
+
 	while ( CheckGameLoopExit( oxrProvider.get() ) )
 	{
 #ifdef XR_USE_PLATFORM_ANDROID
@@ -391,7 +403,7 @@ XrResult demo_openxr_start()
 				else if ( g_sessionState == XR_SESSION_STATE_STOPPING )
 				{
 					// (14.2) End session - end input
-					bProcessRenderFrame = false;
+					bProcessRenderFrame = bProcessInputFrame = false;
 
 					// (14.3) End session - end the app's frame loop here
 					oxr::LogInfo( LOG_CATEGORY_DEMO, "App frame loop ends here." );
@@ -401,18 +413,15 @@ XrResult demo_openxr_start()
 			}
 		}
 
-		// (15) Input loop
+		// (15) Input
 		if ( bProcessInputFrame && g_pInput )
 		{
-			g_pInput->ProcessInput();
+			g_inputThread = std::async( std::launch::async, &oxr::Input::ProcessInput, g_pInput );
 		}
 
-		// (16) Render loop
+		// (16) Render
 		if ( bProcessRenderFrame )
 		{
-			// (15.1) Call render frame - this will call our registered callback at the appropriate times
-
-			//  (15.2) Define projection layers to render
 			XrCompositionLayerFlags xrCompositionLayerFlags = 0;
 			g_vecFrameLayers.clear();
 			if ( g_extFBPassthrough )
@@ -422,8 +431,8 @@ XrResult demo_openxr_start()
 				g_vecFrameLayers.push_back( reinterpret_cast< XrCompositionLayerBaseHeader * >( g_extFBPassthrough->GetCompositionLayer() ) );
 			}
 
-			g_vecFrameLayerProjectionViews.resize( oxrProvider->Session()->GetSwapchains().size(), { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } );
-			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, g_vecFrameLayers, &m_xrFrameState, xrCompositionLayerFlags );
+			g_vecFrameLayerProjectionViews.resize( g_pSession->GetSwapchains().size(), { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } );
+			g_pSession->RenderFrameWithLayers( g_vecFrameLayerProjectionViews, g_vecFrameLayers, &g_xrFrameState, xrCompositionLayerFlags );
 		}
 	}
 

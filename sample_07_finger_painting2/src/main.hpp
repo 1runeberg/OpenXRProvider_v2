@@ -22,7 +22,7 @@
  */
 
 // App defines
-#define APP_NAME "sample_06_finger_painting"
+#define APP_NAME "sample_07_finger_painting2"
 #define ENGINE_NAME "openxr_provider"
 #define LOG_CATEGORY_DEMO "OpenXRProviderDemo"
 
@@ -47,13 +47,16 @@ oxr::Session *g_pSession = nullptr;
 // Pointer to input handling object of the openxr provider library
 oxr::Input *g_pInput = nullptr;
 
+// Future for input thread
+std::future< XrResult > g_inputThread;
+
 // Current openxr session state
 XrSessionState g_sessionState = XR_SESSION_STATE_UNKNOWN;
 
 // Latest openxr framestate - this is filled in on the render call
-XrFrameState m_xrFrameState { XR_TYPE_FRAME_STATE };
+XrFrameState g_xrFrameState { XR_TYPE_FRAME_STATE };
 
-// Projection viewss and layers to be rendered
+// Projection views and layers to be rendered
 std::vector< XrCompositionLayerProjectionView > g_vecFrameLayerProjectionViews;
 std::vector< XrCompositionLayerBaseHeader * > g_vecFrameLayers;
 
@@ -63,7 +66,7 @@ std::unique_ptr< xrvk::Render > g_pRender = nullptr;
 // Hand tracking extension implementation, if present
 oxr::ExtHandTracking *g_extHandTracking = nullptr;
 
-// FB Passthrough extnesion implementation, if present
+// FB Passthrough extension implementation, if present
 oxr::ExtFBPassthrough *g_extFBPassthrough = nullptr;
 
 // Skybox manipulation vars
@@ -141,7 +144,7 @@ inline void HideHandShapes()
 	// right hand will use specHandJointIndex + XR_HAND_JOINT_COUNT_EXT indices
 	for ( uint32_t i = 0; i < unTotalHandJoints; i++ )
 	{
-		g_pRender->vecShapes[i]->scale = {0.f, 0.f, 0.f};
+		g_pRender->vecShapes[ i ]->scale = { 0.f, 0.f, 0.f };
 	}
 }
 
@@ -379,14 +382,17 @@ inline void ActionScaleSkybox( oxr::Action *pAction, uint32_t unActionStateIndex
 
 inline void AdjustPassthroughSaturation( float fCurrentSaturationValue )
 {
+	// Check for required extensions
+	if ( g_extFBPassthrough == nullptr )
+		return;
+
 	g_fCurrentSaturationValue = g_fCurrentSaturationValue < 0.0f ? 0.0f : fCurrentSaturationValue;
 	g_extFBPassthrough->SetModeToBCS( 0.0f, 1.0f, g_fCurrentSaturationValue );
 }
 
 inline void AdjustPassthroughSaturation()
 {
-	// Check for required extensions
-	if ( g_extFBPassthrough == nullptr || g_extHandTracking == nullptr )
+	if ( g_extHandTracking == nullptr )
 		return;
 
 	// Check if gesture was activated on a previous frame
@@ -430,6 +436,10 @@ inline void ActionAdjustSaturation( oxr::Action *pAction, uint32_t unActionState
 
 inline void CyclePassthroughFX()
 {
+	// Check for required extensions
+	if ( g_extFBPassthrough == nullptr || g_extHandTracking == nullptr )
+		return;
+
 	switch ( g_eCurrentPassthroughFXMode )
 	{
 		case EPassthroughFXMode::EPassthroughFXMode_None:
@@ -461,7 +471,7 @@ inline void CyclePassthroughFX()
 inline void Clap()
 {
 	// Check for required extensions
-	if ( g_extFBPassthrough == nullptr || g_extHandTracking == nullptr )
+	if ( g_extHandTracking == nullptr )
 		return;
 
 	// Get latest hand joints
@@ -558,12 +568,12 @@ bool CheckGameLoopExit( oxr::Provider *oxrProvider ) { return oxrProvider->Sessi
  */
 void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 {
-	if ( m_xrFrameState.shouldRender )
+	if ( g_xrFrameState.shouldRender )
 	{
 		// Hand tracking updates - only if controllers aren't present
 		if ( !g_ActionPainterLeft.bIsActive || !g_ActionPainterRight.bIsActive )
 		{
-			UpdateHandTrackingPoses( &m_xrFrameState );
+			UpdateHandTrackingPoses( &g_xrFrameState );
 		}
 
 		// Painting updates - if controller is tracking, use actions, otherwise use hand tracking gestures
@@ -575,7 +585,7 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 			if ( g_ActionPainterLeft.bCurrentState )
 			{
 				XrSpaceLocation xrSpaceLocation { XR_TYPE_SPACE_LOCATION };
-				if ( XR_UNQUALIFIED_SUCCESS( g_pInput->GetActionPose( &xrSpaceLocation, g_ControllerPoseAction, 0, m_xrFrameState.predictedDisplayTime ) ) )
+				if ( XR_UNQUALIFIED_SUCCESS( g_pInput->GetActionPose( &xrSpaceLocation, g_ControllerPoseAction, 0, g_xrFrameState.predictedDisplayTime ) ) )
 					Paint( xrSpaceLocation.pose );
 			}
 		}
@@ -593,7 +603,7 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 			if ( g_ActionPainterRight.bCurrentState )
 			{
 				XrSpaceLocation xrSpaceLocation { XR_TYPE_SPACE_LOCATION };
-				if ( XR_UNQUALIFIED_SUCCESS( g_pInput->GetActionPose( &xrSpaceLocation, g_ControllerPoseAction, 1, m_xrFrameState.predictedDisplayTime ) ) )
+				if ( XR_UNQUALIFIED_SUCCESS( g_pInput->GetActionPose( &xrSpaceLocation, g_ControllerPoseAction, 1, g_xrFrameState.predictedDisplayTime ) ) )
 					Paint( xrSpaceLocation.pose );
 			}
 		}
@@ -607,7 +617,7 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 		ScaleSkybox();
 
 		// Render
-		g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
+		g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &g_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
 
 		// Passthrough adjustments
 		AdjustPassthroughSaturation();

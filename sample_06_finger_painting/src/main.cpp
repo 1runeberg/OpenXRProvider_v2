@@ -298,7 +298,7 @@ XrResult demo_openxr_start()
 			}
 
 			g_vecFrameLayerProjectionViews.resize( oxrProvider->Session()->GetSwapchains().size(), { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } );
-			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, g_vecFrameLayers, &m_xrFrameState, xrCompositionLayerFlags );
+			oxrProvider->Session()->RenderFrameWithLayers( g_vecFrameLayerProjectionViews, g_vecFrameLayers, &g_xrFrameState, xrCompositionLayerFlags );
 		}
 	}
 

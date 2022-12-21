@@ -49,7 +49,7 @@ oxr::Session *g_pSession = nullptr;
 XrSessionState g_sessionState = XR_SESSION_STATE_UNKNOWN;
 
 // Latest openxr framestate - this is filled in on the render call
-XrFrameState m_xrFrameState { XR_TYPE_FRAME_STATE };
+XrFrameState g_xrFrameState { XR_TYPE_FRAME_STATE };
 
 // Projection viewss and layers to be rendered
 std::vector< XrCompositionLayerProjectionView > g_vecFrameLayerProjectionViews;
@@ -471,10 +471,10 @@ bool CheckGameLoopExit( oxr::Provider *oxrProvider ) { return oxrProvider->Sessi
  */
 void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 {
-	if ( m_xrFrameState.shouldRender )
+	if ( g_xrFrameState.shouldRender )
 	{
 		// Hand tracking updates
-		UpdateHandTrackingPoses( &m_xrFrameState );
+		UpdateHandTrackingPoses( &g_xrFrameState );
 
 		// Painting updates
 		SetActionPaintCurrentState( XR_HAND_LEFT_EXT );
@@ -484,7 +484,7 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 		ScaleSkybox();
 
 		// Render
-		g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
+		g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &g_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
 
 		// Passthrough adjustments
 		AdjustPassthroughSaturation();

@@ -39,16 +39,16 @@ namespace oxr
 		switch ( xrActionType )
 		{
 			case XR_ACTION_TYPE_BOOLEAN_INPUT:
-				return vecActionStates[unActionStateIndex].stateBoolean.isActive;
+				return vecActionStates[ unActionStateIndex ].stateBoolean.isActive;
 				break;
 			case XR_ACTION_TYPE_FLOAT_INPUT:
-				return vecActionStates[unActionStateIndex].stateFloat.isActive;
+				return vecActionStates[ unActionStateIndex ].stateFloat.isActive;
 				break;
 			case XR_ACTION_TYPE_VECTOR2F_INPUT:
-				return vecActionStates[unActionStateIndex].stateVector2f.isActive;
+				return vecActionStates[ unActionStateIndex ].stateVector2f.isActive;
 				break;
 			case XR_ACTION_TYPE_POSE_INPUT:
-				return vecActionStates[unActionStateIndex].statePose.isActive;
+				return vecActionStates[ unActionStateIndex ].statePose.isActive;
 				break;
 			case XR_ACTION_TYPE_MAX_ENUM:
 			default:
@@ -58,7 +58,7 @@ namespace oxr
 		return false;
 	}
 
-	void Action::SetActionStateType(uint32_t unActionStateIndex) 
+	void Action::SetActionStateType( uint32_t unActionStateIndex )
 	{
 		switch ( xrActionType )
 		{
@@ -77,7 +77,7 @@ namespace oxr
 			case XR_ACTION_TYPE_MAX_ENUM:
 			default:
 				break;
-		}	
+		}
 	}
 
 	XrResult Action::Init( XrInstance xrInstance, ActionSet *pActionSet, std::string sName, std::string sLocalizedName, std::vector< std::string > vecSubpaths, void *pOtherInfo )
@@ -111,10 +111,10 @@ namespace oxr
 
 			// Create action states
 			vecActionStates.resize( unSubpathsCount );
-			
+
 			// Set action state type
-			for (uint32_t i = 0; i < unSubpathsCount; i++)
-				SetActionStateType(i);
+			for ( uint32_t i = 0; i < unSubpathsCount; i++ )
+				SetActionStateType( i );
 
 			// Create action spaces if this action is a pose
 			if ( xrActionType == XR_ACTION_TYPE_POSE_INPUT )
@@ -187,13 +187,8 @@ namespace oxr
 		return outActionSet->Init( m_pInstance->xrInstance, sName, sLocalizedName, unPriority, pOtherInfo );
 	}
 
-	XrResult Input::CreateAction(
-		Action *outAction,
-		ActionSet *pActionSet,
-		std::string sName,
-		std::string sLocalizedName,
-		std::vector< std::string > vecSubpaths /*= {}*/,
-		void *pOtherInfo /*= nullptr */ )
+	XrResult
+		Input::CreateAction( Action *outAction, ActionSet *pActionSet, std::string sName, std::string sLocalizedName, std::vector< std::string > vecSubpaths /*= {}*/, void *pOtherInfo /*= nullptr */ )
 	{
 		return outAction->Init( m_pInstance->xrInstance, pActionSet, sName, sLocalizedName, vecSubpaths, pOtherInfo );
 	}
@@ -206,7 +201,7 @@ namespace oxr
 		XrPath xrPath = XR_NULL_PATH;
 		uint32_t unActionStateIndex = 0;
 
-		if (!subpath.empty())
+		if ( !subpath.empty() )
 		{
 			if ( !subpath.empty() )
 			{
@@ -219,7 +214,7 @@ namespace oxr
 			auto iter = std::find( outAction->vecSubactionpaths.begin(), outAction->vecSubactionpaths.end(), xrPath );
 			if ( iter != outAction->vecSubactionpaths.end() )
 			{
-				unActionStateIndex = static_cast<uint32_t>(iter - outAction->vecSubactionpaths.begin());
+				unActionStateIndex = static_cast< uint32_t >( iter - outAction->vecSubactionpaths.begin() );
 			}
 		}
 
@@ -228,7 +223,7 @@ namespace oxr
 		xrActionSpaceCreateInfo.poseInActionSpace = *poseInSpace;
 		xrActionSpaceCreateInfo.subactionPath = xrPath;
 
-		xrResult = xrCreateActionSpace( m_pSession->GetXrSession(), &xrActionSpaceCreateInfo, &outAction->vecActionSpaces[unActionStateIndex] );
+		xrResult = xrCreateActionSpace( m_pSession->GetXrSession(), &xrActionSpaceCreateInfo, &outAction->vecActionSpaces[ unActionStateIndex ] );
 
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 		{
@@ -236,7 +231,11 @@ namespace oxr
 			return xrResult;
 		}
 
-		LogInfo( m_sLogCategory, "Action (%" PRIu64 ") created with reference space handle (%" PRIu64 ")", ( uint64_t )( outAction->xrActionHandle ), ( uint64_t )( outAction->vecActionSpaces[unActionStateIndex] ) );
+		LogInfo(
+			m_sLogCategory,
+			"Action (%" PRIu64 ") created with reference space handle (%" PRIu64 ")",
+			( uint64_t )( outAction->xrActionHandle ),
+			( uint64_t )( outAction->vecActionSpaces[ unActionStateIndex ] ) );
 		return XR_SUCCESS;
 	}
 
@@ -251,12 +250,12 @@ namespace oxr
 		xrActionSpaceCreateInfo.action = outAction->xrActionHandle;
 		xrActionSpaceCreateInfo.poseInActionSpace = *poseInSpace;
 
-		uint32_t unSize = static_cast<uint32_t>(outAction->vecSubactionpaths.size());
-		for (size_t i = 0; i < unSize; i++)
+		uint32_t unSize = static_cast< uint32_t >( outAction->vecSubactionpaths.size() );
+		for ( size_t i = 0; i < unSize; i++ )
 		{
-			xrActionSpaceCreateInfo.subactionPath = outAction->vecSubactionpaths[i];
+			xrActionSpaceCreateInfo.subactionPath = outAction->vecSubactionpaths[ i ];
 
-			xrResult = xrCreateActionSpace( m_pSession->GetXrSession(), &xrActionSpaceCreateInfo, &outAction->vecActionSpaces[i] );
+			xrResult = xrCreateActionSpace( m_pSession->GetXrSession(), &xrActionSpaceCreateInfo, &outAction->vecActionSpaces[ i ] );
 
 			if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			{
@@ -264,7 +263,8 @@ namespace oxr
 				return xrResult;
 			}
 
-			LogInfo( m_sLogCategory, "Action (%" PRIu64 ") created with reference space handle (%" PRIu64 ")", ( uint64_t )( outAction->xrActionHandle ), ( uint64_t )( outAction->vecActionSpaces[i] ) );
+			LogInfo(
+				m_sLogCategory, "Action (%" PRIu64 ") created with reference space handle (%" PRIu64 ")", ( uint64_t )( outAction->xrActionHandle ), ( uint64_t )( outAction->vecActionSpaces[ i ] ) );
 		}
 
 		return XR_SUCCESS;
@@ -272,14 +272,14 @@ namespace oxr
 
 	XrResult Input::AddBinding( Controller *controller, XrAction action, XrHandEXT hand, Controller::Component component, Controller::Qualifier qualifier )
 	{
-		assert(controller);
+		assert( controller );
 
 		return controller->AddBinding( m_pInstance->xrInstance, action, hand, component, qualifier );
 	}
 
-	XrResult Input::AddBinding( Controller *controller, XrAction action, std::string sFullBindingPath ) 
+	XrResult Input::AddBinding( Controller *controller, XrAction action, std::string sFullBindingPath )
 	{
-		assert(controller);
+		assert( controller );
 
 		return controller->AddBinding( m_pInstance->xrInstance, action, sFullBindingPath );
 	}
@@ -393,11 +393,7 @@ namespace oxr
 		{
 			for ( auto &action : actionset->vecActions )
 			{
-				m_arrFutures[ m_unFutureIndex ] = std::async( std::launch::async, &Input::GetActionState, this, action );
-
-				// if we've hit max threads, wait for first thread to finish
-				if ( m_unFutureIndex >= k_unMaxInputThreads )
-					m_arrFutures[ 0 ].wait();
+				GetActionState( action );
 			}
 		}
 
@@ -406,18 +402,14 @@ namespace oxr
 
 	XrResult Input::GetActionPose( XrSpaceLocation *outSpaceLocation, Action *pAction, uint32_t unSpaceIndex, XrTime xrTime )
 	{
-		if ( pAction->vecActionSpaces[unSpaceIndex] == XR_NULL_HANDLE )
+		if ( pAction->vecActionSpaces[ unSpaceIndex ] == XR_NULL_HANDLE )
 			return XR_ERROR_VALIDATION_FAILURE;
 
-		return xrLocateSpace( pAction->vecActionSpaces[unSpaceIndex], m_pSession->GetAppSpace(), xrTime, outSpaceLocation );
+		return xrLocateSpace( pAction->vecActionSpaces[ unSpaceIndex ], m_pSession->GetAppSpace(), xrTime, outSpaceLocation );
 	}
 
 	XrResult Input::GetActionState( Action *pAction )
 	{
-		m_mutexFutureIndex.lock();
-		m_unFutureIndex++;
-		m_mutexFutureIndex.unlock();
-
 		XrActionStateGetInfo xrActionStateGetInfo { XR_TYPE_ACTION_STATE_GET_INFO };
 		xrActionStateGetInfo.action = pAction->xrActionHandle;
 
@@ -426,7 +418,7 @@ namespace oxr
 		// get the action state from the runtime, block other threads while doing so
 		const std::lock_guard< std::mutex > lock( pAction->mutexActionState );
 
-		uint32_t unIterations = static_cast<uint32_t>(pAction->vecSubactionpaths.empty() ? 1 : pAction->vecSubactionpaths.size());
+		uint32_t unIterations = static_cast< uint32_t >( pAction->vecSubactionpaths.empty() ? 1 : pAction->vecSubactionpaths.size() );
 		for ( uint32_t i = 0; i < unIterations; i++ )
 		{
 			xrActionStateGetInfo.subactionPath = pAction->vecSubactionpaths.empty() ? XR_NULL_PATH : pAction->vecSubactionpaths[ i ];
@@ -435,33 +427,29 @@ namespace oxr
 			{
 				case XR_ACTION_TYPE_BOOLEAN_INPUT:
 					xrResult = xrGetActionStateBoolean( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].stateBoolean );
-					if (pAction->vecActionStates[i].stateBoolean.isActive && pAction->vecActionStates[i].stateBoolean.changedSinceLastSync)
-						pAction->pfnCallback(pAction, i);
+					if ( pAction->vecActionStates[ i ].stateBoolean.isActive && pAction->vecActionStates[ i ].stateBoolean.changedSinceLastSync )
+						pAction->pfnCallback( pAction, i );
 					break;
 				case XR_ACTION_TYPE_FLOAT_INPUT:
 					xrResult = xrGetActionStateFloat( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].stateFloat );
-					if ( pAction->vecActionStates[i].stateFloat.isActive && pAction->vecActionStates[ i ].stateFloat.changedSinceLastSync )
-						pAction->pfnCallback(pAction, i);
+					if ( pAction->vecActionStates[ i ].stateFloat.isActive && pAction->vecActionStates[ i ].stateFloat.changedSinceLastSync )
+						pAction->pfnCallback( pAction, i );
 					break;
 				case XR_ACTION_TYPE_VECTOR2F_INPUT:
 					xrResult = xrGetActionStateVector2f( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].stateVector2f );
-					if ( pAction->vecActionStates[i].stateVector2f.isActive && pAction->vecActionStates[ i ].stateVector2f.changedSinceLastSync )
-						pAction->pfnCallback(pAction, i);
+					if ( pAction->vecActionStates[ i ].stateVector2f.isActive && pAction->vecActionStates[ i ].stateVector2f.changedSinceLastSync )
+						pAction->pfnCallback( pAction, i );
 					break;
 				case XR_ACTION_TYPE_POSE_INPUT:
 					xrResult = xrGetActionStatePose( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].statePose );
-						pAction->pfnCallback(pAction, i);
-
+					pAction->pfnCallback( pAction, i );
+					break;
 				case XR_ACTION_TYPE_MAX_ENUM:
 				default:
 					xrResult = XR_ERROR_ACTION_TYPE_MISMATCH;
 					break;
 			}
 		}
-
-		m_mutexFutureIndex.lock();
-		m_unFutureIndex--;
-		m_mutexFutureIndex.unlock();
 
 		return xrResult;
 	}
