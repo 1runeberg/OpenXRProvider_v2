@@ -179,7 +179,7 @@ XrResult demo_openxr_start()
 
 	// (8.3) Add Render Scenes to render (will spawn in world origin)
 	g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
-	//g_pRender->AddRenderScene( "models/milkyway.glb", { 2.1f, 2.1f, 2.1f } );
+	// g_pRender->AddRenderScene( "models/milkyway.glb", { 2.1f, 2.1f, 2.1f } );
 
 	// hand proxies - we'll use a lower poly model for the android version
 #ifdef XR_USE_PLATFORM_ANDROID
@@ -187,13 +187,15 @@ XrResult demo_openxr_start()
 	g_unRightHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { 0.04f, 0.04f, 0.04f } );
 #else
 	g_vecPanoramaIndices.push_back( g_pRender->AddRenderScene( "models/winter_forest.glb", { 5.0f, 5.0f, 5.0f } ) );
-	g_vecPanoramaIndices.push_back( g_pRender->AddRenderScene( "models/grand_canyon_yuma_point.glb", { 0.0f, 0.0f, 0.0f } ) );
 	g_vecPanoramaIndices.push_back( g_pRender->AddRenderScene( "models/la_helipad.glb", { 0.0f, 0.0f, 0.0f } ) );
-	//g_vecPanoramaIndices.push_back( g_pRender->AddRenderScene( "models/barcelona_rooftops.glb", { 2.0f, 2.0f, 2.0f } ) );
+	g_vecPanoramaIndices.push_back( g_pRender->AddRenderScene( "models/grand_canyon_yuma_point.glb", { 0.0f, 0.0f, 0.0f } ) );
+	g_vecPanoramaIndices.push_back( g_pRender->AddRenderScene( "models/barcelona_rooftops.glb", { 0.0f, 0.0f, 0.0f } ) );
 
 	g_unLeftHandIndex = g_pRender->AddRenderSector( "models/openxr_glove_left/openxr_glove_left.gltf", { 1.0f, 1.0f, 1.0f } );
 	g_unRightHandIndex = g_pRender->AddRenderSector( "models/openxr_glove_right/openxr_glove_right.gltf", { 1.0f, 1.0f, 1.0f } );
 #endif
+
+	g_unPressieIndex = g_pRender->AddRenderSector( "models/wrapped_present.glb", { 0.0f, 0.0f, 0.0f } );
 
 	// (8.5) Optional - Set vismask if present
 	oxr::ExtVisMask *pVisMask = static_cast< oxr::ExtVisMask * >( oxrProvider->Instance()->extHandler.GetExtension( XR_KHR_VISIBILITY_MASK_EXTENSION_NAME ) );
@@ -254,9 +256,7 @@ XrResult demo_openxr_start()
 
 	oxr::Action actionPose( XR_ACTION_TYPE_POSE_INPUT, &SetActionPaintIsActive );
 	g_pInput->CreateAction( &actionPose, &actionsetMain, "pose", "controller pose", { "/user/hand/left", "/user/hand/right" } );
-
-	// We'll need a reference to this action for painting later on in the render callbacks
-	g_ControllerPoseAction = &actionPose;
+	g_ControllerPoseAction = &actionPose; // We'll need a reference to this action for painting later on in the render callbacks
 
 	oxr::Action actionPaint( XR_ACTION_TYPE_BOOLEAN_INPUT, &SetActionPaintCurrentState );
 	g_pInput->CreateAction( &actionPaint, &actionsetMain, "paint", "Draw in 3D space", { "/user/hand/left", "/user/hand/right" } );
@@ -264,10 +264,14 @@ XrResult demo_openxr_start()
 	oxr::Action actionCycleFX( XR_ACTION_TYPE_BOOLEAN_INPUT, &ActionCycleFX );
 	g_pInput->CreateAction( &actionCycleFX, &actionsetMain, "cycle_fx", "Cycle through colormap fx", { "/user/hand/left", "/user/hand/right" } );
 
-	// For android where passthrough is guaranteed, we'll scale only on the left controller so no need for the filters
-	// we'll control saturation with the right controller instead
+	oxr::Action actionHaptic( XR_ACTION_TYPE_VIBRATION_OUTPUT, &ActionHaptic );
+	g_pInput->CreateAction( &actionHaptic, &actionsetMain, "haptic", "play haptics", { "/user/hand/left", "/user/hand/right" } );
+	g_hapticAction = &actionHaptic; // We'll need this to trigger haptics after a controller gesture is detected
+
 	oxr::Action actionScaleSkybox( XR_ACTION_TYPE_FLOAT_INPUT, &ActionScaleSkybox );
 
+	// For android where passthrough is guaranteed, we'll scale only on the left controller so no need for the filters
+	// we'll control saturation with the right controller instead
 #ifdef XR_USE_PLATFORM_ANDROID
 	g_pInput->CreateAction( &actionScaleSkybox, &actionsetMain, "scale_skybox", "Scale the skybox" );
 #else
@@ -299,6 +303,10 @@ XrResult demo_openxr_start()
 	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::AimPose, oxr::Controller::Qualifier::None );
 	g_pInput->AddBinding( &baseController, actionPose.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::AimPose, oxr::Controller::Qualifier::None );
 
+	// haptics
+	g_pInput->AddBinding( &baseController, actionHaptic.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::Haptic, oxr::Controller::Qualifier::None );
+	g_pInput->AddBinding( &baseController, actionHaptic.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::Haptic, oxr::Controller::Qualifier::None );
+
 	// paint
 	g_pInput->AddBinding( &baseController, actionPaint.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::Trigger, oxr::Controller::Qualifier::Click );
 	g_pInput->AddBinding( &baseController, actionPaint.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::Trigger, oxr::Controller::Qualifier::Click );
@@ -312,7 +320,7 @@ XrResult demo_openxr_start()
 #else
 	g_pInput->AddBinding( &baseController, actionScaleSkybox.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::AxisControl, oxr::Controller::Qualifier::Y );
 #endif
-	
+
 	// cycle through colormap fx (or panorama if passthrough isn't available
 	g_pInput->AddBinding( &baseController, actionCycleFX.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::PrimaryButton, oxr::Controller::Qualifier::Click );
 	g_pInput->AddBinding( &baseController, actionCycleFX.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::PrimaryButton, oxr::Controller::Qualifier::Click );
@@ -349,6 +357,7 @@ XrResult demo_openxr_start()
 	// g_pInput->CreateActionSpace( &actionPose, &poseInSpace, "user/hand/right"); // one for each subpath defined during action creation
 	g_pInput->CreateActionSpaces( &actionPose, &poseInSpace );
 
+	// assign the action space to models
 	g_pRender->vecRenderSectors[ g_unLeftHandIndex ]->xrSpace = actionPose.vecActionSpaces[ 0 ];
 	g_pRender->vecRenderSectors[ g_unRightHandIndex ]->xrSpace = actionPose.vecActionSpaces[ 1 ];
 

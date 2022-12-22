@@ -1,6 +1,8 @@
 # OpenXR Provider Library v2
 # Sample 06 - Finger Painting
 
+*"Use reality(ies) as your canvas!"*
+
 Demonstrates use of multi-vendor extensions (Handtracking) and single vendor (Meta/FB Passthrough).
 
 Designed for the Quest Pro on standalone mode - this shows how to unlock the potential of new devices with OpenXR. 

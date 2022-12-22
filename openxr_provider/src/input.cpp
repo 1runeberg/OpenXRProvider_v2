@@ -478,7 +478,12 @@ namespace oxr
 		return sInteractionProfile.c_str();
 	}
 
-	XrResult Input::GenerateHaptic( XrAction xrAction, uint64_t nDuration /*= XR_MIN_HAPTIC_DURATION*/, float fAmplitude /*= 0.5f*/, float fFrequency /*= XR_FREQUENCY_UNSPECIFIED */ )
+	XrResult Input::GenerateHaptic(
+		XrAction xrAction,
+		XrPath subPath /*= XR_NULL_HANDLE */,
+		uint64_t nDuration /*= XR_MIN_HAPTIC_DURATION*/,
+		float fAmplitude /*= 0.5f*/,
+		float fFrequency /*= XR_FREQUENCY_UNSPECIFIED */ )
 	{
 		XrHapticVibration xrHapticVibration { XR_TYPE_HAPTIC_VIBRATION };
 		xrHapticVibration.duration = nDuration;
@@ -487,6 +492,7 @@ namespace oxr
 
 		XrHapticActionInfo xrHapticActionInfo { XR_TYPE_HAPTIC_ACTION_INFO };
 		xrHapticActionInfo.action = xrAction;
+		xrHapticActionInfo.subactionPath = subPath;
 
 		return xrApplyHapticFeedback( m_pSession->GetXrSession(), &xrHapticActionInfo, ( const XrHapticBaseHeader * )&xrHapticVibration );
 	}

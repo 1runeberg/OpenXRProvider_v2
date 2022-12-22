@@ -247,12 +247,6 @@ namespace xrvk
 		{ 
 			XrVector3f newPos;
 			XrVector3f_Add(&newPos, &currentPose.position, &offsetPosition);
-
-			 LogDebug( "NewPos: %f, %f, %f",
-				offsetPosition.x,
-				offsetPosition.y,
-				offsetPosition.z);
-
 			return glm::vec3( newPos.x, newPos.y, newPos.z );
 		}
 		void GetMatrix( XrMatrix4x4f *matrix ) override;

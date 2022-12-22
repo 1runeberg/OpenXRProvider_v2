@@ -92,6 +92,9 @@ struct
 // Reference to the pose action (used for aim pose painting)
 oxr::Action *g_ControllerPoseAction = nullptr;
 
+// Reference to haptic action
+oxr::Action *g_hapticAction = nullptr;
+
 // Renderable index for the hands
 uint32_t g_unLeftHandIndex = 0;
 uint32_t g_unRightHandIndex = 0;
@@ -99,7 +102,7 @@ uint32_t g_unRightHandIndex = 0;
 // State for extra cubemaps - 360 panorama photos (for passthrough backup)
 bool g_bCyclingPanoramas = false;
 uint32_t g_unCurrentPanoramaIndex = 0;
-XrTime g_xrLastPanoramaScaleTime = 0;
+std::chrono::steady_clock::time_point g_xrLastPanoramaScaleTime;
 std::vector< uint32_t > g_vecPanoramaIndices;
 
 // Passthrough styles
@@ -118,6 +121,12 @@ static const float k_fPaintGestureActivationThreshold = 0.015f;
 static const float k_fClapActivationThreshold = 0.07f;
 static const float k_fSkyboxScalingStride = 0.05f;
 static const float k_fSaturationAdjustmentStride = 0.1f;
+
+// Pressie
+bool g_bShowPressie = false;
+uint32_t g_unPressieIndex = 0;
+std::chrono::steady_clock::time_point g_xrLastPressieTime;
+XrQuaternionf g_quatRotation = { 0.0f, 0.0087265f, 0.0f, 1.0f }; // 1 degree in the y-axis
 
 // Painting constants
 // Cube vertices for finger painting
@@ -313,7 +322,7 @@ inline bool IsTwoHandedGestureActive(
 	return false;
 }
 
-bool IsSkyboxScalingActive( XrVector3f *outThumbPosition_Left, XrVector3f *outThumbPosition_Right )
+inline bool IsSkyboxScalingActive( XrVector3f *outThumbPosition_Left, XrVector3f *outThumbPosition_Right )
 {
 	// Gesture - middle and thumb tips are touching on both hands
 	return IsTwoHandedGestureActive(
@@ -327,7 +336,7 @@ bool IsSkyboxScalingActive( XrVector3f *outThumbPosition_Left, XrVector3f *outTh
 		&g_fSkyboxScaleGestureDistanceOnActivate );
 }
 
-bool IsSaturationAdjustmentActive( XrVector3f *outThumbPosition_Left, XrVector3f *outThumbPosition_Right )
+inline bool IsSaturationAdjustmentActive( XrVector3f *outThumbPosition_Left, XrVector3f *outThumbPosition_Right )
 {
 	// Gesture - ring and thumb tips are touching on both hands
 	return IsTwoHandedGestureActive(
@@ -519,7 +528,11 @@ inline void Clap()
 		if ( g_bClapActive )
 		{
 			// If previous clap state is true, then perform action
+#ifdef XR_USE_PLATFORM_ANDROID
 			CyclePassthroughFX();
+#else
+			g_bCyclingPanoramas = true;
+#endif
 
 			g_bClapActive = false;
 			return;
@@ -535,7 +548,10 @@ inline void CyclePanoramas()
 	if ( !g_bCyclingPanoramas || g_pRender->skybox->currentScale.x > 1.0f )
 		return;
 
-	if ( g_xrLastPanoramaScaleTime < g_xrFrameState.predictedDisplayTime )
+	// todo: refresh rate ext
+	auto time = std::chrono::duration< double, std::milli >( std::chrono::high_resolution_clock::now() - g_xrLastPanoramaScaleTime ).count();
+
+	if ( time <  10000000000 )
 	{
 		if ( g_unCurrentPanoramaIndex >= g_vecPanoramaIndices.size() )
 			g_unCurrentPanoramaIndex = 0;
@@ -556,18 +572,126 @@ inline void CyclePanoramas()
 			g_unCurrentPanoramaIndex++;
 		}
 
-		g_xrLastPanoramaScaleTime += 1000000000;
+		g_xrLastPanoramaScaleTime = std::chrono::high_resolution_clock::now();
 	}
 }
 
 inline void ActionCycleFX( oxr::Action *pAction, uint32_t unActionStateIndex )
 {
+#ifdef XR_USE_PLATFORM_ANDROID
 	// we don't really care which hand triggered this action, so just run our internal fx function
 	// if current value is true
 	if ( pAction->vecActionStates[ unActionStateIndex ].stateBoolean.currentState )
+		CyclePassthroughFX();
+#else
+	// we don't have reliable passthrough in other platforms as of coding this
+	// so we'll cycle 360 panos instead
+	if ( pAction->vecActionStates[ unActionStateIndex ].stateBoolean.currentState )
 		g_bCyclingPanoramas = true;
+#endif
+}
 
-	// CyclePassthroughFX();
+inline void ActionHaptic( oxr::Action *pAction, uint32_t unActionStateIndex )
+{
+	// Haptic params (these are also params of the GenerateHaptic() function
+	// adding here for visibility
+	uint64_t unDuration = XR_MIN_HAPTIC_DURATION;
+	float fAmplitude = 0.5f;
+	float fFrequency = XR_FREQUENCY_UNSPECIFIED;
+
+	// Check if the action has subpaths
+	if ( !pAction->vecSubactionpaths.empty() )
+	{
+		g_pInput->GenerateHaptic( pAction->xrActionHandle, pAction->vecSubactionpaths[ unActionStateIndex ], unDuration, fAmplitude, fFrequency );
+	}
+	else
+	{
+		g_pInput->GenerateHaptic( pAction->xrActionHandle, XR_NULL_PATH, unDuration, fAmplitude, fFrequency );
+	}
+}
+
+inline void ShowPressie()
+{
+	// Animate
+	if ( g_bShowPressie )
+	{
+		g_pRender->vecRenderSectors[ g_unPressieIndex ]->bIsVisible = true;
+
+		// todo: refresh rate ext
+		auto time = std::chrono::duration< double, std::milli >( std::chrono::high_resolution_clock::now() - g_xrLastPressieTime ).count();
+
+		if ( time < 10000000000 )
+		{
+			// Scale up
+			if ( g_pRender->vecRenderSectors[ g_unPressieIndex ]->currentScale.x < 0.05f )
+			{
+				XrVector3f_Scale( &g_pRender->vecRenderSectors[ g_unPressieIndex ]->currentScale, 0.025f );
+			}
+
+			// Rotate
+			XrQuaternionf newRot {};
+			XrQuaternionf_Multiply( &newRot, &g_pRender->vecRenderSectors[ g_unPressieIndex ]->currentPose.orientation, &g_quatRotation );
+			g_pRender->vecRenderSectors[ g_unPressieIndex ]->currentPose.orientation = newRot;
+
+			g_xrLastPressieTime = std::chrono::high_resolution_clock::now();
+		}
+	}
+	else
+	{
+		g_pRender->vecRenderSectors[ g_unPressieIndex ]->bIsVisible = false;
+	}
+}
+
+inline void GestureShowPressie()
+{
+	// Check controller activity - we'll piggyback on the action state poses stored with hand painting actions
+	if ( g_ActionPainterLeft.bIsActive && g_ActionPainterRight.bIsActive )
+	{
+		// Check if aim poses meet
+		float fDistance = 0.0f;
+		XrVector3f_Distance( &fDistance, &g_pRender->vecRenderSectors[ g_unLeftHandIndex ]->currentPose.position, &g_pRender->vecRenderSectors[ g_unRightHandIndex ]->currentPose.position );
+
+		// we're using the clap threshold as it's wider than the joint activation threshold,
+		// so better for controllers
+		if ( fDistance < k_fClapActivationThreshold )
+		{
+			// Gesture activated - move the pressie at palm of left hand and make it visible
+			g_pRender->vecRenderSectors[ g_unPressieIndex ]->currentPose.position = g_pRender->vecRenderSectors[ g_unLeftHandIndex ]->currentPose.position;
+			g_pRender->vecRenderSectors[ g_unPressieIndex ]->currentPose.position.z -= 0.1f; // move forward a bit
+			g_pRender->vecRenderSectors[ g_unPressieIndex ]->bIsVisible = g_bShowPressie = true;
+
+			// trigger haptics
+			ActionHaptic( g_hapticAction, 0 ); // left hand - as we've used subpaths in creating the action
+			ActionHaptic( g_hapticAction, 1 ); // right hand - as we've used subpaths in creating the action
+
+			return;
+		}
+	}
+
+	// Otherwise, we need hand tracking for gesture detection
+	if ( g_extHandTracking == nullptr )
+		return;
+
+	// Get latest hand joints
+	XrHandJointLocationsEXT *leftHand = g_extHandTracking->GetHandJointLocations( XR_HAND_LEFT_EXT );
+	XrHandJointLocationsEXT *rightHand = g_extHandTracking->GetHandJointLocations( XR_HAND_RIGHT_EXT );
+
+	// Gesture: palm of left and index finger of right hand meet
+	if ( leftHand->isActive && rightHand->isActive && ( leftHand->jointLocations[ XR_HAND_JOINT_PALM_EXT ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 &&
+		 ( rightHand->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT ) != 0 )
+	{
+		float fDistance = 0.0f;
+		XrVector3f_Distance( &fDistance, &leftHand->jointLocations[ XR_HAND_JOINT_PALM_EXT ].pose.position, &rightHand->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose.position );
+
+		if ( fDistance < k_fGestureActivationThreshold )
+		{
+			// Gesture activated - move the pressie at palm of left hand and make it visible
+			g_pRender->vecRenderSectors[ g_unPressieIndex ]->currentPose.position = leftHand->jointLocations[ XR_HAND_JOINT_PALM_EXT ].pose.position;
+			g_pRender->vecRenderSectors[ g_unPressieIndex ]->currentPose.position.y += 0.1f; // move up a bit
+			g_pRender->vecRenderSectors[ g_unPressieIndex ]->bIsVisible = g_bShowPressie = true;
+			return;
+		}
+	}
 }
 
 /**
@@ -671,7 +795,12 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 		// Skybox scaling
 		ScaleSkybox();
 
+		// 360 Panoramas
 		CyclePanoramas();
+
+		// Pressie
+		GestureShowPressie();
+		ShowPressie();
 
 		// Render
 		g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &g_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );
