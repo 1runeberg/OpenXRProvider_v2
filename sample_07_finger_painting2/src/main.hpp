@@ -82,17 +82,27 @@ float g_fCurrentSaturationValue = 0.0f;
 bool g_bClapActive = false;
 uint16_t g_unPassthroughFXCycleStage = 0;
 
-// ...
+// Holds the state for painting using the aim pose of the controller
 struct
 {
 	bool bIsActive = false;
 	bool bCurrentState = false;
 } g_ActionPainterLeft, g_ActionPainterRight;
+
+// Reference to the pose action (used for aim pose painting)
 oxr::Action *g_ControllerPoseAction = nullptr;
 
+// Renderable index for the hands
 uint32_t g_unLeftHandIndex = 0;
 uint32_t g_unRightHandIndex = 0;
 
+// State for extra cubemaps - 360 panorama photos (for passthrough backup)
+bool g_bCyclingPanoramas = false;
+uint32_t g_unCurrentPanoramaIndex = 0;
+XrTime g_xrLastPanoramaScaleTime = 0;
+std::vector< uint32_t > g_vecPanoramaIndices;
+
+// Passthrough styles
 enum class EPassthroughFXMode
 {
 	EPassthroughFXMode_None = 0,
@@ -104,6 +114,7 @@ enum class EPassthroughFXMode
 
 // Gesture constants
 static const float k_fGestureActivationThreshold = 0.025f;
+static const float k_fPaintGestureActivationThreshold = 0.015f;
 static const float k_fClapActivationThreshold = 0.07f;
 static const float k_fSkyboxScalingStride = 0.05f;
 static const float k_fSaturationAdjustmentStride = 0.1f;
@@ -230,7 +241,7 @@ inline void Paint( XrHandEXT hand )
 			float fDistance = 0.0f;
 			XrVector3f_Distance( &fDistance, &joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose.position, &joints->jointLocations[ XR_HAND_JOINT_THUMB_TIP_EXT ].pose.position );
 
-			if ( fDistance < k_fGestureActivationThreshold )
+			if ( fDistance < k_fPaintGestureActivationThreshold )
 			{
 				// Paint from the index tip
 				Paint( joints->jointLocations[ XR_HAND_JOINT_INDEX_TIP_EXT ].pose );
@@ -332,6 +343,18 @@ bool IsSaturationAdjustmentActive( XrVector3f *outThumbPosition_Left, XrVector3f
 
 inline void ScaleSkybox( float fScaleFactor )
 {
+	if ( g_pRender->skybox->currentScale.x > 5.0f )
+	{
+		g_pRender->skybox->currentScale = { 5.0f, 5.0f, 5.0f };
+		return;
+	}
+
+	if ( g_pRender->skybox->currentScale.x < 0.0f )
+	{
+		g_pRender->skybox->currentScale = { 0.0f, 0.0f, 0.0f };
+		return;
+	}
+
 	g_pRender->skybox->currentScale.x += fScaleFactor;
 	g_pRender->skybox->currentScale.y = g_pRender->skybox->currentScale.z = g_pRender->skybox->currentScale.x;
 }
@@ -507,12 +530,44 @@ inline void Clap()
 	g_bClapActive = false;
 }
 
+inline void CyclePanoramas()
+{
+	if ( !g_bCyclingPanoramas || g_pRender->skybox->currentScale.x > 1.0f )
+		return;
+
+	if ( g_xrLastPanoramaScaleTime < g_xrFrameState.predictedDisplayTime )
+	{
+		if ( g_unCurrentPanoramaIndex >= g_vecPanoramaIndices.size() )
+			g_unCurrentPanoramaIndex = 0;
+
+		// Scale Down
+		uint32_t unIndex = g_vecPanoramaIndices[ g_unCurrentPanoramaIndex ];
+		g_pRender->vecRenderScenes[ unIndex ]->currentScale = { 0.0f, 0.0f, 0.0f };
+
+		// Scale Up
+		unIndex = g_vecPanoramaIndices[ g_unCurrentPanoramaIndex + 1 >= g_vecPanoramaIndices.size() ? 0 : g_unCurrentPanoramaIndex + 1 ];
+		if ( g_pRender->vecRenderScenes[ unIndex ]->currentScale.x < 5.0f )
+		{
+			XrVector3f_Scale( &g_pRender->vecRenderScenes[ unIndex ]->currentScale, 0.025f );
+		}
+		else
+		{
+			g_bCyclingPanoramas = false;
+			g_unCurrentPanoramaIndex++;
+		}
+
+		g_xrLastPanoramaScaleTime += 1000000000;
+	}
+}
+
 inline void ActionCycleFX( oxr::Action *pAction, uint32_t unActionStateIndex )
 {
 	// we don't really care which hand triggered this action, so just run our internal fx function
 	// if current value is true
 	if ( pAction->vecActionStates[ unActionStateIndex ].stateBoolean.currentState )
-		CyclePassthroughFX();
+		g_bCyclingPanoramas = true;
+
+	// CyclePassthroughFX();
 }
 
 /**
@@ -615,6 +670,8 @@ void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 
 		// Skybox scaling
 		ScaleSkybox();
+
+		CyclePanoramas();
 
 		// Render
 		g_pRender->BeginRender( g_pSession, g_vecFrameLayerProjectionViews, &g_xrFrameState, unSwapchainIndex, unImageIndex, 0.1f, 10000.f );

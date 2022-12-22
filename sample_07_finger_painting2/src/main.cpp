@@ -179,19 +179,21 @@ XrResult demo_openxr_start()
 
 	// (8.3) Add Render Scenes to render (will spawn in world origin)
 	g_pRender->AddRenderScene( "models/Box.glb", { 1.0f, 1.0f, 0.1f } );
+	//g_pRender->AddRenderScene( "models/milkyway.glb", { 2.1f, 2.1f, 2.1f } );
 
-	//g_pRender->AddRenderScene( "models/winter_forest.glb", { 2.0f, 2.0f, 2.0f } );
-	// g_pRender->AddRenderScene( "models/la_helipad.glb", { 2.0f, 2.0f, 2.0f } );
-	// g_pRender->AddRenderScene( "models/grand_canyon_yuma_point.glb", { 2.0f, 2.0f, 2.0f } );
-	// g_pRender->AddRenderScene( "models/barcelona_rooftops.glb", { 2.0f, 2.0f, 2.0f } );
-	// g_pRender->AddRenderScene( "models/milkyway.glb", { 2.0f, 2.0f, 2.0f } );
+	// hand proxies - we'll use a lower poly model for the android version
+#ifdef XR_USE_PLATFORM_ANDROID
+	g_unLeftHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { -0.04f, 0.04f, 0.04f } );
+	g_unRightHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { 0.04f, 0.04f, 0.04f } );
+#else
+	g_vecPanoramaIndices.push_back( g_pRender->AddRenderScene( "models/winter_forest.glb", { 5.0f, 5.0f, 5.0f } ) );
+	g_vecPanoramaIndices.push_back( g_pRender->AddRenderScene( "models/grand_canyon_yuma_point.glb", { 0.0f, 0.0f, 0.0f } ) );
+	g_vecPanoramaIndices.push_back( g_pRender->AddRenderScene( "models/la_helipad.glb", { 0.0f, 0.0f, 0.0f } ) );
+	//g_vecPanoramaIndices.push_back( g_pRender->AddRenderScene( "models/barcelona_rooftops.glb", { 2.0f, 2.0f, 2.0f } ) );
 
-	// hand proxies
-	// g_unLeftHandIndex = g_pRender->AddRenderSector( "models/openxr_glove_left.glb", { -0.04f, 0.04f, 0.04f } );
 	g_unLeftHandIndex = g_pRender->AddRenderSector( "models/openxr_glove_left/openxr_glove_left.gltf", { 1.0f, 1.0f, 1.0f } );
 	g_unRightHandIndex = g_pRender->AddRenderSector( "models/openxr_glove_right/openxr_glove_right.gltf", { 1.0f, 1.0f, 1.0f } );
-
-	// g_unRightHandIndex = g_pRender->AddRenderSector( "models/RiggedLowpolyHand.glb", { 0.04f, 0.04f, 0.04f } );
+#endif
 
 	// (8.5) Optional - Set vismask if present
 	oxr::ExtVisMask *pVisMask = static_cast< oxr::ExtVisMask * >( oxrProvider->Instance()->extHandler.GetExtension( XR_KHR_VISIBILITY_MASK_EXTENSION_NAME ) );
@@ -262,9 +264,15 @@ XrResult demo_openxr_start()
 	oxr::Action actionCycleFX( XR_ACTION_TYPE_BOOLEAN_INPUT, &ActionCycleFX );
 	g_pInput->CreateAction( &actionCycleFX, &actionsetMain, "cycle_fx", "Cycle through colormap fx", { "/user/hand/left", "/user/hand/right" } );
 
-	// todo: note on no filter
+	// For android where passthrough is guaranteed, we'll scale only on the left controller so no need for the filters
+	// we'll control saturation with the right controller instead
 	oxr::Action actionScaleSkybox( XR_ACTION_TYPE_FLOAT_INPUT, &ActionScaleSkybox );
+
+#ifdef XR_USE_PLATFORM_ANDROID
 	g_pInput->CreateAction( &actionScaleSkybox, &actionsetMain, "scale_skybox", "Scale the skybox" );
+#else
+	g_pInput->CreateAction( &actionScaleSkybox, &actionsetMain, "scale_skybox", "Scale the skybox", { "/user/hand/left", "/user/hand/right" } );
+#endif
 
 	oxr::Action actionAdjustSaturation( XR_ACTION_TYPE_FLOAT_INPUT, &ActionAdjustSaturation );
 	g_pInput->CreateAction( &actionAdjustSaturation, &actionsetMain, "adjust_saturation", "Adjust passthrough saturation values" );
@@ -298,10 +306,14 @@ XrResult demo_openxr_start()
 	// scale skybox
 	g_pInput->AddBinding( &baseController, actionScaleSkybox.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::AxisControl, oxr::Controller::Qualifier::Y );
 
-	// adjust saturation
+	// adjust saturation in android where passthrough is guaranteed, scale skybox otherwise
+#ifdef XR_USE_PLATFORM_ANDROID
 	g_pInput->AddBinding( &baseController, actionAdjustSaturation.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::AxisControl, oxr::Controller::Qualifier::Y );
-
-	// cycle through colormap fx
+#else
+	g_pInput->AddBinding( &baseController, actionScaleSkybox.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::AxisControl, oxr::Controller::Qualifier::Y );
+#endif
+	
+	// cycle through colormap fx (or panorama if passthrough isn't available
 	g_pInput->AddBinding( &baseController, actionCycleFX.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::PrimaryButton, oxr::Controller::Qualifier::Click );
 	g_pInput->AddBinding( &baseController, actionCycleFX.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::PrimaryButton, oxr::Controller::Qualifier::Click );
 
