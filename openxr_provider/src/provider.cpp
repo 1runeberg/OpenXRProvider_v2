@@ -55,6 +55,12 @@ namespace oxr
 
 	Provider::~Provider()
 	{
+		// Cleanup input
+		if ( m_pInput )
+		{
+			delete m_pInput;
+		}
+
 		// Release session - this will gracefully tear down the openxr session
 		if ( m_pSession )
 		{
@@ -266,6 +272,9 @@ namespace oxr
 				oxr::LogDebug( m_sLogCategory, "\t%s", XrEnumToString( xrViewConfigurationType ) );
 			}
 		}
+
+		// Create input
+		m_pInput = new oxr::Input( &m_instance, m_eMinLogLevel );
 
 		return xrResult;
 	}
@@ -707,6 +716,15 @@ namespace oxr
 		}
 
 		return m_pSession;
+	}
+
+	oxr::Input *Provider::Input()
+	{
+		XrResult xrResult = CheckIfInitCalled();
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+			return nullptr;
+
+		return m_pInput;
 	}
 
 #ifdef XR_USE_PLATFORM_ANDROID

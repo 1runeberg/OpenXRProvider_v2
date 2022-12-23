@@ -1639,36 +1639,48 @@ namespace xrvk
 		// Scenes
 		for ( auto &renderable : vecRenderScenes )
 		{
+			if ( !renderable->bIsVisible )
+				continue;
+
 			renderable->currentPose = xrSpaceLocation.pose;
 		}
 
 		// Sectors
 		for ( auto &renderable : vecRenderSectors )
 		{
+			if ( !renderable->bIsVisible )
+				continue;
+
 			if ( renderable->xrSpace != XR_NULL_HANDLE )
 			{
 				XrSpaceLocation renderableSpaceLocation { XR_TYPE_SPACE_LOCATION };
 				pSession->LocateSpace( pSession->GetReferenceSpace(), renderable->xrSpace, pFrameState->predictedDisplayTime, &renderableSpaceLocation );
 				renderable->currentPose = renderableSpaceLocation.pose;
-			}
-			else
-			{
-				renderable->currentPose = xrSpaceLocation.pose;
 			}
 		}
 
 		// Models
 		for ( auto &renderable : vecRenderModels )
 		{
+			if ( !renderable->bIsVisible )
+				continue;
+
 			if ( renderable->xrSpace != XR_NULL_HANDLE )
 			{
 				XrSpaceLocation renderableSpaceLocation { XR_TYPE_SPACE_LOCATION };
 				pSession->LocateSpace( pSession->GetReferenceSpace(), renderable->xrSpace, pFrameState->predictedDisplayTime, &renderableSpaceLocation );
 				renderable->currentPose = renderableSpaceLocation.pose;
 			}
-			else
+
+			if ( renderable->bApplyOffset )
 			{
-				renderable->currentPose = xrSpaceLocation.pose;
+				XrVector3f newPos {};
+				XrQuaternionf newRot {};
+
+				XrVector3f_Add( &newPos, &renderable->offsetPosition, &xrSpaceLocation.pose.position );
+				XrQuaternionf_Multiply( &newRot, &renderable->offsetRotation, &xrSpaceLocation.pose.orientation );
+
+				renderable->currentPose = { newRot, newPos };
 			}
 		}
 	}

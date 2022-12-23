@@ -42,7 +42,7 @@ XrEventDataBaseHeader *g_xrEventDataBaseheader = nullptr;
 std::unique_ptr< VulkanRenderer > g_pRenderer = nullptr;
 oxr::Session *g_pSession = nullptr;
 XrSessionState g_sessionState = XR_SESSION_STATE_UNKNOWN;
-XrFrameState m_xrFrameState { XR_TYPE_FRAME_STATE };
+XrFrameState g_xrFrameState { XR_TYPE_FRAME_STATE };
 std::vector< XrCompositionLayerProjectionView > g_vecFrameLayerProjectionViews;
 
 /**
@@ -98,7 +98,7 @@ bool CheckGameLoopExit( oxr::Provider *oxrProvider ) { return oxrProvider->Sessi
  */
 void PreRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex )
 {
-	g_pRenderer->PreRender( g_pSession, g_vecFrameLayerProjectionViews, &m_xrFrameState, unSwapchainIndex, unImageIndex );
+	g_pRenderer->PreRender( g_pSession, g_vecFrameLayerProjectionViews, &g_xrFrameState, unSwapchainIndex, unImageIndex );
 }
 
 void PostRender_Callback( uint32_t unSwapchainIndex, uint32_t unImageIndex ) { g_pRenderer->StartRender(); }
@@ -288,7 +288,7 @@ XrResult demo_openxr_start()
 		if ( bProcessRenderFrame )
 		{
 			g_vecFrameLayerProjectionViews.resize( oxrProvider->Session()->GetSwapchains().size(), { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } );
-			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, &m_xrFrameState );
+			oxrProvider->Session()->RenderFrame( g_vecFrameLayerProjectionViews, &g_xrFrameState );
 		}
 	}
 

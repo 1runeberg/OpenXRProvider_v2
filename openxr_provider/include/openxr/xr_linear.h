@@ -804,4 +804,11 @@ inline static void XrVector3f_Distance(float *fDistance, XrVector3f *pointA, XrV
     *fDistance = pow((pow((pointB->x - pointA->x), 2.0f) + pow((pointB->y - pointA->y), 2.0f) + pow((pointB->z - pointA->z), 2.0f)), 0.5f);
 }
 
+inline static void XrVector3f_Scale( XrVector3f *v, float scale )
+{
+    v->x += scale;
+    v->y += scale;
+    v->z += scale;
+}
+
 #endif  // XR_LINEAR_H_

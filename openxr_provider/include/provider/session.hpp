@@ -357,7 +357,7 @@ namespace oxr
 		/// <param name="xrRectExtent">Rect extent (e.g. for single pass rendering or lowering res during runtime)</param>
 		/// <param name="bIsarray">Whether texture to render to is an array</param>
 		/// <param name="unArrayIndex">Index if a texture array</param>
-		void RenderFrame(
+		void RenderFrameWithLayers(
 			std::vector< XrCompositionLayerProjectionView > &vecFrameLayerProjectionViews,
 			std::vector< XrCompositionLayerBaseHeader* > &vecFrameLayers,
 			XrFrameState *pFrameState,
