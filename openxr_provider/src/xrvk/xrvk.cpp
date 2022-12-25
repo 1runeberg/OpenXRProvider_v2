@@ -419,7 +419,22 @@ namespace xrvk
 			skybox->gltfModel.draw( m_vecFrameData[ 0 ].vkCommandBuffer );
 		}
 
-		// (14) Draw basic geometry if present
+
+		// (14) Draw all renderables (recording command buffer)
+
+		// (14.1) Update renderables current poses
+		UpdateRenderablePoses( pSession, pFrameState );
+
+		// (14.2) Update renderables shader values UBOs
+		UpdateUniformBuffers( &uboMatricesScene, &currentUB.scene, &matViewProjection, eyePose );
+
+		// (14.3) Copy pbr properties to gpu
+		memcpy( currentUB.params.mapped, &shaderValuesPbrParams, sizeof( shaderValuesPbrParams ) );
+
+		// (14.4) Draw renderables
+		RenderGltfScenes();
+
+		// (15) Draw basic geometry if present
 		for ( auto &shape : vecShapes )
 		{
 			// Bind the graphics pipeline for this shape
@@ -442,20 +457,6 @@ namespace xrvk
 			// Draw the shape
 			vkCmdDrawIndexed( m_vecFrameData[ 0 ].vkCommandBuffer, shape->indexBuffer.count, 1, 0, 0, 0 );
 		}
-
-		// (15) Draw all renderables (recording command buffer)
-
-		// (15.1) Update renderables current poses
-		UpdateRenderablePoses( pSession, pFrameState );
-
-		// (15.2) Update renderables shader values UBOs
-		UpdateUniformBuffers( &uboMatricesScene, &currentUB.scene, &matViewProjection, eyePose );
-
-		// (15.3) Copy pbr properties to gpu
-		memcpy( currentUB.params.mapped, &shaderValuesPbrParams, sizeof( shaderValuesPbrParams ) );
-
-		// (15.4) Draw renderables
-		RenderGltfScenes();
 
 		// (16) End render pass
 		vkCmdEndRenderPass( m_vecFrameData[ 0 ].vkCommandBuffer );
@@ -1643,6 +1644,7 @@ namespace xrvk
 				continue;
 
 			renderable->currentPose = xrSpaceLocation.pose;
+			renderable->PlayAnimations();
 		}
 
 		// Sectors
@@ -1657,6 +1659,8 @@ namespace xrvk
 				pSession->LocateSpace( pSession->GetReferenceSpace(), renderable->xrSpace, pFrameState->predictedDisplayTime, &renderableSpaceLocation );
 				renderable->currentPose = renderableSpaceLocation.pose;
 			}
+
+			renderable->PlayAnimations();
 		}
 
 		// Models
@@ -1682,6 +1686,8 @@ namespace xrvk
 
 				renderable->currentPose = { newRot, newPos };
 			}
+
+			renderable->PlayAnimations();
 		}
 	}
 
