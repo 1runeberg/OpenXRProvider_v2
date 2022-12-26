@@ -3,9 +3,12 @@
 
 *"Use reality(ies) as your canvas!"*
 
-Introduces the OpenXR Input System - this demo builds up on the single form factor and heavily vendor extension dependent previous sample (sample_06_finger_painting).
+Introduces the OpenXR Input System - this demo builds up on the single form factor and heavily vendor extension dependent previous sample (sample_06_finger_painting). 
+It uses the openxr input system to provide alternative input to the hand tracking gestures and provide platform-dependent hand proxy models.
 
-This demo uses the openxr input system to provide alternative input to the hand tracking gestures and provide platform-dependent hand proxy models:
+In the next demo, we will build this further and introduce playing and controlling animations (part of optional render module - xrvk),
+
+Here are the action mappings for both gesture and the input system:
 
 | **Action**                    | **Handtracking gesture**                                                                                                                                                   | **Input system (controllers)**                                                                                                                                                                                                                                                                                     |
 |-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

@@ -36,6 +36,7 @@ file(GLOB PROVIDER_HEADER_FILES
         "${PROVIDER_SOURCE_DIRECTORY}/*.h*"
         "${PROVIDER_INCLUDE_DIRECTORY}/provider/*.h*"
         "${PROVIDER_INCLUDE_DIRECTORY}/xrvk/*.h*"
+        "${PROVIDER_INCLUDE_DIRECTORY}/xrvk/vulkanpbr/*.h*"
         "${PROVIDER_INCLUDE_DIRECTORY}/openxr/*.h*"
 	)
 
