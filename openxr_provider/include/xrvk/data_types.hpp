@@ -18,12 +18,11 @@
  *  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  *  DAMAGE.
- * 
+ *
  * Portions of this code are Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
  * SPDX-License-Identifier: MIT
- * 
+ *
  */
-
 
 #pragma once
 #define _USE_MATH_DEFINES
@@ -173,6 +172,12 @@ namespace xrvk
 		XrPosef currentPose;
 		XrVector3f currentScale = { 1.0f, 1.0f, 1.0f };
 
+		// animation
+		bool bPlayAnimations = false;
+		int32_t fAnimIndex = 0;
+		float fAnimTimer = 0.0f;
+		float fAnimSpeed = 0.01f;
+
 		RenderSceneBase( std::string filename )
 			: sFilename( filename )
 		{
@@ -201,6 +206,28 @@ namespace xrvk
 		glm::vec3 GetScale() { return glm::vec3( currentScale.x, currentScale.y, currentScale.z ); }
 		virtual glm::vec3 GetPosition() = 0;
 		glm::quat GetRotation() { return glm::quat( currentPose.orientation.w, currentPose.orientation.x, currentPose.orientation.y, currentPose.orientation.z ); }
+
+		void PlayAnimations()
+		{
+			if ( !bPlayAnimations )
+				return;
+
+			// Play animation
+			uint32_t unAnimCount = static_cast< uint32_t >( gltfModel.animations.size() );
+			if ( unAnimCount > 0 )
+			{
+				for ( uint32_t i = 0; i < unAnimCount; i++ )
+				{
+					fAnimTimer += fAnimSpeed;
+					if ( fAnimTimer > gltfModel.animations[ i ].end )
+					{
+						fAnimTimer -= gltfModel.animations[ i ].end;
+					}
+
+					gltfModel.updateAnimation( 0, fAnimTimer );
+				}
+			}
+		}
 	};
 
 	struct RenderScene : RenderSceneBase
@@ -244,9 +271,9 @@ namespace xrvk
 
 		uint32_t unOffset = 0;
 		glm::vec3 GetPosition() override
-		{ 
+		{
 			XrVector3f newPos;
-			XrVector3f_Add(&newPos, &currentPose.position, &offsetPosition);
+			XrVector3f_Add( &newPos, &currentPose.position, &offsetPosition );
 			return glm::vec3( newPos.x, newPos.y, newPos.z );
 		}
 		void GetMatrix( XrMatrix4x4f *matrix ) override;
