@@ -62,13 +62,16 @@ namespace oxr
 			for ( auto &extensionName : m_pInstance->vecEnabledExtensions )
 			{
 				if ( extensionName == XR_KHR_VISIBILITY_MASK_EXTENSION_NAME )
-					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
+					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME );
 
 				if ( extensionName == XR_EXT_HAND_TRACKING_EXTENSION_NAME )
 					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_EXT_HAND_TRACKING_EXTENSION_NAME );
 
 				if ( extensionName == XR_FB_PASSTHROUGH_EXTENSION_NAME )
 					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_FB_PASSTHROUGH_EXTENSION_NAME );
+
+				if ( extensionName == XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME )
+					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME );
 			}
 
 			// Log session supported reference space types (debug only)
@@ -103,7 +106,6 @@ namespace oxr
 				return xrResult;
 
 			oxr::LogDebug( m_sLogCategory, "App Reference space of type (%s) created with handle (%" PRIu64 ").", XrEnumToString( xrRefSpaceType ), ( uint64_t )m_xrReferenceSpace );
-
 		}
 
 		return xrResult;
@@ -550,21 +552,12 @@ namespace oxr
 		uint32_t unArrayIndex )
 	{
 		std::vector< XrCompositionLayerBaseHeader * > xrFrameLayers;
-		RenderFrameWithLayers(
-			vecFrameLayerProjectionViews,
-			xrFrameLayers,
-			pFrameState,
-			xrCompositionLayerFlags,
-			xrEnvironmentBlendMode,
-			xrRectOffset,
-			xrRectExtent,
-			bIsarray,
-			unArrayIndex);
+		RenderFrameWithLayers( vecFrameLayerProjectionViews, xrFrameLayers, pFrameState, xrCompositionLayerFlags, xrEnvironmentBlendMode, xrRectOffset, xrRectExtent, bIsarray, unArrayIndex );
 	}
 
 	void Session::RenderFrameWithLayers(
 		std::vector< XrCompositionLayerProjectionView > &vecFrameLayerProjectionViews,
-		std::vector< XrCompositionLayerBaseHeader* > &vecFrameLayers,
+		std::vector< XrCompositionLayerBaseHeader * > &vecFrameLayers,
 		XrFrameState *pFrameState,
 		XrCompositionLayerFlags xrCompositionLayerFlags /*= 0 */,
 		XrEnvironmentBlendMode xrEnvironmentBlendMode /*= XR_ENVIRONMENT_BLEND_MODE_OPAQUE*/,

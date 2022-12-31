@@ -419,7 +419,6 @@ namespace xrvk
 			skybox->gltfModel.draw( m_vecFrameData[ 0 ].vkCommandBuffer );
 		}
 
-
 		// (14) Draw all renderables (recording command buffer)
 
 		// (14.1) Update renderables current poses
