@@ -103,8 +103,6 @@ namespace oxr
 		}
 	}
 
-	bool ExtHandler::AddExtension( XrInstance xrInstance, const char *extensionName ) { return false; }
-
 	bool ExtHandler::AddExtension( XrInstance xrInstance, XrSession xrSession, const char *extensionName )
 	{
 		// KHR: Visibility mask
@@ -125,6 +123,13 @@ namespace oxr
 		if ( strcmp( extensionName, XR_FB_PASSTHROUGH_EXTENSION_NAME ) == 0 )
 		{
 			m_vecExtensions.push_back( new ExtFBPassthrough( xrInstance, xrSession ) );
+			return true;
+		}
+
+		// FB: Display refresh rate
+		if ( strcmp( extensionName, XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME ) == 0 )
+		{
+			m_vecExtensions.push_back( new ExtFBRefreshRate( xrInstance, xrSession ) );
 			return true;
 		}
 

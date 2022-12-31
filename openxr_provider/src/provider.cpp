@@ -305,6 +305,7 @@ namespace oxr
 
 		if ( xrResult == XR_SUCCESS )
 		{
+			// Check for standard events
 			if ( xrEventDataBaseHeader->type == XR_TYPE_EVENT_DATA_EVENTS_LOST )
 			{
 				// Report any lost events

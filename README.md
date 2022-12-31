@@ -15,7 +15,7 @@ The optional render module is currently an active work in progress with testing 
 |                                   | Custom graphics pipelines and shaders                            |
 |                                   | Multithreading (Async loading, Double buffer, subcommands)       | 
 |                                   | Improve async asset loading (add async rendering)                |
-|                                   | Animation support and demos                                      |
+|                                   | Animation support and demos (basic done, skel anims pending)     |
 |                                   | XML-style header documentation and resulting refactors (if any)  |
 
 
@@ -30,14 +30,15 @@ The optional render module is currently an active work in progress with testing 
 | sample_05_hello_pbr       | Complex rendering and intro xrvk module                   | TBD               |
 | sample_06_finger_painting | Multi-and-single vendor extensions                        | TBD               |
 | sample_07_finger_painting2| Intro input system, wider device and platform support     | TBD               |
-  
+| sample_08_finger_painting3| Basic animation demo, display refresh rate ext impl.      | TBD               |
+
 ## I. Pre-built binaries
 
 You can find pre-built library files as well as Android (Meta Quest) and Win64 builds of all demo applications in the `bin_prebuilt` directory. 
 
 The library and demos *should* also build in Linux and Linux ARM, but no testing has been done on this yet.
 
-For demos 4 (Hello Cube) and 5 (Hello PBR) - PC VR users note that the renderer doesn't render/blit to a desktop mirror. You'll need to use the OpenXR runtime's built-in mirror if you want a desktop view. 
+From demo 4 onwards - PC VR users note that the renderer doesn't render/blit to a desktop mirror. You'll need to use the OpenXR runtime's built-in mirror if you want a desktop view. 
 
 - SteamVR: Click on the hamburger/system icon beside the version number and select "Display VR View"
 - Meta: https://developer.oculus.com/documentation/native/pc/dg-compositor-mirror/ 

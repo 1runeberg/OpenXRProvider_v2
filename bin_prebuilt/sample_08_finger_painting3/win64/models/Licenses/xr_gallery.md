@@ -1,0 +1,1 @@
+Modified for XR from "Modern VR Art Gallery Pyramid" (https://skfb.ly/oqZ9u) by Maxim Mavrichev, is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).

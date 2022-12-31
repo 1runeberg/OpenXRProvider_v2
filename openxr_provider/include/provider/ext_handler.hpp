@@ -32,9 +32,12 @@
 #include "openxr/openxr_platform_defines.h"
 #include "openxr/openxr_reflection.h"
 
+// extension implementations
 #include "ext_base.hpp"
-#include "ext_handtracking.hpp"
 #include "ext_fbpassthrough.hpp"
+#include "ext_fbrefreshrate.hpp"
+#include "ext_handtracking.hpp"
+
 #define LOG_CATEGORY_EXT "OpenXRProvider-Ext"
 
 namespace oxr
@@ -42,7 +45,6 @@ namespace oxr
 	class ExtVisMask : public ExtBase
 	{
 	  public:
-
 		/// <summary>
 		/// VisMask extension constructor - requires a valid XrInstance and XrSession
 		/// </summary>
@@ -58,7 +60,7 @@ namespace oxr
 			m_xrSession = xrSession;
 		}
 
-		~ExtVisMask(){}
+		~ExtVisMask() {}
 
 		/// <summary>
 		/// Retrieves the visibility mask for a give view (e.g. one per eye)
@@ -108,9 +110,9 @@ namespace oxr
 		/// Creates a supported extension object and currently active/enabled in the instance
 		/// </summary>
 		/// <param name="xrInstance">Current active openxr instance</param>
+		/// <param name="xrSession">Valid openxr session</param>
 		/// <param name="extensionName">The extension name to create</param>
 		/// <returns>True if the extension was created - this means the provider library has a native implementation of this extension</returns>
-		bool AddExtension( XrInstance xrInstance, const char *extensionName );
 		bool AddExtension( XrInstance xrInstance, XrSession xrSession, const char *extensionName );
 
 	  private:
