@@ -3,7 +3,10 @@
 
 *"Use reality(ies) as your canvas!"*
 
-Demonstrates use of animation with optional module xrvk. Like the previous demo, this version uses the openxr input system as an alternative to gesture input. Designed for large spaces - see video.
+Demonstrates use of animation with optional module xrvk. Like the previous demo, this version uses the openxr input system as an alternative to gesture input. Designed for large spaces - see video below:
+
+https://user-images.githubusercontent.com/17371351/210155533-0188006e-ff15-4e00-ab73-4ea52a62da0a.mp4
+
 
 | **Action**                    | **Handtracking gesture**                                                                                                                                                   | **Input system (controllers)**                                                                                                                                                                                                                                                                                          |
 |-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
