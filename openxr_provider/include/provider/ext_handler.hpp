@@ -37,6 +37,7 @@
 #include "ext_fbpassthrough.hpp"
 #include "ext_fbrefreshrate.hpp"
 #include "ext_handtracking.hpp"
+#include "ext_htcxvivetrackerinteraction.hpp"
 
 #define LOG_CATEGORY_EXT "OpenXRProvider-Ext"
 
