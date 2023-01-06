@@ -1,0 +1,3 @@
+#define SAMPLEXX_VERSION_MAJOR @sample_XX_headless_VERSION_MAJOR@
+#define SAMPLEXX_VERSION_MINOR @sample_XX_headless_VERSION_MINOR@
+#define SAMPLEXX_VERSION_PATCH @sample_XX_headless_VERSION_PATCH@
