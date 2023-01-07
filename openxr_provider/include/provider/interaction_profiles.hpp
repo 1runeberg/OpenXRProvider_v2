@@ -39,7 +39,7 @@ namespace oxr
 		const char *k_pccTrigger = "/trigger";
 		const char *k_pccThumbstick = "/thumbstick";
 		const char *k_pccTrackpad = "/trackpad";
-		const char *k_pccSqueeze = "/trigger";
+		const char *k_pccSqueeze = "/squeeze";
 		const char *k_pccMenu = "/menu";
 		const char *k_pccSystem = "/system";
 
