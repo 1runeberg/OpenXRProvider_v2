@@ -71,6 +71,7 @@ namespace oxr
 		/// <param name="xrInstance">Handle of the active openxr instance</param>
 		/// <param name="xrSession">Handle of the active openxr session - may or may not be running</param>
 		ExtFBPassthrough( XrInstance xrInstance, XrSession xrSession );
+		~ExtFBPassthrough();
 
 		/// <summary>
 		/// Initializes this extension. Creates all the required passthrough objects and layers. Call this before any other function in this class.

@@ -84,6 +84,25 @@ namespace xrvk
 		if ( vkDescriptorPool != VK_NULL_HANDLE )
 			vkDestroyDescriptorPool( m_SharedState.vkDevice, vkDescriptorPool, nullptr );
 
+		// free pipelines
+		if ( pipelines.pbr != VK_NULL_HANDLE )
+			vkDestroyPipeline( m_SharedState.vkDevice, pipelines.pbr, nullptr );
+
+		if ( pipelines.pbrAlphaBlend != VK_NULL_HANDLE )
+			vkDestroyPipeline( m_SharedState.vkDevice, pipelines.pbrAlphaBlend, nullptr );
+
+		if ( pipelines.pbrDoubleSided != VK_NULL_HANDLE )
+			vkDestroyPipeline( m_SharedState.vkDevice, pipelines.pbrDoubleSided, nullptr );
+
+		if ( pipelines.vismask != VK_NULL_HANDLE )
+			vkDestroyPipeline( m_SharedState.vkDevice, pipelines.vismask, nullptr );
+
+		if ( pipelines.skybox != VK_NULL_HANDLE )
+			vkDestroyPipeline( m_SharedState.vkDevice, pipelines.skybox, nullptr );
+
+		for ( auto &pipeline : m_vecCustomPipelines )
+			vkDestroyPipeline( m_SharedState.vkDevice, pipeline, nullptr );
+
 		// free vulkan pipeline layouts
 		if ( vkPipelineLayout != VK_NULL_HANDLE )
 			vkDestroyPipelineLayout( m_SharedState.vkDevice, vkPipelineLayout, nullptr );
@@ -93,6 +112,24 @@ namespace xrvk
 
 		if ( vkPipelineLayoutShapes != VK_NULL_HANDLE )
 			vkDestroyPipelineLayout( m_SharedState.vkDevice, vkPipelineLayoutShapes, nullptr );
+
+		m_vecCustomLayouts.clear();
+
+		// free descriptor set layouts
+		if ( descriptorSetLayouts.material != VK_NULL_HANDLE )
+			vkDestroyDescriptorSetLayout( m_SharedState.vkDevice, descriptorSetLayouts.material, nullptr );
+
+		if ( descriptorSetLayouts.node != VK_NULL_HANDLE )
+			vkDestroyDescriptorSetLayout( m_SharedState.vkDevice, descriptorSetLayouts.node, nullptr );
+
+		if ( descriptorSetLayouts.scene != VK_NULL_HANDLE )
+			vkDestroyDescriptorSetLayout( m_SharedState.vkDevice, descriptorSetLayouts.scene, nullptr );
+
+		// free buffers
+		skyboxUniformBuffer.destroy();
+		vecUniformBuffers.clear();
+		vecvecUniformBuffers_Shapes.clear();
+		m_vecVisMaskBuffers.clear();
 
 		// vulkan device cleanup
 		if ( m_pVulkanDevice )
@@ -407,8 +444,6 @@ namespace xrvk
 		}
 
 		// (13) Draw skybox
-		UniformBufferSet currentUB = vecUniformBuffers[ 0 ];
-
 		if ( GetSkyboxVisibility() )
 		{
 			UpdateUniformBuffers( &uboMatricesSkybox, &skyboxUniformBuffer, skybox, &matViewProjection, eyePose );
@@ -425,10 +460,10 @@ namespace xrvk
 		UpdateRenderablePoses( pSession, pFrameState );
 
 		// (14.2) Update renderables shader values UBOs
-		UpdateUniformBuffers( &uboMatricesScene, &currentUB.scene, &matViewProjection, eyePose );
+		UpdateUniformBuffers( &uboMatricesScene, &vecUniformBuffers[ 0 ].scene, &matViewProjection, eyePose );
 
 		// (14.3) Copy pbr properties to gpu
-		memcpy( currentUB.params.mapped, &shaderValuesPbrParams, sizeof( shaderValuesPbrParams ) );
+		memcpy( vecUniformBuffers[ 0 ].params.mapped, &shaderValuesPbrParams, sizeof( shaderValuesPbrParams ) );
 
 		// (14.4) Draw renderables
 		RenderGltfScenes();
@@ -492,9 +527,16 @@ namespace xrvk
 			// Render mesh primitives
 			for ( vkglTF::Primitive *primitive : gltfNode->mesh->primitives )
 			{
-				if ( primitive->material.alphaMode == gltfAlphaMode )
-				{
+				vkBoundPipeline = renderable->vkPipeline;
 
+				// Check for custom pipeline
+				if ( vkBoundPipeline != VK_NULL_HANDLE )
+				{
+					vkCmdBindPipeline( m_vecFrameData[ unCmdBufIndex ].vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkBoundPipeline );
+				}
+				else if ( primitive->material.alphaMode == gltfAlphaMode )
+				{
+					// Otherwise, use our pbr pipelines
 					VkPipeline pipeline = VK_NULL_HANDLE;
 					switch ( gltfAlphaMode )
 					{
@@ -512,7 +554,10 @@ namespace xrvk
 						vkCmdBindPipeline( m_vecFrameData[ unCmdBufIndex ].vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline );
 						vkBoundPipeline = pipeline;
 					}
+				}
 
+				if ( vkBoundPipeline != VK_NULL_HANDLE )
+				{
 					const std::vector< VkDescriptorSet > descriptorsets = {
 						vecDescriptorSets[ unCmdBufIndex ].scene,
 						primitive->material.descriptorSet,
@@ -1655,7 +1700,10 @@ namespace xrvk
 			if ( renderable->xrSpace != XR_NULL_HANDLE )
 			{
 				XrSpaceLocation renderableSpaceLocation { XR_TYPE_SPACE_LOCATION };
-				pSession->LocateSpace( pSession->GetReferenceSpace(), renderable->xrSpace, pFrameState->predictedDisplayTime, &renderableSpaceLocation );
+				renderableSpaceLocation.next = renderable->pSpaceLocationExtChain;
+
+				pSession->LocateSpace(
+					pSession->GetReferenceSpace(), renderable->xrSpace, renderable->xrTimeOverride == 0 ? pFrameState->predictedDisplayTime : renderable->xrTimeOverride, &renderableSpaceLocation );
 				renderable->currentPose = renderableSpaceLocation.pose;
 			}
 
@@ -1671,19 +1719,37 @@ namespace xrvk
 			if ( renderable->xrSpace != XR_NULL_HANDLE )
 			{
 				XrSpaceLocation renderableSpaceLocation { XR_TYPE_SPACE_LOCATION };
-				pSession->LocateSpace( pSession->GetReferenceSpace(), renderable->xrSpace, pFrameState->predictedDisplayTime, &renderableSpaceLocation );
+				renderableSpaceLocation.next = renderable->pSpaceLocationExtChain;
+
+				pSession->LocateSpace(
+					pSession->GetReferenceSpace(), renderable->xrSpace, renderable->xrTimeOverride == 0 ? pFrameState->predictedDisplayTime : renderable->xrTimeOverride, &renderableSpaceLocation );
+
 				renderable->currentPose = renderableSpaceLocation.pose;
+
+				if ( renderable->bApplyOffset )
+				{
+					XrVector3f newPos {};
+					XrQuaternionf newRot {};
+
+					XrVector3f_Add( &newPos, &renderable->offsetPosition, &xrSpaceLocation.pose.position );
+					XrQuaternionf_Multiply( &newRot, &renderable->offsetRotation, &xrSpaceLocation.pose.orientation );
+
+					renderable->currentPose = { newRot, newPos };
+				}
 			}
-
-			if ( renderable->bApplyOffset )
+			else if ( renderable->xrSpace == XR_NULL_HANDLE && renderable->bApplyOffset )
 			{
-				XrVector3f newPos {};
-				XrQuaternionf newRot {};
+					XrVector3f newPos {};
+					XrQuaternionf newRot {};
 
-				XrVector3f_Add( &newPos, &renderable->offsetPosition, &xrSpaceLocation.pose.position );
-				XrQuaternionf_Multiply( &newRot, &renderable->offsetRotation, &xrSpaceLocation.pose.orientation );
+					XrVector3f_Add( &newPos, &renderable->offsetPosition, &xrSpaceLocation.pose.position );
+					XrQuaternionf_Multiply( &newRot, &renderable->offsetRotation, &xrSpaceLocation.pose.orientation );
 
-				renderable->currentPose = { newRot, newPos };
+					renderable->currentPose = { newRot, newPos };
+			}
+			else
+			{
+				renderable->currentPose = xrSpaceLocation.pose;
 			}
 
 			renderable->PlayAnimations();
@@ -2408,6 +2474,77 @@ namespace xrvk
 		return unSize;
 	}
 
+	uint32_t Render::AddCustomlayout( std::vector< VkDescriptorSetLayoutBinding > &setLayoutBindings )
+	{
+		// Create descriptor set layout
+		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo {};
+		descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		descriptorSetLayoutCreateInfo.pBindings = setLayoutBindings.data();
+		descriptorSetLayoutCreateInfo.bindingCount = static_cast< uint32_t >( setLayoutBindings.size() );
+
+		CustomLayout layout = CustomLayout( m_SharedState.vkDevice );
+		VK_CHECK_RESULT( vkCreateDescriptorSetLayout( m_SharedState.vkDevice, &descriptorSetLayoutCreateInfo, nullptr, &layout.vkDescriptorSetLayout ) );
+
+		// Create pipeline layout
+		struct PushBlockPrefilterEnv
+		{
+			glm::mat4 mvp;
+			float roughness;
+			uint32_t numSamples = 32u;
+		} pushBlockPrefilterEnv;
+
+		VkPushConstantRange pushConstantRange {};
+		pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+		pushConstantRange.size = sizeof( PushBlockPrefilterEnv );
+
+		VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo {};
+		pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
+
+		pipelineLayoutCreateInfo.setLayoutCount = 1;
+		pipelineLayoutCreateInfo.pSetLayouts = &layout.vkDescriptorSetLayout;
+
+		VK_CHECK_RESULT( vkCreatePipelineLayout( m_SharedState.vkDevice, &pipelineLayoutCreateInfo, nullptr, &layout.vkLayout ) );
+
+		// Add the custom layout to our cache and return its index to the app
+		uint32_t unSize = static_cast< uint32_t >( m_vecCustomLayouts.size() );
+		m_vecCustomLayouts.push_back( layout );
+		return unSize;
+	}
+
+	uint32_t Render::AddCustomPipeline( std::string sVertexShader, std::string sFragmentShader, VkGraphicsPipelineCreateInfo *pCreateInfo )
+	{
+		// Create shader stages
+		std::array< VkPipelineShaderStageCreateInfo, 2 > shaderStages;
+#ifdef XR_USE_PLATFORM_ANDROID
+		shaderStages[ 0 ] = loadShader( m_SharedState.androidAssetManager, m_SharedState.vkDevice, sVertexShader, VK_SHADER_STAGE_VERTEX_BIT );
+		shaderStages[ 1 ] = loadShader( m_SharedState.androidAssetManager, m_SharedState.vkDevice, sFragmentShader, VK_SHADER_STAGE_FRAGMENT_BIT );
+#else
+		shaderStages[ 0 ] = loadShader( m_SharedState.vkDevice, sVertexShader, VK_SHADER_STAGE_VERTEX_BIT );
+		shaderStages[ 1 ] = loadShader( m_SharedState.vkDevice, sFragmentShader, VK_SHADER_STAGE_FRAGMENT_BIT );
+#endif
+
+		pCreateInfo->stageCount = static_cast< uint32_t >( shaderStages.size() );
+		pCreateInfo->pStages = shaderStages.data();
+
+		// Create graphics pipeline
+		VkPipeline pipeline = VK_NULL_HANDLE;
+		VK_CHECK_RESULT( vkCreateGraphicsPipelines( m_SharedState.vkDevice, VK_NULL_HANDLE, 1, pCreateInfo, nullptr, &pipeline ) );
+
+		// cleanup
+		for ( auto shaderStage : shaderStages )
+		{
+			vkDestroyShaderModule( m_SharedState.vkDevice, shaderStage.module, nullptr );
+		}
+
+		// Add to custom pipeline cache and return its index to the app
+		uint32_t unSize = static_cast< uint32_t >( m_vecCustomPipelines.size() );
+		m_vecCustomPipelines.push_back( pipeline );
+		return unSize;
+	}
+
 	void Render::CreateVisMasks( uint32_t unNum )
 	{
 		m_vecVisMasks.resize( unNum );
@@ -2443,8 +2580,6 @@ namespace xrvk
 		{
 			vkCmdBindIndexBuffer( m_vecFrameData[ 0 ].vkCommandBuffer, gltfModel->indices.buffer, 0, VK_INDEX_TYPE_UINT32 );
 		}
-
-		vkBoundPipeline = VK_NULL_HANDLE;
 
 		// Opaque primitives first
 		for ( auto node : gltfModel->nodes )
@@ -2501,7 +2636,7 @@ namespace xrvk
 		at[ colorRef.attachment ].samples = VK_SAMPLE_COUNT_1_BIT;
 		at[ colorRef.attachment ].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		at[ colorRef.attachment ].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		at[ colorRef.attachment ].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		at[colorRef.attachment].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		at[ colorRef.attachment ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		at[ colorRef.attachment ].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		at[ colorRef.attachment ].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -2511,8 +2646,8 @@ namespace xrvk
 		at[ depthRef.attachment ].samples = VK_SAMPLE_COUNT_1_BIT;
 		at[ depthRef.attachment ].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		at[ depthRef.attachment ].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		at[ depthRef.attachment ].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		at[ depthRef.attachment ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		at[ depthRef.attachment ].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		at[ depthRef.attachment ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
 		at[ depthRef.attachment ].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		at[ depthRef.attachment ].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 

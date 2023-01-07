@@ -34,9 +34,14 @@
 
 // extension implementations
 #include "ext_base.hpp"
-#include "ext_fbpassthrough.hpp"
-#include "ext_fbrefreshrate.hpp"
+
+// multi-vendor
 #include "ext_handtracking.hpp"
+#include "ext_eyegaze.hpp"
+
+// vendor
+#include "ext_fbpassthrough.hpp"	// meta only
+#include "ext_fbrefreshrate.hpp"	// has wide runtime support (steamvr, meta, monado, wmr)
 
 #define LOG_CATEGORY_EXT "OpenXRProvider-Ext"
 
@@ -63,7 +68,7 @@ namespace oxr
 		~ExtVisMask() {}
 
 		/// <summary>
-		/// Retrieves the visibility mask for a give view (e.g. one per eye)
+		/// Retrieves the visibility mask for a given view (e.g. one per eye)
 		/// </summary>
 		/// <param name="outVertices">Output parameter that will hold the vismask vertices</param>
 		/// <param name="outIndices">Output parameter that will hold the vismask indices</param>
@@ -114,6 +119,14 @@ namespace oxr
 		/// <param name="extensionName">The extension name to create</param>
 		/// <returns>True if the extension was created - this means the provider library has a native implementation of this extension</returns>
 		bool AddExtension( XrInstance xrInstance, XrSession xrSession, const char *extensionName );
+
+		/// <summary>
+		/// Creates a supported extension object and currently active/enabled in the instance
+		/// </summary>
+		/// <param name="xrInstance">Current active openxr instance</param>
+		/// <param name="extensionName">The extension name to create</param>
+		/// <returns>True if the extension was created - this means the provider library has a native implementation of this extension</returns>
+		bool AddExtension( XrInstance xrInstance, const char *extensionName );
 
 	  private:
 		// object cache of currently active and supported extensions in the current openxr instance

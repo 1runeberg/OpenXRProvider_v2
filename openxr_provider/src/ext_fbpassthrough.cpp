@@ -56,6 +56,15 @@ namespace oxr
 		INIT_PFN( m_xrInstance, xrGeometryInstanceSetTransformFB );
 	}
 
+	ExtFBPassthrough::~ExtFBPassthrough()
+	{
+		if ( m_fbPassthroughLayer_FullScreen != XR_NULL_HANDLE )
+			xrDestroyPassthroughLayerFB( m_fbPassthroughLayer_FullScreen );
+
+		if ( m_fbPassthrough != XR_NULL_HANDLE )
+			xrDestroyPassthroughFB( m_fbPassthrough );
+	}
+
 	XrResult ExtFBPassthrough::Init()
 	{
 		// Create passthrough objects

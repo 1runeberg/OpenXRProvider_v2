@@ -1,0 +1,3 @@
+#define SAMPLE9_VERSION_MAJOR @sample_09_hidden_worlds_VERSION_MAJOR@
+#define SAMPLE9_VERSION_MINOR @sample_09_hidden_worlds_VERSION_MINOR@
+#define SAMPLE9_VERSION_PATCH @sample_09_hidden_worlds_VERSION_PATCH@
