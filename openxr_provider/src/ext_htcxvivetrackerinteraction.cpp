@@ -36,15 +36,14 @@ namespace oxr
 		m_xrSession = xrSession;
 	}
 
-	XrResult ExtHTCXViveTrackerInteraction::Init() 
+	XrResult ExtHTCXViveTrackerInteraction::Init()
 	{
 		// Get function pointer to enumerate paths function in active runtime
 		XrResult xrResult = xrGetInstanceProcAddr( m_xrInstance, "xrEnumerateViveTrackerPathsHTCX", ( PFN_xrVoidFunction * )&xrEnumerateViveTrackerPathsHTCX );
 		return xrResult;
 	}
 
-	ExtHTCXViveTrackerInteraction::~ExtHTCXViveTrackerInteraction() { 
-		xrEnumerateViveTrackerPathsHTCX = nullptr;
-	}
+	ExtHTCXViveTrackerInteraction::~ExtHTCXViveTrackerInteraction() { xrEnumerateViveTrackerPathsHTCX = nullptr; }
+}
 
-} // namespace oxr
+

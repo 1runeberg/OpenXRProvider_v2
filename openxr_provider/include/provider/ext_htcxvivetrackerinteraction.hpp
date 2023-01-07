@@ -23,14 +23,15 @@
 
 #pragma once
 
-#include "ext_base.hpp"
+#include <provider/ext_base.hpp>
+#include <provider/interaction_profiles.hpp>
 #include <provider/common.hpp>
 
 #define LOG_CATEGORY_HTCXVIVETRACKERINTERACTION "HTCXViveTrackerInteraction"
 
 namespace oxr
 {
-	class ExtHTCXViveTrackerInteraction : public ExtBase
+	class ExtHTCXViveTrackerInteraction : public oxr::ExtBase
 	{
 	  public:
 		/// <summary>
@@ -48,7 +49,7 @@ namespace oxr
 		/// <returns>Result from the runtime</returns>
 		XrResult Init();
 
-	private:
+	  private:
 		// Active openxr instance
 		XrInstance m_xrInstance = XR_NULL_HANDLE;
 
@@ -58,4 +59,5 @@ namespace oxr
 		// Cached function pointer to the main EnumberViveTrackerPaths call from the active openxr runtime
 		PFN_xrEnumerateViveTrackerPathsHTCX xrEnumerateViveTrackerPathsHTCX = nullptr;
 	};
+
 }
