@@ -12,7 +12,7 @@ The optional render module is currently an active work in progress with testing 
 |-----------------------------------|------------------------------------------------------------------|
 | ~~Input subsystem~~               | MSAA support                                                     | 
 | ~~Flexible extension subsystem~~  | Mesh Instancing                                                  |
-|                                   | ~~Custom graphics pipelines and shaders ~~                       |
+|                                   | ~~Custom graphics pipelines and shaders~~                        |
 |                                   | Multithreading (Async loading, Double buffer, subcommands)       | 
 |                                   | Improve async asset loading (add async rendering)                |
 |                                   | Animation support and demos (basic done, skel anims pending)     |
