@@ -1,0 +1,1 @@
+-keep class net.beyondreality.secretworlds.** { *; } // All classes

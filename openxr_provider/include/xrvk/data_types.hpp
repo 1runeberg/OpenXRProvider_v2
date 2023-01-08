@@ -106,10 +106,10 @@ namespace xrvk
 
 	struct Buffer
 	{
-		VkDevice device;
+		VkDevice device = VK_NULL_HANDLE;
 		VkBuffer buffer = VK_NULL_HANDLE;
 		VkDeviceMemory memory = VK_NULL_HANDLE;
-		VkDescriptorBufferInfo descriptor;
+		VkDescriptorBufferInfo descriptor{};
 		int32_t count = 0;
 		void *mapped = nullptr;
 		void create( vks::VulkanDevice *device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, bool map = true )
@@ -168,7 +168,13 @@ namespace xrvk
 		bool bIsVisible = true;
 		std::string sFilename;
 		vkglTF::Model gltfModel;
+		VkPipeline vkPipeline = VK_NULL_HANDLE;
 
+		// custom info - gameplay or exts
+		void *pSpaceLocationExtChain = nullptr;
+		XrTime xrTimeOverride = 0;
+
+		// current state
 		XrPosef currentPose;
 		XrVector3f currentScale = { 1.0f, 1.0f, 1.0f };
 

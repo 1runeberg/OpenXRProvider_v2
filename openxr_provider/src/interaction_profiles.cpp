@@ -21,8 +21,6 @@
  *
  */
 
-#pragma once
-
 #include <provider/interaction_profiles.hpp>
 
 namespace oxr
@@ -236,6 +234,8 @@ namespace oxr
 					sBinding += k_pccX;
 				else if ( qualifier == Controller::Qualifier::Y )
 					sBinding += k_pccY;
+				else if ( qualifier == Controller::Qualifier::None )
+					break;
 			}
 			break;
 			case Controller::Component::Squeeze:
@@ -340,6 +340,8 @@ namespace oxr
 					sBinding += k_pccX;
 				else if ( qualifier == Controller::Qualifier::Y )
 					sBinding += k_pccY;
+				else if ( qualifier == Controller::Qualifier::None )
+					break;
 			}
 			break;
 			case Controller::Component::Squeeze:
@@ -364,7 +366,7 @@ namespace oxr
 
 		// If binding can't be mapped, don't add
 		// We'll then let the dev do "additive" bindings instead using AddBinding( XrInstance xrInstance, XrAction action, FULL INPUT PAHT )
-		if (sBinding.empty())
+		if ( sBinding.empty() )
 		{
 			LogInfo( LOG_CATEGORY_INPUT, "Skipping (%s) as there's no equivalent controller component for this binding", Path() );
 			return XR_SUCCESS;
@@ -418,6 +420,8 @@ namespace oxr
 					sBinding += k_pccX;
 				else if ( qualifier == Controller::Qualifier::Y )
 					sBinding += k_pccY;
+				else if ( qualifier == Controller::Qualifier::None )
+					break;
 				else
 					sBinding += k_pccClick;
 			}

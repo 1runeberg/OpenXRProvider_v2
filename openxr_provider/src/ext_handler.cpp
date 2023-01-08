@@ -136,4 +136,16 @@ namespace oxr
 		return false;
 	}
 
+	bool ExtHandler::AddExtension( XrInstance xrInstance, const char *extensionName ) 
+	{
+		// EXT: Eye gaze tracking
+		if ( strcmp( extensionName, XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME ) == 0 )
+		{
+			m_vecExtensions.push_back( new ExtEyeGaze( xrInstance ) );
+			return true;
+		}
+
+		return false;
+	}
+
 } // namespace oxr

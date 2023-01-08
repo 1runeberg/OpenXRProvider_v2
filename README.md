@@ -12,7 +12,7 @@ The optional render module is currently an active work in progress with testing 
 |-----------------------------------|------------------------------------------------------------------|
 | ~~Input subsystem~~               | MSAA support                                                     | 
 | ~~Flexible extension subsystem~~  | Mesh Instancing                                                  |
-|                                   | Custom graphics pipelines and shaders                            |
+|                                   | ~~Custom graphics pipelines and shaders ~~                       |
 |                                   | Multithreading (Async loading, Double buffer, subcommands)       | 
 |                                   | Improve async asset loading (add async rendering)                |
 |                                   | Animation support and demos (basic done, skel anims pending)     |
@@ -31,6 +31,7 @@ The optional render module is currently an active work in progress with testing 
 | sample_06_finger_painting | Multi-and-single vendor extensions                        | TBD               |
 | sample_07_finger_painting2| Intro input system, wider device and platform support     | TBD               |
 | sample_08_finger_painting3| Basic animation demo, display refresh rate ext impl.      | TBD               |
+| sample_09_hidden_worlds   | Eye tracking demo, custom vulkan graphics pipelines       | TBD               |
 
 ## I. Pre-built binaries
 

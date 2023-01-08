@@ -158,6 +158,12 @@ namespace xrvk
 		{
 			Buffer scene;
 			Buffer params;
+
+			~UniformBufferSet()
+			{
+				scene.destroy();
+				params.destroy();
+			}
 		};
 		Buffer skyboxUniformBuffer;
 		std::vector< UniformBufferSet > vecUniformBuffers;
@@ -168,6 +174,12 @@ namespace xrvk
 		{
 			Buffer vertexBuffer;
 			Buffer indexBuffer;
+
+			~VertexBufferSet()
+			{
+				vertexBuffer.destroy();
+				indexBuffer.destroy();
+			}
 		};
 
 		struct UBOMatrices
@@ -304,6 +316,7 @@ namespace xrvk
 		void PrepareShapesPipeline( Shapes::Shape *shape, std::string sVertexShader, std::string sFragmentShader,
 									VkPolygonMode vkPolygonMode = VK_POLYGON_MODE_FILL ); // basic geometry
 		void PreparePipelines();														  // pbr
+		const std::vector< VkRenderPass > &GetRenderPasses() { return m_vecRenderPasses; };
 
 		// Shaders
 		void PrepareUniformBuffers();
@@ -318,6 +331,37 @@ namespace xrvk
 		// basic geometry
 		std::vector< Shapes::Shape * > vecShapes;
 
+		// Custom graphics pipelines
+		struct CustomLayout
+		{
+			VkDevice vkDevice = VK_NULL_HANDLE;
+			VkPipelineLayout vkLayout = VK_NULL_HANDLE;
+			VkDescriptorSetLayout vkDescriptorSetLayout = VK_NULL_HANDLE;
+
+			CustomLayout( VkDevice device )
+				: vkDevice( device )
+			{
+			}
+
+			~CustomLayout()
+			{
+				if ( vkLayout != VK_NULL_HANDLE )
+					vkDestroyPipelineLayout( vkDevice, vkLayout, nullptr );
+
+				if ( vkDescriptorSetLayout != VK_NULL_HANDLE )
+					vkDestroyDescriptorSetLayout( vkDevice, vkDescriptorSetLayout, nullptr );
+			}
+		};
+
+		uint32_t AddCustomlayout( std::vector< VkDescriptorSetLayoutBinding > &setLayoutBindings );
+		uint32_t GetCustomLayoutsCount() { return static_cast< uint32_t >( m_vecCustomLayouts.size() ); }
+		const std::vector< CustomLayout > &GetCustomLayouts() { return m_vecCustomLayouts; }
+
+		uint32_t AddCustomPipeline( std::string sVertexShader, std::string sFragmentShader, VkGraphicsPipelineCreateInfo *pCreateInfo );
+		uint32_t GetCustomPipelinesCount() { return static_cast< uint32_t >( m_vecCustomPipelines.size() ); }
+		const std::vector< VkPipeline > &GetCustomPipelines() { return m_vecCustomPipelines; }
+
+		// Vismasks
 		void CreateVisMasks( uint32_t unNum );
 
 		// getters and setters
@@ -400,8 +444,12 @@ namespace xrvk
 		std::vector< VertexBufferSet > m_vecVisMaskBuffers;
 
 		// vulkan
-		const std::vector< const char * > m_vecValidationLayers;	 //= { "VK_LAYER_KHRONOS_validation" };
-		const std::vector< const char * > m_vecValidationExtensions; //= { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
+		const std::vector< const char* > m_vecValidationLayers; // = { "VK_LAYER_KHRONOS_validation" };
+		const std::vector< const char* > m_vecValidationExtensions; // = { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
+
+		// custom graphics pipelines
+		std::vector< CustomLayout > m_vecCustomLayouts;
+		std::vector< VkPipeline > m_vecCustomPipelines;
 
 		// vks
 		vks::VulkanDevice *m_pVulkanDevice = nullptr;

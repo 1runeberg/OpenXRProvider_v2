@@ -273,6 +273,13 @@ namespace oxr
 			}
 		}
 
+		// Add extensions that only require an openxr instance
+		for ( auto &extensionName : m_instance.vecEnabledExtensions )
+		{
+			if ( extensionName == XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME )
+				m_instance.extHandler.AddExtension( m_instance.xrInstance, XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME );
+		}
+
 		// Create input
 		m_pInput = new oxr::Input( &m_instance, m_eMinLogLevel );
 
