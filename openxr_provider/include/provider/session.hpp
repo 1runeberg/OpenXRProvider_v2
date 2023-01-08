@@ -369,6 +369,13 @@ namespace oxr
 			uint32_t unArrayIndex = 0 );
 
 		/// <summary>
+		/// Call to start rendering frames. Make sure to register for rendering callbacks (e.g. RegisterAcquireSwapchainImageImageCallback, etc)
+		/// These will be called in the appropriate times during the openxr render pass
+		/// </summary>
+		/// <param name="pFrameState">Output parameter for the framestate (e.g. for checking if the app should render in this pass)</param>
+		void RenderHeadlessFrame( XrFrameState *pFrameState );
+
+		/// <summary>
 		/// Retrieve the most recent predicted display time from the openxr runtime
 		/// </summary>
 		/// <returns>The most recent predicted display time from the openxr runtime</returns>

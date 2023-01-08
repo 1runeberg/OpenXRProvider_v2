@@ -442,7 +442,7 @@ namespace oxr
 					break;
 				case XR_ACTION_TYPE_POSE_INPUT:
 					xrResult = xrGetActionStatePose( m_pSession->GetXrSession(), &xrActionStateGetInfo, &pAction->vecActionStates[ i ].statePose );
-					pAction->pfnCallback( pAction, i );
+						pAction->pfnCallback( pAction, i );
 					break;
 				case XR_ACTION_TYPE_MAX_ENUM:
 				default:

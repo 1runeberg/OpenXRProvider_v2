@@ -685,4 +685,34 @@ namespace oxr
 		xrEndFrame( m_xrSession, &xrEndFrameInfo );
 	}
 
+	void Session::RenderHeadlessFrame( XrFrameState *pFrameState )
+	{
+		// Check if there's a valid session and swapchains to work with
+		if ( m_xrSession == XR_NULL_HANDLE )
+			return;
+
+		// (1) Wait for a new frame
+		XrFrameWaitInfo xrWaitFrameInfo { XR_TYPE_FRAME_WAIT_INFO };
+
+		if ( xrWaitFrame( m_xrSession, &xrWaitFrameInfo, pFrameState ) != XR_SUCCESS )
+			return;
+
+		// Cache predicted time and period
+		m_xrPredictedDisplayTime = pFrameState->predictedDisplayTime;
+		m_xrPredictedDisplayPeriod = pFrameState->predictedDisplayPeriod;
+
+		// (2) Begin frame before doing any GPU work
+		XrFrameBeginInfo xrBeginFrameInfo { XR_TYPE_FRAME_BEGIN_INFO };
+		if ( xrBeginFrame( m_xrSession, &xrBeginFrameInfo ) != XR_SUCCESS )
+			return;
+
+		// (3) End current frame
+
+		XrFrameEndInfo xrEndFrameInfo { XR_TYPE_FRAME_END_INFO };
+		xrEndFrameInfo.displayTime = pFrameState->predictedDisplayTime;
+		xrEndFrameInfo.layerCount = 0;
+
+		xrEndFrame( m_xrSession, &xrEndFrameInfo );
+	}
+
 } // namespace oxr

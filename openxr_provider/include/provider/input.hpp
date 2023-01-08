@@ -339,7 +339,7 @@ namespace oxr
 		/// Retrieves the actionstate of an action in the current input frame
 		/// </summary>
 		/// <param name="pAction">Pointer to an input action (any action other than haptic/vibration)</param>
-		/// <returns>Result of retrieving hte actionstate for the provided action from the runtime</returns>
+		/// <returns>Result of retrieving the actionstate for the provided action from the runtime</returns>
 		XrResult GetActionState( Action *pAction );
 
 		/// <summary>
