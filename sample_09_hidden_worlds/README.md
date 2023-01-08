@@ -8,7 +8,7 @@ Enter hidden world and it will be made fully visible. Once found, hidden worlds 
 
 There are also alternative input backups for lack of eye tracking to control the xray area/viewfinder - see table below.
 
-(demo video here)
+https://user-images.githubusercontent.com/17371351/211217747-527375bd-2a08-4ff7-979a-bc6a063dca70.mp4
 
 | **Action**                    | **Handtracking gesture**                                                                                                                                         | **Input system (controllers)**                                                                                                                                                                                                                                                                                          |
 |-------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
