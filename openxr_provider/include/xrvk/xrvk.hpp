@@ -76,6 +76,7 @@ namespace Shapes
 	struct Shape
 	{
 		bool bIsVisible = true;
+		bool bMovesWithPlayer = false;
 
 		XrPosef pose{};
 		XrVector3f scale { 1.0f, 1.0f, 1.0f };
@@ -94,6 +95,7 @@ namespace Shapes
 		{
 			Shape *shape = new Shape;
 			shape->bIsVisible = bIsVisible;
+			shape->bMovesWithPlayer = bMovesWithPlayer;
 			shape->pose = pose;
 			shape->scale = scale;
 			shape->space = space;

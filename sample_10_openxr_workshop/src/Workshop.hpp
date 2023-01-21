@@ -96,11 +96,18 @@ namespace oxa
 		bool CheckGameLoopExit( oxr::Provider *oxrProvider ) { return oxrProvider->Session()->GetState() != XR_SESSION_STATE_EXITING; }
 #endif
 
+		void CacheExtensions();
+
+		void Prep();
+
 		// Game loop
 		void RunGameLoop();
 
 		// Session handling
 		void ProcessSessionStateChanges();
+
+		// Custom events handling
+		void ProcessExtensionEvents();
 
 		// Callback handling
 		void PrepareRender( uint32_t unSwapchainIndex, uint32_t unImageIndex );
@@ -123,6 +130,13 @@ namespace oxa
 		XrResult SuggestBindings();
 		XrResult AttachActionsets();
 		XrResult AddActionsetsForSync();
+
+		// Supported extensions
+		struct supported_exts
+		{
+			oxr::ExtFBPassthrough* fbPassthrough = nullptr;
+			oxr::ExtFBRefreshRate* fbRefreshRate = nullptr;
+		} workshopExtensions;
 
 		// Actionsets
 		struct actionsets
@@ -161,6 +175,9 @@ namespace oxa
 
 		// custom assets
 		uint32_t m_unFloorSpotIdx = 0;
+
+		// data from extensions
+		float m_fCurrentRefreshRate = 90.f;
 	};
 
 } // namespace oxa

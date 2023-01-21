@@ -174,6 +174,7 @@ namespace xrvk
 	{
 		// data payload
 		bool bIsVisible = true;
+		bool bMovesWithPlayer = false;
 		std::string sFilename;
 		vkglTF::Model gltfModel;
 		VkPipeline vkPipeline = VK_NULL_HANDLE;

@@ -364,8 +364,8 @@ namespace xrvk
 		pose->position.y += playerWorldState.position.y;
 		pose->position.z += playerWorldState.position.z;
 
-		//XrQuaternionf poseOrientation = pose->orientation;
-		//XrQuaternionf_Multiply( &pose->orientation, &playerWorldState.orientation, &poseOrientation );
+		// XrQuaternionf poseOrientation = pose->orientation;
+		// XrQuaternionf_Multiply( &pose->orientation, &playerWorldState.orientation, &poseOrientation );
 	}
 
 	void Render::BeginRender(
@@ -417,7 +417,7 @@ namespace xrvk
 		if ( currentHmdState.space != XR_NULL_HANDLE )
 		{
 			XrSpaceLocation xrSpaceLocation { XR_TYPE_SPACE_LOCATION };
-			pSession->LocateAppSpace( pFrameState->predictedDisplayTime, &xrSpaceLocation );
+			pSession->LocateSpace( pSession->GetAppSpace(), currentHmdState.space, pFrameState->predictedDisplayTime, &xrSpaceLocation );
 
 			if ( xrSpaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT )
 				currentHmdState.position = xrSpaceLocation.pose.position;
@@ -1774,7 +1774,8 @@ namespace xrvk
 			}
 
 			// Apply player world state
-			ApplyPlayerWorldStateToPose(&renderable->pose);
+			if ( renderable->bMovesWithPlayer )
+				ApplyPlayerWorldStateToPose( &renderable->pose );
 		}
 
 		// Scenes
@@ -1787,7 +1788,8 @@ namespace xrvk
 			renderable->currentPose = xrSpaceLocation.pose;
 
 			// Apply player world state
-			ApplyPlayerWorldStateToPose( &renderable->currentPose );
+			if ( renderable->bMovesWithPlayer )
+				ApplyPlayerWorldStateToPose( &renderable->currentPose );
 
 			// Play anims (if any)
 			renderable->PlayAnimations();
@@ -1806,7 +1808,7 @@ namespace xrvk
 
 				pSession->LocateSpace(
 					pSession->GetReferenceSpace(), renderable->xrSpace, renderable->xrTimeOverride == 0 ? pFrameState->predictedDisplayTime : renderable->xrTimeOverride, &renderableSpaceLocation );
-				
+
 				renderable->xrSpaceFlags = renderableSpaceLocation.locationFlags;
 
 				if ( renderableSpaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT )
@@ -1817,7 +1819,8 @@ namespace xrvk
 			}
 
 			// Apply player world state
-			ApplyPlayerWorldStateToPose( &renderable->currentPose );
+			if ( renderable->bMovesWithPlayer )
+				ApplyPlayerWorldStateToPose( &renderable->currentPose );
 
 			// Play anims (if any)
 			renderable->PlayAnimations();
@@ -1872,7 +1875,8 @@ namespace xrvk
 			}
 
 			// Apply player world state
-			ApplyPlayerWorldStateToPose( &renderable->currentPose );
+			if ( renderable->bMovesWithPlayer )
+				ApplyPlayerWorldStateToPose( &renderable->currentPose );
 
 			// Play anims (if any)
 			renderable->PlayAnimations();

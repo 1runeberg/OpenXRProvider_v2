@@ -39,12 +39,14 @@ inline void Callback_SmoothLoco( oxr::Action *pAction, uint32_t unActionStateInd
 	if ( currentState->y > g_pWorkshop->locomotionParams.fSmoothActivationPoint )
 	{
 		XrVector3f dir = g_pWorkshop->GetForwardVector( &g_pWorkshop->GetRender()->currentHmdState.orientation );
+		dir.y = 0.f; // ignore flight
 		g_pWorkshop->ScaleVector( &dir, g_pWorkshop->locomotionParams.fSmoothFwd );
 		g_pWorkshop->AddVectors( &g_pWorkshop->GetRender()->playerWorldState.position, &dir );
 	}
-	else if (currentState->y < -g_pWorkshop->locomotionParams.fSmoothActivationPoint)
+	else if ( currentState->y < -g_pWorkshop->locomotionParams.fSmoothActivationPoint )
 	{
 		XrVector3f dir = g_pWorkshop->GetBackVector( &g_pWorkshop->GetRender()->currentHmdState.orientation );
+		dir.y = 0.f; // ignore flight
 		g_pWorkshop->ScaleVector( &dir, g_pWorkshop->locomotionParams.fSmoothBack );
 		g_pWorkshop->AddVectors( &g_pWorkshop->GetRender()->playerWorldState.position, &dir );
 	}
@@ -53,12 +55,14 @@ inline void Callback_SmoothLoco( oxr::Action *pAction, uint32_t unActionStateInd
 	if ( currentState->x > g_pWorkshop->locomotionParams.fSmoothActivationPoint )
 	{
 		XrVector3f dir = g_pWorkshop->GetRightVector( &g_pWorkshop->GetRender()->currentHmdState.orientation );
+		dir.y = 0.f; // ignore flight
 		g_pWorkshop->ScaleVector( &dir, g_pWorkshop->locomotionParams.fSmoothRight );
 		g_pWorkshop->AddVectors( &g_pWorkshop->GetRender()->playerWorldState.position, &dir );
 	}
 	else if ( currentState->x < -g_pWorkshop->locomotionParams.fSmoothActivationPoint )
 	{
 		XrVector3f dir = g_pWorkshop->GetLeftVector( &g_pWorkshop->GetRender()->currentHmdState.orientation );
+		dir.y = 0.f; // ignore flight
 		g_pWorkshop->ScaleVector( &dir, g_pWorkshop->locomotionParams.fSmoothRight );
 		g_pWorkshop->AddVectors( &g_pWorkshop->GetRender()->playerWorldState.position, &dir );
 	}
@@ -72,7 +76,29 @@ namespace oxa
 {
 	Workshop::Workshop() {}
 
-	Workshop::~Workshop() {}
+	Workshop::~Workshop()
+	{
+		// Cleanup actions
+		if ( m_pInput )
+		{
+			if ( workshopActions.vec2SmoothLoco )
+				delete workshopActions.vec2SmoothLoco;
+		}
+
+		// Cleanup actionsets
+		if ( m_pInput )
+		{
+			if ( workshopActionsets.locomotion )
+				delete workshopActionsets.locomotion;
+		}
+
+		// Cleanup extensions
+		if ( workshopExtensions.fbPassthrough )
+			delete workshopExtensions.fbPassthrough;
+
+		if ( workshopExtensions.fbRefreshRate )
+			delete workshopExtensions.fbRefreshRate;
+	}
 
 #ifdef XR_USE_PLATFORM_ANDROID
 	XrResult Workshop::Start( struct android_app *app )
@@ -82,7 +108,14 @@ namespace oxa
 	{
 		g_pWorkshop = this; // needed for the global callbacks
 
-		// (1) Create openxr instance and session - you can add requested texture formats in vecRequestedTextureFormats and vecRequestedDepthFormats
+		// (1) Create openxr instance and session
+
+		// ... you can add requested extensions with ecRequestedExtensions.push_back( EXT NAME ) ...
+		vecRequestedExtensions.push_back( XR_FB_PASSTHROUGH_EXTENSION_NAME );
+		vecRequestedExtensions.push_back( XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME );
+
+		// .. you can add requested texture formats in vecRequestedTextureFormats and vecRequestedDepthFormats ...
+
 #ifdef XR_USE_PLATFORM_ANDROID
 		XrResult xrResult = Workshop::Init( app, APP_NAME, OXR_MAKE_VERSION32( 0, 1, 0 ) );
 #else
@@ -92,60 +125,119 @@ namespace oxa
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
 
-		// (4) Add debug assets to render (comment out when ready with your own game assets)
+		// (2) Cache additional extensions this app will use
+		CacheExtensions();
+
+		// (3) Add debug assets to render (comment out when ready with your own game assets)
 		AddDebugMeshes();
 
-		// (5) ... Add assets to render here (vecRenderScene/Sector/Model) ...
+		// (4) ... Add assets to render here (vecRenderScene/Sector/Model) ...
 		AddSceneAssets();
 
-		// (6) Start loading gltf assets from disk
+		// (5) Start loading gltf assets from disk
 		m_pRender->LoadAssets();
 
-		// (7) Prepare pbr pipelines
+		// (6) Prepare pbr pipelines
 		m_pRender->PrepareAllPipelines();
 
-		// () ... Add custom shapes/basic geometry pipelines here (if any) ...
+		// (7) ... Add custom shapes/basic geometry pipelines here (if any) ...
 		PrepareCustomShapesPipelines();
 
-		// () ... Add custom graphics pipelines here (if any) ...
+		// (8) ... Add custom graphics pipelines here (if any) ...
 		PrepareCustomGraphicsPipelines();
 
-		// (8) Register render call backs - input callbacks are defined when creating an action
+		// (9) Register render call backs - input callbacks are defined when creating an action
 		//     update Callback_PreRender and Callback_PostRender with your render code
 		RegisterRenderCallbacks();
 
-		// (9) ... Create actionset/s here (template creates a main actionset by default) ...
+		// (10) ... Create actionset/s here (template creates a main actionset by default) ...
 		xrResult = CreateActionsets();
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
 
-		// (10) ... Create action/s here (template creates pose actions by default for the controllers) ...
+		// (11) ... Create action/s here (template creates pose actions by default for the controllers) ...
 		xrResult = CreateActions();
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
 
-		// (11) ... Suggest binding/s here...
+		// (12) ... Suggest binding/s here...
 		xrResult = SuggestBindings();
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
 
-		// (12) ... Attach actionset/s to session ...
+		// (13) ... Attach actionset/s to session ...
 		xrResult = AttachActionsets();
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
 
-		// (13) ... Add action set for the next input sync ...
+		// (14) ... Add action set for the next input sync ...
 		xrResult = AddActionsetsForSync();
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
 
-		// (14) ... Set skybox ...
+		// (15) ... Set skybox ...
 		m_pRender->SetSkyboxVisibility( true );
 
-		// (15) Run main loop
+		// (16) ... Set additional prep for this app ..
+		Prep();
+
+		// (17) Run main loop
 		RunGameLoop();
 
 		return XR_SUCCESS;
+	}
+
+	void Workshop::CacheExtensions()
+	{
+		workshopExtensions.fbPassthrough = static_cast< oxr::ExtFBPassthrough * >( m_pProvider->Instance()->extHandler.GetExtension( XR_FB_PASSTHROUGH_EXTENSION_NAME ) );
+		if ( workshopExtensions.fbPassthrough )
+		{
+			if ( !XR_UNQUALIFIED_SUCCESS( workshopExtensions.fbPassthrough->Init() ) )
+			{
+				delete workshopExtensions.fbPassthrough;
+				workshopExtensions.fbPassthrough = nullptr;
+			}
+		}
+
+		workshopExtensions.fbRefreshRate = static_cast< oxr::ExtFBRefreshRate * >( m_pProvider->Instance()->extHandler.GetExtension( XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME ) );
+		if ( workshopExtensions.fbRefreshRate )
+		{
+			if ( !XR_UNQUALIFIED_SUCCESS( workshopExtensions.fbRefreshRate->Init() ) )
+			{
+				delete workshopExtensions.fbRefreshRate;
+				workshopExtensions.fbRefreshRate = nullptr;
+			}
+		}
+	}
+
+	void Workshop::Prep()
+	{
+		// Passthrough
+		if ( workshopExtensions.fbPassthrough )
+		{
+			workshopExtensions.fbPassthrough->StartPassThrough();
+			workshopExtensions.fbPassthrough->SetModeToDefault();
+			m_pRender->SetSkyboxVisibility( false );
+		}
+
+		// Refresh rate
+		if ( workshopExtensions.fbRefreshRate )
+		{
+			// Log supported refresh rates (if extension is available and active)
+			std::vector< float > vecSupportedRefreshRates;
+			workshopExtensions.fbRefreshRate->GetSupportedRefreshRates( vecSupportedRefreshRates );
+
+			oxr::LogDebug( LOG_CATEGORY_APP, "The following %i refresh rate(s) are supported by the hardware and runtime", ( uint32_t )vecSupportedRefreshRates.size() );
+			for ( auto &refreshRate : vecSupportedRefreshRates )
+				oxr::LogDebug( LOG_CATEGORY_APP, "\tRefresh rate supported: %f", refreshRate );
+
+			// Request best available refresh rate (runtime chooses, specific refresh rate can also be specified here from result of GetSupportedRefreshRates()
+			workshopExtensions.fbRefreshRate->RequestRefreshRate( 0.0f );
+
+			// Retrieve current refresh rate
+			m_fCurrentRefreshRate = workshopExtensions.fbRefreshRate->GetCurrentRefreshRate();
+			oxr::LogDebug( LOG_CATEGORY_APP, "Current display refresh rate is: %f", m_fCurrentRefreshRate );
+		}
 	}
 
 	void Workshop::RunGameLoop()
@@ -167,6 +259,9 @@ namespace oxa
 			{
 				// Handle session state changes
 				ProcessSessionStateChanges();
+
+				// Handle extension events
+				ProcessExtensionEvents();
 			}
 
 			// (3) Input
@@ -182,6 +277,13 @@ namespace oxa
 				m_vecFrameLayers.clear();
 
 				// ...Add additional frame layers here (if any, e.g. passthrough)...
+				if ( workshopExtensions.fbPassthrough )
+				{
+					xrCompositionLayerFlags =
+						XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT | XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT | XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
+
+					m_vecFrameLayers.push_back( reinterpret_cast< XrCompositionLayerBaseHeader * >( workshopExtensions.fbPassthrough->GetCompositionLayer() ) );
+				}
 
 				m_vecFrameLayerProjectionViews.resize( m_pSession->GetSwapchains().size(), { XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW } );
 				m_pSession->RenderFrameWithLayers( m_vecFrameLayerProjectionViews, m_vecFrameLayers, &m_xrFrameState, xrCompositionLayerFlags );
@@ -226,6 +328,18 @@ namespace oxa
 				if ( XR_UNQUALIFIED_SUCCESS( m_pProvider->Session()->End() ) )
 					m_bProcessRenderFrame = false;
 			}
+		}
+	}
+
+	void Workshop::ProcessExtensionEvents()
+	{
+		// Display refresh rate
+		if ( workshopExtensions.fbRefreshRate && m_xrEventDataBaseheader->type == XR_TYPE_EVENT_DATA_DISPLAY_REFRESH_RATE_CHANGED_FB )
+		{
+			auto xrExtFBRefreshRateChangedEvent = *reinterpret_cast< const XrEventDataDisplayRefreshRateChangedFB * >( m_xrEventDataBaseheader );
+			m_fCurrentRefreshRate = xrExtFBRefreshRateChangedEvent.toDisplayRefreshRate;
+
+			oxr::LogDebug( LOG_CATEGORY_APP, "Display refresh rate changed from: %f to %f", xrExtFBRefreshRateChangedEvent.fromDisplayRefreshRate, m_fCurrentRefreshRate );
 		}
 	}
 

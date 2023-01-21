@@ -175,7 +175,10 @@ namespace oxr
 
 		m_pSession = m_pProvider->Session();
 
-		// (6.1) Get any extensions that requires an active openxr instance and session
+		// (6.1) Start hmd tracking
+		m_pRender->StartHmdTracking( m_pSession );
+
+		// (6.2) Get any extensions that requires an active openxr instance and session
 		m_extHandTracking = static_cast< oxr::ExtHandTracking * >( m_pProvider->Instance()->extHandler.GetExtension( XR_EXT_HAND_TRACKING_EXTENSION_NAME ) );
 		if ( m_extHandTracking )
 		{
@@ -304,6 +307,9 @@ namespace oxr
 
 		if ( m_pActionsetMain )
 			delete m_pActionsetMain;
+
+		if ( m_extHandTracking )
+			delete m_extHandTracking;
 	}
 
 	XrVector3f XrApp::GetBackVector( XrQuaternionf *quat )
@@ -357,7 +363,7 @@ namespace oxr
 		XrVector3f v = GetUpVector( quat );
 		return FlipVector( &v );
 	}
-
+	
 	XrVector3f XrApp::GetLeftVector( XrQuaternionf *quat ) 
 	{
 		XrVector3f v = GetRightVector( quat );
@@ -371,6 +377,7 @@ namespace oxr
 		// (1) Define debug shape
 		m_debugShape.vecIndices = &g_vecPyramidIndices;
 		m_debugShape.vecVertices = &g_vecPyramidVertices;
+		m_debugShape.bMovesWithPlayer = true;
 
 		// (2) Create graphics pipeline for the debug shapes
 		m_pRender->PrepareShapesPipeline( &m_debugShape, "shaders/shape.vert.spv", "shaders/shape.frag.spv" );
