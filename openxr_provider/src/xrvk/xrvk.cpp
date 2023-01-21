@@ -471,6 +471,9 @@ namespace xrvk
 		// (15) Draw basic geometry if present
 		for ( auto &shape : vecShapes )
 		{
+			if ( !shape->bIsVisible )
+				continue;
+
 			// Bind the graphics pipeline for this shape
 			vkCmdBindPipeline( m_vecFrameData[ 0 ].vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shape->pipeline );
 
@@ -1635,6 +1638,16 @@ namespace xrvk
 		return shaderStageInfo;
 	}
 
+	uint32_t Render::AddShape( Shapes::Shape *shape, XrVector3f scale /*= { 1.0f, 1.0f, 1.0f } */ ) 
+	{
+		uint32_t unSize = static_cast< uint32_t >( vecShapes.size() );
+
+		shape->scale = scale;
+		vecShapes.push_back( shape );
+		
+		return unSize;
+	}
+
 	void Render::UpdateUniformBuffers( UBOMatrices *uboMatrices, Buffer *buffer, RenderSceneBase *renderable, XrMatrix4x4f *matViewProjection, XrPosef *eyePose )
 	{
 		if ( !renderable->bIsVisible )
@@ -1680,6 +1693,21 @@ namespace xrvk
 
 		XrSpaceLocation xrSpaceLocation { XR_TYPE_SPACE_LOCATION };
 		pSession->LocateAppSpace( pFrameState->predictedDisplayTime, &xrSpaceLocation );
+
+		// Shapes
+		for ( auto &renderable : vecShapes )
+		{
+			if ( !renderable->bIsVisible )
+				continue;
+
+			if ( renderable->space != XR_NULL_HANDLE )
+			{
+				XrSpaceLocation renderableSpaceLocation { XR_TYPE_SPACE_LOCATION };
+
+				pSession->LocateSpace( pSession->GetReferenceSpace(), renderable->space, pFrameState->predictedDisplayTime, &renderableSpaceLocation );
+				renderable->pose = renderableSpaceLocation.pose;
+			}
+		}
 
 		// Scenes
 		for ( auto &renderable : vecRenderScenes )
@@ -1739,13 +1767,13 @@ namespace xrvk
 			}
 			else if ( renderable->xrSpace == XR_NULL_HANDLE && renderable->bApplyOffset )
 			{
-					XrVector3f newPos {};
-					XrQuaternionf newRot {};
+				XrVector3f newPos {};
+				XrQuaternionf newRot {};
 
-					XrVector3f_Add( &newPos, &renderable->offsetPosition, &xrSpaceLocation.pose.position );
-					XrQuaternionf_Multiply( &newRot, &renderable->offsetRotation, &xrSpaceLocation.pose.orientation );
+				XrVector3f_Add( &newPos, &renderable->offsetPosition, &xrSpaceLocation.pose.position );
+				XrQuaternionf_Multiply( &newRot, &renderable->offsetRotation, &xrSpaceLocation.pose.orientation );
 
-					renderable->currentPose = { newRot, newPos };
+				renderable->currentPose = { newRot, newPos };
 			}
 			else
 			{
@@ -2407,7 +2435,8 @@ namespace xrvk
 			loadShader( m_SharedState.androidAssetManager, m_SharedState.vkDevice, "shaders/pbr_khr.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT ) };
 #else
 		shaderStages = {
-			loadShader( m_SharedState.vkDevice, "shaders/pbr.vert.spv", VK_SHADER_STAGE_VERTEX_BIT ), loadShader( m_SharedState.vkDevice, "shaders/pbr_khr.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT ) };
+			loadShader( m_SharedState.vkDevice, "shaders/pbr.vert.spv", VK_SHADER_STAGE_VERTEX_BIT ), 
+			loadShader( m_SharedState.vkDevice, "shaders/pbr_khr.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT ) };
 #endif
 
 		rasterizationStateCI.cullMode = VK_CULL_MODE_BACK_BIT;
@@ -2636,7 +2665,7 @@ namespace xrvk
 		at[ colorRef.attachment ].samples = VK_SAMPLE_COUNT_1_BIT;
 		at[ colorRef.attachment ].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		at[ colorRef.attachment ].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		at[colorRef.attachment].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		at[ colorRef.attachment ].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		at[ colorRef.attachment ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		at[ colorRef.attachment ].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		at[ colorRef.attachment ].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;

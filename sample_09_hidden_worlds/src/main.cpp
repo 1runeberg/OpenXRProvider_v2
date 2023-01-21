@@ -191,7 +191,9 @@ XrResult demo_openxr_start()
 	if ( g_extHandTracking )
 	{
 		// For hand tracking cubes
-		Shapes::Shape_Cube cubePalmLeft {};
+		Shapes::Shape cubePalmLeft {};
+		cubePalmLeft.vecIndices = &g_vecCubeIndices;
+		cubePalmLeft.vecVertices = &g_vecCubeVertices;
 		g_pRender->PrepareShapesPipeline( &cubePalmLeft, "shaders/shape.vert.spv", "shaders/shape.frag.spv" );
 
 		PopulateHandShapes( &cubePalmLeft );

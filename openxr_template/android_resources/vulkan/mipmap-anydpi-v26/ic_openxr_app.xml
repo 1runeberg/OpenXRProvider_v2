@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      Copyright (c) 2023, Rune Berg (GitHub: https://github.com/1runeberg, Twitter: https://twitter.com/1runeberg, YouTube: https://www.youtube.com/@1RuneBerg)
+      SPDX-License-Identifier: MIT
+    -->
+  <background android:drawable="@color/ic_openxr_app_bg" />
+  <foreground android:drawable="@drawable/ic_openxr_app" />
+</adaptive-icon>

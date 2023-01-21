@@ -41,7 +41,6 @@
 // Event data packet sent by the openxr runtime during polling
 XrEventDataBaseHeader *g_xrEventDataBaseheader = nullptr;
 
-
 // Pointer to session handling object of the openxr provider library
 oxr::Session *g_pSession = nullptr;
 
@@ -51,17 +50,39 @@ XrSessionState g_sessionState = XR_SESSION_STATE_UNKNOWN;
 // Latest openxr framestate - this is filled in on the render call
 XrFrameState g_xrFrameState { XR_TYPE_FRAME_STATE };
 
-// Projection viewss and layers to be rendered
+// Projection views and layers to be rendered
 std::vector< XrCompositionLayerProjectionView > g_vecFrameLayerProjectionViews;
 std::vector< XrCompositionLayerBaseHeader * > g_vecFrameLayers;
 
 // Pointer to the the xrvk renderer class
 std::unique_ptr< xrvk::Render > g_pRender = nullptr;
 
+// ====
+// OpenXR Reference Cube
+// SPDX-License-Identifier: Apache-2.0
+std::vector< unsigned short > g_vecCubeIndices = {
+	0,	1,	2,	3,	4,	5,	// -X
+	6,	7,	8,	9,	10, 11, // +X
+	12, 13, 14, 15, 16, 17, // -Y
+	18, 19, 20, 21, 22, 23, // +Y
+	24, 25, 26, 27, 28, 29, // -Z
+	30, 31, 32, 33, 34, 35, // +Z
+};
+
+std::vector< Shapes::Vertex > g_vecCubeVertices = {
+	CUBE_SIDE( Shapes::LTB, Shapes::LBF, Shapes::LBB, Shapes::LTB, Shapes::LTF, Shapes::LBF, Shapes::DarkRed )	 // -X
+	CUBE_SIDE( Shapes::RTB, Shapes::RBB, Shapes::RBF, Shapes::RTB, Shapes::RBF, Shapes::RTF, Shapes::Red )		 // +X
+	CUBE_SIDE( Shapes::LBB, Shapes::LBF, Shapes::RBF, Shapes::LBB, Shapes::RBF, Shapes::RBB, Shapes::DarkGreen ) // -Y
+	CUBE_SIDE( Shapes::LTB, Shapes::RTB, Shapes::RTF, Shapes::LTB, Shapes::RTF, Shapes::LTF, Shapes::Green )	 // +Y
+	CUBE_SIDE( Shapes::LBB, Shapes::RBB, Shapes::RTB, Shapes::LBB, Shapes::RTB, Shapes::LTB, Shapes::DarkBlue )	 // -Z
+	CUBE_SIDE( Shapes::LBF, Shapes::LTF, Shapes::RTF, Shapes::LBF, Shapes::RTF, Shapes::RBF, Shapes::Blue )		 // +Z
+};
+// ==== end of OpenXR Reference Cube
+
 // Hand tracking extension implementation, if present
 oxr::ExtHandTracking *g_extHandTracking = nullptr;
 
-// FB Passthrough extnesion implementation, if present
+// FB Passthrough extension implementation, if present
 oxr::ExtFBPassthrough *g_extFBPassthrough = nullptr;
 
 // Skybox manipulation vars

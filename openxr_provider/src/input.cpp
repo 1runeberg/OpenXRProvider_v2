@@ -28,6 +28,14 @@ namespace oxr
 {
 	Action::~Action()
 	{
+		for ( auto &space : vecActionSpaces )
+		{
+			if ( space != XR_NULL_HANDLE )
+			{
+				xrDestroySpace( space );
+			}
+		}
+
 		if ( xrActionHandle != XR_NULL_HANDLE )
 		{
 			xrDestroyAction( xrActionHandle );
