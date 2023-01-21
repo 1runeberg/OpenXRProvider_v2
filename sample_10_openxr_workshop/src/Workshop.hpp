@@ -30,13 +30,13 @@
 #include <app.hpp>
 
 // App defines
-#define APP_NAME "YOUR_APP_NAME_HERE"
+#define APP_NAME "openxr_workshop"
 #define ENGINE_NAME "openxr_provider"
-#define LOG_CATEGORY_APP "YOUR_APP_NAME_HERE"
+#define LOG_CATEGORY_APP "openxr_workshop"
 
 using namespace oxr;
 
-namespace xra
+namespace oxa
 {
 	class Workshop : public XrApp
 	{
@@ -124,6 +124,29 @@ namespace xra
 		XrResult AttachActionsets();
 		XrResult AddActionsetsForSync();
 
+		// Actionsets
+		struct actionsets
+		{
+			oxr::ActionSet *locomotion = nullptr;
+		} workshopActionsets;
+
+		// Actions
+		struct actions
+		{
+			oxr::Action *vec2SmoothLoco = nullptr;
+		} workshopActions;
+
+		// Locomotion parameters
+		struct locomotion_params
+		{
+			float fSmoothActivationPoint = 0.5f;
+
+			float fSmoothFwd = 0.1f;
+			float fSmoothBack = 0.1f;
+			float fSmoothLeft = 0.075f;
+			float fSmoothRight = 0.075f;
+		} locomotionParams;
+
 		// Android events handling
 #ifdef XR_USE_PLATFORM_ANDROID
 		void AndroidPoll();
@@ -140,4 +163,4 @@ namespace xra
 		uint32_t m_unFloorSpotIdx = 0;
 	};
 
-} // namespace xra
+} // namespace oxa

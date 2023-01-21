@@ -32,17 +32,17 @@ sAppName = input("(1) Input name of app - no special characters other than under
 if not sAppName:
     sys.exit("Error - you must provide a name.")
 
-sAppNamespace = input("(2) Input your app's C++ namespace: ")
-if not sAppNamespace:
-    sys.exit("Error - you must provide a C++ namespace.")
-
-sAppMainClass = input("(3) Input your app's C++ main class name: ")
-if not sAppMainClass:
-    sys.exit("Error - you must provide a C++ main class name.")
-
-sLocalizedName = input(f"(4) Input localized app name. Press Enter to use app name [{sAppName}]: ")
+sLocalizedName = input(f"(2) Input localized app name. Press Enter to use app name [{sAppName}]: ")
 if not sLocalizedName:
     sLocalizedName = sAppName
+
+sAppNamespace = input("(3) Input your app's C++ namespace. Press enter to use [oxa]: ")
+if not sAppNamespace:
+    sAppNamespace = "oxa"
+
+sAppMainClass = input("(4) Input your app's C++ main class name. Press enter to use [CXrApp]: ")
+if not sAppMainClass:
+    sAppMainClass = "CXrApp"
 
 sTLD = input("(5) Enter top level domain. Press enter to use [net]: ")
 if not sTLD:
@@ -52,7 +52,7 @@ sDomainName = input("(6) Enter domain name. Press enter to use [beyondreality]: 
 if not sDomainName:
     sDomainName = "beyondreality"
 
-sTargetDir = input(f"(7) Input target directory name (will also be the executable name). Press Enter to use [{sAppName}]: ")
+sTargetDir = input(f"(7) Input target directory name (will also be the executable name) [{sAppName}]: ")
 if not sTargetDir:
     sTargetDir = sAppName
 
@@ -88,6 +88,9 @@ replace_text(sOutputDir + "build.gradle", "YOUR_APP_NAME_HERE", sAppName)
 replace_text(sOutputDir + "src/main.hpp", "YOUR_APP_NAME_HERE", sAppName)
 replace_text(sOutputDir + "src/main.cpp", "YOUR_APP_NAME_HERE", sAppName)
 replace_text(sOutputDir + "java/" + sTLD + "/" + sDomainName + "/" + sAppName + "/MainActivity.java", "YOUR_APP_NAME_HERE", sAppName)
+
+replace_text(sOutputDir + "src/YOUR_MAIN_CLASS_HERE.hpp", "YOUR_APP_NAME_HERE", sAppName)
+replace_text(sOutputDir + "src/YOUR_MAIN_CLASS_HERE.cpp", "YOUR_APP_NAME_HERE", sAppName)
 
 replace_text(sOutputDir + "src/main.cpp", "YOUR_MAIN_CLASS_HERE", sAppMainClass)
 replace_text(sOutputDir + "src/YOUR_MAIN_CLASS_HERE.hpp", "YOUR_MAIN_CLASS_HERE", sAppMainClass)
@@ -139,3 +142,5 @@ fin.close()
 
 # Delete this script from output directory
 os.remove(sOutputDir + "new_app_wizard.py")
+
+print(f"App {sAppName} created in {sOutputDir}")

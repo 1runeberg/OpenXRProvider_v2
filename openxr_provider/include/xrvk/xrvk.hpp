@@ -77,9 +77,10 @@ namespace Shapes
 	{
 		bool bIsVisible = true;
 
-		XrPosef pose;
+		XrPosef pose{};
 		XrVector3f scale { 1.0f, 1.0f, 1.0f };
 		XrSpace space = XR_NULL_HANDLE;
+		XrSpaceLocationFlags spaceFlags = 0;
 
 		xrvk::Buffer indexBuffer {};
 		xrvk::Buffer vertexBuffer {};
@@ -106,7 +107,6 @@ namespace Shapes
 		}
 	};
 } // namespace Shapes
-
 
 namespace xrvk
 {
@@ -224,6 +224,19 @@ namespace xrvk
 			std::vector< uint32_t > indices;
 		};
 
+		struct HmdState
+		{
+			XrSpace			space = XR_NULL_HANDLE;
+			XrVector3f		position { 0.f, 0.f, 0.f };
+			XrQuaternionf	orientation { 0.f, 0.f, 0.f, 1.f };
+		} currentHmdState;
+
+		struct WorldState
+		{
+			XrVector3f		position { 0.f, 0.f, 0.f };
+			XrQuaternionf	orientation { 0.f, 0.f, 0.f, 1.f };
+		} playerWorldState;
+
 		// data
 		int32_t nAnimationIndex = 0;
 		float fAnimationTimer = 0.0f;
@@ -274,6 +287,12 @@ namespace xrvk
 		// Initialize vulkan resources
 		void CreateRenderResources( oxr::Session *pSession, int64_t nColorFormat, int64_t nDepthFormat, VkExtent2D vkExtent );
 
+		// Initialize hmd tracking
+		void StartHmdTracking(oxr::Session *pSession);
+
+		// Apply player world state
+		void ApplyPlayerWorldStateToPose(XrPosef* pose);
+
 		// Rendering
 		void BeginRender(
 			oxr::Session *pSession,
@@ -312,7 +331,7 @@ namespace xrvk
 		VkPipelineShaderStageCreateInfo CreateShaderStage( VkShaderStageFlagBits flagShaderStage, VkShaderModule *pShaderModule, const std::string &sEntrypoint );
 
 		// Renderables handling
-		uint32_t AddShape( Shapes::Shape* shape, XrVector3f scale = { 1.0f, 1.0f, 1.0f } );
+		uint32_t AddShape( Shapes::Shape *shape, XrVector3f scale = { 1.0f, 1.0f, 1.0f } );
 		uint32_t AddRenderScene( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f } );
 		uint32_t AddRenderSector( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f }, XrSpace xrSpace = XR_NULL_HANDLE );
 		uint32_t AddRenderModel( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f }, XrSpace xrSpace = XR_NULL_HANDLE );
@@ -433,8 +452,8 @@ namespace xrvk
 		std::vector< VertexBufferSet > m_vecVisMaskBuffers;
 
 		// vulkan
-		const std::vector< const char* > m_vecValidationLayers; // = { "VK_LAYER_KHRONOS_validation" };
-		const std::vector< const char* > m_vecValidationExtensions; // = { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
+		const std::vector< const char * > m_vecValidationLayers;	 // = { "VK_LAYER_KHRONOS_validation" };
+		const std::vector< const char * > m_vecValidationExtensions; // = { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
 
 		// custom graphics pipelines
 		std::vector< CustomLayout > m_vecCustomLayouts;

@@ -259,6 +259,7 @@ namespace xrvk
 	struct RenderSector : RenderScene
 	{
 		XrSpace xrSpace = XR_NULL_HANDLE;
+		XrSpaceLocationFlags xrSpaceFlags = 0;
 
 		RenderSector( std::string filename )
 			: RenderScene( filename )

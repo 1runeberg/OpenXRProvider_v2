@@ -80,9 +80,6 @@ namespace oxr
 {
 	XrApp::XrApp()
 	{
-		// Reset hmd pose
-		XrPosef_Identity( &m_poseHmd );
-
 		// Add minimal set of extensions
 		vecRequestedExtensions.push_back( XR_KHR_VULKAN_ENABLE_EXTENSION_NAME );
 		vecRequestedExtensions.push_back( XR_KHR_VISIBILITY_MASK_EXTENSION_NAME );
@@ -105,14 +102,7 @@ namespace oxr
 	XrApp::~XrApp() { Cleanup(); }
 
 #ifdef XR_USE_PLATFORM_ANDROID
-	XrResult XrApp::Init(
-			struct android_app *app,
-			std::string sAppName, OxrVersion32 unVersion,
-			ELogLevel eLogLevel,
-			bool bCreateRenderer,
-			bool bCreateSession,
-			bool bCreateInput
-	)
+	XrResult XrApp::Init( struct android_app *app, std::string sAppName, OxrVersion32 unVersion, ELogLevel eLogLevel, bool bCreateRenderer, bool bCreateSession, bool bCreateInput )
 #else
 	XrResult XrApp::Init( std::string sAppName, OxrVersion32 unVersion, ELogLevel eLogLevel, bool bCreateRenderer, bool bCreateSession, bool bCreateInput )
 #endif
@@ -164,7 +154,7 @@ namespace oxr
 			return XR_SUCCESS;
 
 #ifdef XR_USE_PLATFORM_ANDROID
-		m_pRender = new xrvk::Render ( m_pProvider->Instance()->androidActivity->assetManager, xrvk::ELogLevel::LogVerbose );
+		m_pRender = new xrvk::Render( m_pProvider->Instance()->androidActivity->assetManager, xrvk::ELogLevel::LogVerbose );
 #else
 		m_pRender = new xrvk::Render( xrvk::ELogLevel::LogVerbose );
 #endif
@@ -314,6 +304,64 @@ namespace oxr
 
 		if ( m_pActionsetMain )
 			delete m_pActionsetMain;
+	}
+
+	XrVector3f XrApp::GetBackVector( XrQuaternionf *quat )
+	{
+		XrVector3f v {};
+		v.x = 2 * ( quat->x * quat->z + quat->w * quat->y );
+		v.y = 2 * ( quat->y * quat->z - quat->w * quat->x );
+		v.z = 1 - 2 * ( quat->x * quat->x + quat->y * quat->y );
+
+		return v;
+	}
+
+	XrVector3f XrApp::GetUpVector( XrQuaternionf *quat )
+	{
+		XrVector3f v {};
+		v.x = 2 * ( quat->x * quat->y - quat->w * quat->z );
+		v.y = 1 - 2 * ( quat->x * quat->x + quat->z * quat->z );
+		v.z = 2 * ( quat->y * quat->z + quat->w * quat->x );
+
+		return v;
+	}
+
+	XrVector3f XrApp::GetRightVector( XrQuaternionf *quat )
+	{
+		XrVector3f v {};
+		v.x = 1 - 2 * ( quat->y * quat->y + quat->z * quat->z );
+		v.y = 2 * ( quat->x * quat->y + quat->w * quat->z );
+		v.z = 2 * ( quat->x * quat->z - quat->w * quat->y );
+
+		return v;
+	}
+
+	XrVector3f XrApp::FlipVector( XrVector3f *vec )
+	{
+		XrVector3f v { -1.f, -1.f, -1.f };
+		v.x *= vec->x;
+		v.y *= vec->y;
+		v.z *= vec->z;
+
+		return v;
+	}
+
+	XrVector3f XrApp::GetForwardVector( XrQuaternionf *quat )
+	{
+		XrVector3f v = GetBackVector( quat );
+		return FlipVector( &v );
+	}
+
+	XrVector3f XrApp::GetDownVector( XrQuaternionf *quat ) 
+	{
+		XrVector3f v = GetUpVector( quat );
+		return FlipVector( &v );
+	}
+
+	XrVector3f XrApp::GetLeftVector( XrQuaternionf *quat ) 
+	{
+		XrVector3f v = GetRightVector( quat );
+		return FlipVector( &v );
 	}
 
 	void XrApp::AddDebugMeshes()

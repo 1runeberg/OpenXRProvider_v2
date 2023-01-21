@@ -42,49 +42,64 @@ namespace oxr
 
 #ifdef XR_USE_PLATFORM_ANDROID
 		XrResult Init(
-				struct android_app *app,
-				std::string sAppName, OxrVersion32 unVersion,
-				ELogLevel eLogLevel = ELogLevel::LogDebug,
-				bool bCreateRenderer = true,
-				bool bCreateSession = true,
-				bool bCreateInput = true
-		);
-#else
-		XrResult Init(
-			std::string sAppName, OxrVersion32 unVersion,
+			struct android_app *app,
+			std::string sAppName,
+			OxrVersion32 unVersion,
 			ELogLevel eLogLevel = ELogLevel::LogDebug,
 			bool bCreateRenderer = true,
 			bool bCreateSession = true,
-			bool bCreateInput = true
-		);
+			bool bCreateInput = true );
+#else
+		XrResult Init( std::string sAppName, OxrVersion32 unVersion, ELogLevel eLogLevel = ELogLevel::LogDebug, bool bCreateRenderer = true, bool bCreateSession = true, bool bCreateInput = true );
 #endif
 		void Cleanup();
 
 		// Getters
 		// Pointer to renderer
-		xrvk::Render* GetRender() { return m_pRender; }
+		xrvk::Render *GetRender() { return m_pRender; }
 
 		// Pointer to session handling object of the openxr provider library
-		oxr::Session* GetSession() { return m_pSession; }
+		oxr::Session *GetSession() { return m_pSession; }
 
 		// Pointer to input handling object of the openxr provider library
-		oxr::Input* GetInput() { return m_pInput; }
+		oxr::Input *GetInput() { return m_pInput; }
 
 		// Event data packet sent by the openxr runtime during polling
-		XrEventDataBaseHeader* GetEventData() { return m_xrEventDataBaseheader; }
-		
+		XrEventDataBaseHeader *GetEventData() { return m_xrEventDataBaseheader; }
+
+		// Directions
+		XrVector3f GetForwardVector( XrQuaternionf *quat );
+		XrVector3f GetUpVector( XrQuaternionf *quat );
+		XrVector3f GetLeftVector( XrQuaternionf *quat );
+
+		XrVector3f FlipVector( XrVector3f *vec );
+
+		XrVector3f GetBackVector( XrQuaternionf *quat );
+		XrVector3f GetDownVector( XrQuaternionf *quat );
+		XrVector3f GetRightVector( XrQuaternionf *quat );
+
 		// Utility functions
 		void AddDebugMeshes();
 
-		inline void UpdateHmdPose( )
+		inline void AddVectors( XrVector3f *vecInOut, XrVector3f *vecAdd )
 		{
-			if ( m_spaceHmd != XR_NULL_HANDLE )
-			{
-				XrSpaceLocation hmdSpaceLocation { XR_TYPE_SPACE_LOCATION };
+			vecInOut->x += vecAdd->x;
+			vecInOut->y += vecAdd->y;
+			vecInOut->z += vecAdd->z;
+		}
 
-				m_pSession->LocateSpace( m_pSession->GetReferenceSpace(), m_spaceHmd, m_xrFrameState.predictedDisplayTime, &hmdSpaceLocation );
-				m_poseHmd = hmdSpaceLocation.pose;
-			}
+		inline void MultiplyVectors(XrVector3f* vecInOut, XrVector3f* vecMultiplier) 
+		{
+			vecInOut->x *= vecMultiplier->x;
+			vecInOut->y *= vecMultiplier->y;
+			vecInOut->z *= vecMultiplier->z;
+		}
+
+		inline void ScaleVector( XrVector3f *vecInOut, float fScale )
+		{
+			vecInOut->x *= fScale;
+			vecInOut->y *= fScale;
+			vecInOut->z *= fScale;
 		}
 
 		inline void UpdateHandJoints( XrHandEXT hand, XrHandJointLocationEXT *handJoints )
@@ -101,7 +116,7 @@ namespace oxr
 			}
 		}
 
-		inline void UpdateHandTrackingPoses( )
+		inline void UpdateHandTrackingPoses()
 		{
 			if ( m_extHandTracking )
 			{
@@ -221,18 +236,14 @@ namespace oxr
 		float m_fNearZ = 0.1f;
 		float m_fFarZ = 10000.f;
 
-		// Hmd pose
-		XrSpace m_spaceHmd = XR_NULL_HANDLE;
-		XrPosef m_poseHmd{};
-
 		// Default controller actions
-		oxr::ActionSet* m_pActionsetMain = nullptr;
+		oxr::ActionSet *m_pActionsetMain = nullptr;
 		oxr::Action *m_pActionGripPose = nullptr;
 		oxr::Action *m_pActionAimPose = nullptr;
 		oxr::Action *m_pActionHaptic = nullptr;
 
 		// Minimal extensions
-		oxr::ExtHandTracking *m_extHandTracking = nullptr;			// Hand tracking extension implementation, if present
+		oxr::ExtHandTracking *m_extHandTracking = nullptr; // Hand tracking extension implementation, if present
 
 		// Debug shape
 		bool m_bDrawDebug = false;
@@ -240,17 +251,25 @@ namespace oxr
 
 		// Debug pyramid
 		std::vector< unsigned short > g_vecPyramidIndices = {
-			0, 1, 2,	// Back (+Z)
-			3, 4, 5,	// Left (-X)
-			6, 7, 8,	// Right (+X)
-			9, 10, 11,  // Bottom (-Y)
+			0,
+			1,
+			2, // Back (+Z)
+			3,
+			4,
+			5, // Left (-X)
+			6,
+			7,
+			8, // Right (+X)
+			9,
+			10,
+			11, // Bottom (-Y)
 		};
 
 		std::vector< Shapes::Vertex > g_vecPyramidVertices = {
-			PYRAMID_SIDE( Shapes::BASE_L, Shapes::TOP, Shapes::BASE_R, Shapes::OpenXRPurple )		// Back (+Z)
-			PYRAMID_SIDE( Shapes::BASE_L, Shapes::TIP, Shapes::TOP, Shapes::BeyondRealityYellow )	// Left (-X)
-			PYRAMID_SIDE( Shapes::BASE_R, Shapes::TOP, Shapes::TIP, Shapes::HomageOrange )			// Right (+X)
-			PYRAMID_SIDE( Shapes::BASE_R, Shapes::TIP, Shapes::BASE_L, Shapes::CyberCyan )			// Bottom (-Y)
+			PYRAMID_SIDE( Shapes::BASE_L, Shapes::TOP, Shapes::BASE_R, Shapes::OpenXRPurple )	  // Back (+Z)
+			PYRAMID_SIDE( Shapes::BASE_L, Shapes::TIP, Shapes::TOP, Shapes::BeyondRealityYellow ) // Left (-X)
+			PYRAMID_SIDE( Shapes::BASE_R, Shapes::TOP, Shapes::TIP, Shapes::HomageOrange )		  // Right (+X)
+			PYRAMID_SIDE( Shapes::BASE_R, Shapes::TIP, Shapes::BASE_L, Shapes::CyberCyan )		  // Bottom (-Y)
 		};
 	};
 

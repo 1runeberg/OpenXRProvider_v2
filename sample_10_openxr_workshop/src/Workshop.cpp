@@ -26,13 +26,49 @@
 using namespace oxr;
 
 // Callback handling
-xra::Workshop *g_pWorkshop = nullptr;
+oxa::Workshop *g_pWorkshop = nullptr;
+
+// Input callbacks
+inline void Callback_SmoothLoco( oxr::Action *pAction, uint32_t unActionStateIndex )
+{
+	// todo: other orientation reference types (e.g. controller, tracker, etc)
+
+	XrVector2f *currentState = &pAction->vecActionStates[ unActionStateIndex ].stateVector2f.currentState;
+
+	// Forward / Back
+	if ( currentState->y > g_pWorkshop->locomotionParams.fSmoothActivationPoint )
+	{
+		XrVector3f dir = g_pWorkshop->GetForwardVector( &g_pWorkshop->GetRender()->currentHmdState.orientation );
+		g_pWorkshop->ScaleVector( &dir, g_pWorkshop->locomotionParams.fSmoothFwd );
+		g_pWorkshop->AddVectors( &g_pWorkshop->GetRender()->playerWorldState.position, &dir );
+	}
+	else if (currentState->y < -g_pWorkshop->locomotionParams.fSmoothActivationPoint)
+	{
+		XrVector3f dir = g_pWorkshop->GetBackVector( &g_pWorkshop->GetRender()->currentHmdState.orientation );
+		g_pWorkshop->ScaleVector( &dir, g_pWorkshop->locomotionParams.fSmoothBack );
+		g_pWorkshop->AddVectors( &g_pWorkshop->GetRender()->playerWorldState.position, &dir );
+	}
+
+	// Left / Right
+	if ( currentState->x > g_pWorkshop->locomotionParams.fSmoothActivationPoint )
+	{
+		XrVector3f dir = g_pWorkshop->GetRightVector( &g_pWorkshop->GetRender()->currentHmdState.orientation );
+		g_pWorkshop->ScaleVector( &dir, g_pWorkshop->locomotionParams.fSmoothRight );
+		g_pWorkshop->AddVectors( &g_pWorkshop->GetRender()->playerWorldState.position, &dir );
+	}
+	else if ( currentState->x < -g_pWorkshop->locomotionParams.fSmoothActivationPoint )
+	{
+		XrVector3f dir = g_pWorkshop->GetLeftVector( &g_pWorkshop->GetRender()->currentHmdState.orientation );
+		g_pWorkshop->ScaleVector( &dir, g_pWorkshop->locomotionParams.fSmoothRight );
+		g_pWorkshop->AddVectors( &g_pWorkshop->GetRender()->playerWorldState.position, &dir );
+	}
+}
 
 // Render callbacks
 inline void Callback_PreRender( uint32_t unSwapchainIndex, uint32_t unImageIndex ) { g_pWorkshop->PrepareRender( unSwapchainIndex, unImageIndex ); }
 inline void Callback_PostRender( uint32_t unSwapchainIndex, uint32_t unImageIndex ) { g_pWorkshop->SubmitRender( unSwapchainIndex, unImageIndex ); }
 
-namespace xra
+namespace oxa
 {
 	Workshop::Workshop() {}
 
@@ -268,17 +304,17 @@ namespace xra
 		dynamicStateCI.dynamicStateCount = static_cast< uint32_t >( dynamicStateEnables.size() );
 
 		// PIPELINE LAYOUT: PBR (push constants)
-		//const std::vector< VkDescriptorSetLayout > setLayouts = { m_pRender->descriptorSetLayouts.scene, m_pRender->descriptorSetLayouts.material, m_pRender->descriptorSetLayouts.node };
-		//VkPipelineLayoutCreateInfo pipelineLayoutCI {};
-		//pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		//pipelineLayoutCI.setLayoutCount = static_cast< uint32_t >( setLayouts.size() );
-		//pipelineLayoutCI.pSetLayouts = setLayouts.data();
-		//VkPushConstantRange pushConstantRange {};
-		//pushConstantRange.size = sizeof( xrvk::Render::PushConstBlockMaterial );
-		//pushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		//pipelineLayoutCI.pushConstantRangeCount = 1;
-		//pipelineLayoutCI.pPushConstantRanges = &pushConstantRange;
-		//VK_CHECK_RESULT( vkCreatePipelineLayout( m_SharedState.vkDevice, &pipelineLayoutCI, nullptr, &vkPipelineLayout ) );
+		// const std::vector< VkDescriptorSetLayout > setLayouts = { m_pRender->descriptorSetLayouts.scene, m_pRender->descriptorSetLayouts.material, m_pRender->descriptorSetLayouts.node };
+		// VkPipelineLayoutCreateInfo pipelineLayoutCI {};
+		// pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		// pipelineLayoutCI.setLayoutCount = static_cast< uint32_t >( setLayouts.size() );
+		// pipelineLayoutCI.pSetLayouts = setLayouts.data();
+		// VkPushConstantRange pushConstantRange {};
+		// pushConstantRange.size = sizeof( xrvk::Render::PushConstBlockMaterial );
+		// pushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		// pipelineLayoutCI.pushConstantRangeCount = 1;
+		// pipelineLayoutCI.pPushConstantRanges = &pushConstantRange;
+		// VK_CHECK_RESULT( vkCreatePipelineLayout( m_SharedState.vkDevice, &pipelineLayoutCI, nullptr, &vkPipelineLayout ) );
 
 		// VERTEX BINDINGS: PBR
 		VkVertexInputBindingDescription vertexInputBinding = { 0, sizeof( vkglTF::Model::Vertex ), VK_VERTEX_INPUT_RATE_VERTEX };
@@ -319,12 +355,10 @@ namespace xra
 		pipelineCI.stageCount = static_cast< uint32_t >( shaderStages.size() );
 		pipelineCI.pStages = shaderStages.data();
 
-
 		// ALL OTHER PIPELINES
 		pipelineCI.layout = m_pRender->vkPipelineLayout;
 		pipelineCI.pVertexInputState = &vertexInputStateCI;
 		rasterizationStateCI.cullMode = VK_CULL_MODE_NONE;
-
 
 		// PIPELINE: PBR
 		rasterizationStateCI.cullMode = VK_CULL_MODE_BACK_BIT;
@@ -355,12 +389,24 @@ namespace xra
 		m_unFloorSpotIdx = m_pRender->AddRenderScene( "models/floor_spot.glb", { 3.f, 1.f, 3.f } );
 	}
 
-	XrResult Workshop::CreateActionsets() { return XR_SUCCESS; }
+	XrResult Workshop::CreateActionsets()
+	{
+		workshopActionsets.locomotion = new oxr::ActionSet();
+		return m_pInput->CreateActionSet( workshopActionsets.locomotion, "locomotion", "Locomotion controls" );
+	}
 
-	XrResult Workshop::CreateActions() { return XR_SUCCESS; }
+	XrResult Workshop::CreateActions()
+	{
+		XrResult xrResult = XR_SUCCESS;
+		workshopActions.vec2SmoothLoco = new Action( XR_ACTION_TYPE_VECTOR2F_INPUT, &Callback_SmoothLoco );
+		return m_pInput->CreateAction( workshopActions.vec2SmoothLoco, workshopActionsets.locomotion, "loco_smooth", "Locomotion - Smooth", { "/user/hand/left", "/user/hand/right" } );
+	}
 
 	XrResult Workshop::SuggestBindings()
 	{
+		m_pInput->AddBinding( &baseController, workshopActions.vec2SmoothLoco->xrActionHandle, XR_HAND_LEFT_EXT, Controller::Component::AxisControl, Controller::Qualifier::None );
+		m_pInput->AddBinding( &baseController, workshopActions.vec2SmoothLoco->xrActionHandle, XR_HAND_RIGHT_EXT, Controller::Component::AxisControl, Controller::Qualifier::None );
+
 		XrResult xrResult = m_pInput->SuggestBindings( &baseController, nullptr );
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
@@ -370,7 +416,8 @@ namespace xra
 
 	XrResult Workshop::AttachActionsets()
 	{
-		std::vector< XrActionSet > vecActionSets = { m_pActionsetMain->xrActionSetHandle };
+		std::vector< XrActionSet > vecActionSets = { m_pActionsetMain->xrActionSetHandle, workshopActionsets.locomotion->xrActionSetHandle };
+
 		XrResult xrResult = m_pInput->AttachActionSetsToSession( vecActionSets.data(), static_cast< uint32_t >( vecActionSets.size() ) );
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
@@ -384,6 +431,10 @@ namespace xra
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
 
+		xrResult = m_pInput->AddActionsetForSync( workshopActionsets.locomotion );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+			return xrResult;
+
 		return XR_SUCCESS;
 	}
 
@@ -392,9 +443,6 @@ namespace xra
 		// Check if we're supposed to render on this frame
 		if ( !m_xrFrameState.shouldRender )
 			return;
-
-		// Update hmd pose
-		UpdateHmdPose();
 
 		// Check if we need to update draw debug shapes
 		if ( m_extHandTracking && m_bDrawDebug )
@@ -432,4 +480,4 @@ namespace xra
 	}
 #endif
 
-} // namespace xra
+} // namespace oxa
