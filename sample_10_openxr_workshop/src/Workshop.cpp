@@ -68,6 +68,34 @@ inline void Callback_SmoothLoco( oxr::Action *pAction, uint32_t unActionStateInd
 	}
 }
 
+inline void Callback_EnableSmoothLoco( oxr::Action *pAction, uint32_t unActionStateIndex )
+{
+	bool bVisibility = pAction->vecActionStates[ unActionStateIndex ].stateBoolean.currentState;
+
+	// turn on/off pertinent locomotion guides
+	if (g_pWorkshop->workshopExtensions.fbPassthrough)
+	{
+		g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unSpotMask ]->bIsVisible = bVisibility;
+		g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unGridFloorHighlight ]->bIsVisible = bVisibility;
+		g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unGridFloor ]->bIsVisible = bVisibility;
+	}
+	else
+	{
+		g_pWorkshop->GetRender()->vecRenderScenes[g_pWorkshop->workshopScenes.unSpotMask]->bIsVisible = false; // always off in vr
+		g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unFloorSpot ]->bIsVisible = true; // always visible in vr
+
+		// Enlarge area 
+		if (bVisibility)
+		{
+			g_pWorkshop->GetRender()->vecRenderScenes[g_pWorkshop->workshopScenes.unFloorSpot]->currentScale = { 100.f , 100.f, 100.f };
+		}
+		else
+		{
+			g_pWorkshop->GetRender()->vecRenderScenes[g_pWorkshop->workshopScenes.unFloorSpot]->currentScale = { 3.f , 3.f, 3.f };
+		}
+	}
+}
+
 // Render callbacks
 inline void Callback_PreRender( uint32_t unSwapchainIndex, uint32_t unImageIndex ) { g_pWorkshop->PrepareRender( unSwapchainIndex, unImageIndex ); }
 inline void Callback_PostRender( uint32_t unSwapchainIndex, uint32_t unImageIndex ) { g_pWorkshop->SubmitRender( unSwapchainIndex, unImageIndex ); }
@@ -189,6 +217,8 @@ namespace oxa
 
 	void Workshop::CacheExtensions()
 	{
+#ifdef XR_USE_PLATFORM_ANDROID
+		// fb passthrough (with quest pro at least) seems unreliable in PC atm
 		workshopExtensions.fbPassthrough = static_cast< oxr::ExtFBPassthrough * >( m_pProvider->Instance()->extHandler.GetExtension( XR_FB_PASSTHROUGH_EXTENSION_NAME ) );
 		if ( workshopExtensions.fbPassthrough )
 		{
@@ -198,6 +228,7 @@ namespace oxa
 				workshopExtensions.fbPassthrough = nullptr;
 			}
 		}
+#endif
 
 		workshopExtensions.fbRefreshRate = static_cast< oxr::ExtFBRefreshRate * >( m_pProvider->Instance()->extHandler.GetExtension( XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME ) );
 		if ( workshopExtensions.fbRefreshRate )
@@ -219,6 +250,12 @@ namespace oxa
 			workshopExtensions.fbPassthrough->SetModeToDefault();
 			m_pRender->SetSkyboxVisibility( false );
 		}
+		else
+		{
+			// modify skybox for vr mode 
+			m_pRender->SetSkyboxVisibility( true );
+			m_pRender->skybox->currentScale = { 10.f, 10.f , 10.f };
+		}
 
 		// Refresh rate
 		if ( workshopExtensions.fbRefreshRate )
@@ -238,6 +275,21 @@ namespace oxa
 			m_fCurrentRefreshRate = workshopExtensions.fbRefreshRate->GetCurrentRefreshRate();
 			oxr::LogDebug( LOG_CATEGORY_APP, "Current display refresh rate is: %f", m_fCurrentRefreshRate );
 		}
+
+		// Hide default floor
+		if ( workshopExtensions.fbPassthrough )
+		{
+			m_pRender->vecRenderScenes[ workshopScenes.unFloorSpot ]->bIsVisible = false; // hide in passthrough
+		}
+		else
+		{
+			m_pRender->vecRenderScenes[ workshopScenes.unFloorSpot ]->bIsVisible = true; // always show in vr
+		}
+
+		// Hide smooth loco guides
+		m_pRender->vecRenderScenes[ workshopScenes.unSpotMask ]->bIsVisible = false;
+		m_pRender->vecRenderScenes[ workshopScenes.unGridFloorHighlight ]->bIsVisible = false;
+		m_pRender->vecRenderScenes[ workshopScenes.unGridFloor ]->bIsVisible = false;
 	}
 
 	void Workshop::RunGameLoop()
@@ -358,7 +410,11 @@ namespace oxa
 
 	void Workshop::PrepareCustomShapesPipelines() {}
 
-	void Workshop::PrepareCustomGraphicsPipelines() { PrepareFloorGridPipeline(); }
+	void Workshop::PrepareCustomGraphicsPipelines()
+	{
+		PrepareFloorGridPipeline();
+		PrepareStencilPipelines();
+	}
 
 	void Workshop::PrepareFloorGridPipeline()
 	{
@@ -416,19 +472,6 @@ namespace oxa
 		dynamicStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 		dynamicStateCI.pDynamicStates = dynamicStateEnables.data();
 		dynamicStateCI.dynamicStateCount = static_cast< uint32_t >( dynamicStateEnables.size() );
-
-		// PIPELINE LAYOUT: PBR (push constants)
-		// const std::vector< VkDescriptorSetLayout > setLayouts = { m_pRender->descriptorSetLayouts.scene, m_pRender->descriptorSetLayouts.material, m_pRender->descriptorSetLayouts.node };
-		// VkPipelineLayoutCreateInfo pipelineLayoutCI {};
-		// pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		// pipelineLayoutCI.setLayoutCount = static_cast< uint32_t >( setLayouts.size() );
-		// pipelineLayoutCI.pSetLayouts = setLayouts.data();
-		// VkPushConstantRange pushConstantRange {};
-		// pushConstantRange.size = sizeof( xrvk::Render::PushConstBlockMaterial );
-		// pushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		// pipelineLayoutCI.pushConstantRangeCount = 1;
-		// pipelineLayoutCI.pPushConstantRanges = &pushConstantRange;
-		// VK_CHECK_RESULT( vkCreatePipelineLayout( m_SharedState.vkDevice, &pipelineLayoutCI, nullptr, &vkPipelineLayout ) );
 
 		// VERTEX BINDINGS: PBR
 		VkVertexInputBindingDescription vertexInputBinding = { 0, sizeof( vkglTF::Model::Vertex ), VK_VERTEX_INPUT_RATE_VERTEX };
@@ -491,16 +534,170 @@ namespace oxa
 		blendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
 
 		// Create the graphics pipeline
-		uint32_t unGridGraphicsPipelineIdx = m_pRender->AddCustomPipeline( "shaders/pbr.vert.spv", "shaders/floor_grid.frag.spv", &pipelineCI );
+		workshopPipelines.unGridGraphicsPipeline = m_pRender->AddCustomPipeline( "shaders/pbr.vert.spv", "shaders/floor_grid.frag.spv", &pipelineCI );
 
 		// Assign this pipeline to assets
-		m_pRender->vecRenderScenes[ m_unFloorSpotIdx ]->vkPipeline = m_pRender->GetCustomPipelines()[ unGridGraphicsPipelineIdx ];
+		m_pRender->vecRenderScenes[ workshopScenes.unFloorSpot ]->vkPipeline = m_pRender->GetCustomPipelines()[ workshopPipelines.unGridGraphicsPipeline ];
+	}
+
+	void Workshop::PrepareStencilPipelines()
+	{
+		assert( m_pRender->GetRenderPasses()[ 0 ] != VK_NULL_HANDLE );
+
+		// Vertex bindings
+		VkVertexInputBindingDescription vertexInputBinding = { 0, sizeof( vkglTF::Model::Vertex ), VK_VERTEX_INPUT_RATE_VERTEX };
+		std::vector< VkVertexInputAttributeDescription > vertexInputAttributes = {
+			{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
+			{ 1, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof( float ) * 3 },
+			{ 2, 0, VK_FORMAT_R32G32_SFLOAT, sizeof( float ) * 6 },
+			{ 3, 0, VK_FORMAT_R32G32_SFLOAT, sizeof( float ) * 8 },
+			{ 4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof( float ) * 10 },
+			{ 5, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof( float ) * 14 },
+			{ 6, 0, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof( float ) * 18 } };
+		VkPipelineVertexInputStateCreateInfo vertexInputStateCI {};
+		vertexInputStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		vertexInputStateCI.vertexBindingDescriptionCount = 1;
+		vertexInputStateCI.pVertexBindingDescriptions = &vertexInputBinding;
+		vertexInputStateCI.vertexAttributeDescriptionCount = static_cast< uint32_t >( vertexInputAttributes.size() );
+		vertexInputStateCI.pVertexAttributeDescriptions = vertexInputAttributes.data();
+
+		// Input assembly
+		VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI {};
+		inputAssemblyStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+		inputAssemblyStateCI.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+		// Rasterizer
+		VkPipelineRasterizationStateCreateInfo rasterizationStateCI {};
+		rasterizationStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+		rasterizationStateCI.polygonMode = VK_POLYGON_MODE_FILL;
+		rasterizationStateCI.cullMode = VK_CULL_MODE_NONE;
+		rasterizationStateCI.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		rasterizationStateCI.depthClampEnable = VK_FALSE;
+		rasterizationStateCI.rasterizerDiscardEnable = VK_FALSE;
+		rasterizationStateCI.depthBiasEnable = VK_FALSE;
+		rasterizationStateCI.depthBiasConstantFactor = 0;
+		rasterizationStateCI.depthBiasClamp = 0;
+		rasterizationStateCI.depthBiasSlopeFactor = 0;
+		rasterizationStateCI.lineWidth = 1.0f;
+
+		// Color blending
+		VkPipelineColorBlendAttachmentState blendAttachmentState {};
+		blendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		blendAttachmentState.blendEnable = VK_FALSE;
+
+		VkPipelineColorBlendStateCreateInfo colorBlendStateCI {};
+		colorBlendStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		colorBlendStateCI.attachmentCount = 1;
+		colorBlendStateCI.pAttachments = &blendAttachmentState;
+		colorBlendStateCI.logicOpEnable = VK_FALSE;
+		colorBlendStateCI.logicOp = VK_LOGIC_OP_NO_OP;
+		colorBlendStateCI.blendConstants[ 0 ] = 1.0f;
+		colorBlendStateCI.blendConstants[ 1 ] = 1.0f;
+		colorBlendStateCI.blendConstants[ 2 ] = 1.0f;
+		colorBlendStateCI.blendConstants[ 3 ] = 1.0f;
+
+		// Viewport
+		VkRect2D scissor = { { 0, 0 }, m_pRender->vkExtent };
+		VkViewport viewport = { 0.0f, 0.0f, ( float )m_pRender->vkExtent.width, ( float )m_pRender->vkExtent.height, 0.0f, 1.0f };
+		VkPipelineViewportStateCreateInfo viewportStateCI {};
+		viewportStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+		viewportStateCI.viewportCount = 1;
+		viewportStateCI.pViewports = &viewport;
+		viewportStateCI.scissorCount = 1;
+		viewportStateCI.pScissors = &scissor;
+
+		// TODO: MSAA support
+		VkPipelineMultisampleStateCreateInfo multisampleStateCI {};
+		multisampleStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+		multisampleStateCI.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+		// TODO: Expose Dynamics states to apps
+		std::vector< VkDynamicState > dynamicStateEnables; // = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+		VkPipelineDynamicStateCreateInfo dynamicStateCI {};
+		dynamicStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+		dynamicStateCI.pDynamicStates = dynamicStateEnables.data();
+		dynamicStateCI.dynamicStateCount = static_cast< uint32_t >( dynamicStateEnables.size() );
+
+		// Depth and stencil
+		VkPipelineDepthStencilStateCreateInfo depthStencilStateCI { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+		rasterizationStateCI.cullMode = VK_CULL_MODE_NONE;
+		depthStencilStateCI.depthWriteEnable = VK_TRUE;
+		depthStencilStateCI.depthTestEnable = VK_TRUE;
+		depthStencilStateCI.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+		// Graphics Pipeline setup
+		VkGraphicsPipelineCreateInfo pipelineCI { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+		pipelineCI.renderPass = m_pRender->GetRenderPasses()[ 0 ];
+		pipelineCI.subpass = 0;
+		pipelineCI.pInputAssemblyState = &inputAssemblyStateCI;
+		pipelineCI.pDepthStencilState = &depthStencilStateCI;
+		pipelineCI.pTessellationState = nullptr;
+		pipelineCI.pRasterizationState = &rasterizationStateCI;
+		pipelineCI.pColorBlendState = &colorBlendStateCI;
+		pipelineCI.pMultisampleState = &multisampleStateCI;
+		pipelineCI.pViewportState = &viewportStateCI;
+
+		// We'll create two pipelines with just variations in stencil handling
+
+		// stencil pass (mask - write to stencil buffer)
+		pipelineCI.layout = m_pRender->vkPipelineLayout;
+		pipelineCI.pVertexInputState = &vertexInputStateCI;
+		rasterizationStateCI.cullMode = VK_CULL_MODE_BACK_BIT;
+
+		// rasterizationState.cullMode = VK_CULL_MODE_NONE;
+		depthStencilStateCI.depthTestEnable = VK_FALSE;
+		depthStencilStateCI.stencilTestEnable = VK_TRUE;
+		depthStencilStateCI.back.compareOp = VK_COMPARE_OP_ALWAYS;
+		depthStencilStateCI.back.failOp = VK_STENCIL_OP_REPLACE;
+		depthStencilStateCI.back.depthFailOp = VK_STENCIL_OP_REPLACE;
+		depthStencilStateCI.back.passOp = VK_STENCIL_OP_REPLACE;
+		depthStencilStateCI.back.compareMask = 0xff;
+		depthStencilStateCI.back.writeMask = 0xff;
+		depthStencilStateCI.back.reference = 1;
+		depthStencilStateCI.front = depthStencilStateCI.back;
+
+		workshopPipelines.unStencilMask = m_pRender->AddCustomPipeline( "shaders/pbr.vert.spv", "shaders/pbr_khr.frag.spv", &pipelineCI );
+
+		// stencil fill pass
+		depthStencilStateCI.back.compareOp = VK_COMPARE_OP_EQUAL;
+		depthStencilStateCI.back.failOp = VK_STENCIL_OP_KEEP;
+		depthStencilStateCI.back.depthFailOp = VK_STENCIL_OP_KEEP;
+		depthStencilStateCI.back.passOp = VK_STENCIL_OP_REPLACE;
+		depthStencilStateCI.front = depthStencilStateCI.back;
+		depthStencilStateCI.depthTestEnable = VK_TRUE;
+		workshopPipelines.unStencilFill = m_pRender->AddCustomPipeline( "shaders/pbr.vert.spv", "shaders/pbr_khr.frag.spv", &pipelineCI );
+
+		// stencil fill out
+		depthStencilStateCI.back.compareOp = VK_COMPARE_OP_NOT_EQUAL;
+		depthStencilStateCI.back.failOp = VK_STENCIL_OP_KEEP;
+		depthStencilStateCI.back.depthFailOp = VK_STENCIL_OP_KEEP;
+		depthStencilStateCI.back.passOp = VK_STENCIL_OP_REPLACE;
+		depthStencilStateCI.front = depthStencilStateCI.back;
+		depthStencilStateCI.depthTestEnable = VK_TRUE;
+		workshopPipelines.unStencilOut = m_pRender->AddCustomPipeline( "shaders/pbr.vert.spv", "shaders/floor_grid_grey.frag.spv", &pipelineCI );
+
+		// Assign these pipelines to assets
+		m_pRender->vecRenderScenes[ workshopScenes.unSpotMask ]->vkPipeline = m_pRender->GetCustomPipelines()[ workshopPipelines.unStencilMask ];
+
+		m_pRender->vecRenderScenes[ workshopScenes.unGridFloorHighlight ]->vkPipeline = m_pRender->GetCustomPipelines()[ workshopPipelines.unStencilFill ];
+		m_pRender->vecRenderScenes[ workshopScenes.unGridFloor ]->vkPipeline = m_pRender->GetCustomPipelines()[ workshopPipelines.unStencilOut ];
 	}
 
 	void Workshop::AddSceneAssets()
 	{
-		// Add default floor
-		m_unFloorSpotIdx = m_pRender->AddRenderScene( "models/floor_spot.glb", { 3.f, 1.f, 3.f } );
+		// Add default floor 
+		workshopScenes.unFloorSpot = m_pRender->AddRenderScene( "models/floor_spot.glb", { 3.f, 1.f, 3.f } );
+
+
+		// locomotion grid spot
+		workshopScenes.unSpotMask = m_pRender->AddRenderScene( "models/floor_spot_loco.glb", { 10.f, 10.f, 10.f } );
+		m_pRender->vecRenderScenes[ workshopScenes.unSpotMask ]->bMovesWithPlayer = true;
+
+		// passthrough - locomotion grid floor (inside and outside stencil areas)
+		workshopScenes.unGridFloorHighlight = m_pRender->AddRenderScene( "models/floor_grid_highlight.glb", { .1f, 1.f, .1f } );
+		workshopScenes.unGridFloor = m_pRender->AddRenderScene( "models/floor_grid.glb", { .1f, 1.f, .1f } );
+
+		m_pRender->AddRenderScene( "models/ancient_ruins.glb", { 2.f, 2.f, 2.f } );
 	}
 
 	XrResult Workshop::CreateActionsets()
@@ -512,20 +709,31 @@ namespace oxa
 	XrResult Workshop::CreateActions()
 	{
 		XrResult xrResult = XR_SUCCESS;
+
 		workshopActions.vec2SmoothLoco = new Action( XR_ACTION_TYPE_VECTOR2F_INPUT, &Callback_SmoothLoco );
-		return m_pInput->CreateAction( workshopActions.vec2SmoothLoco, workshopActionsets.locomotion, "loco_smooth", "Locomotion - Smooth", { "/user/hand/left", "/user/hand/right" } );
-	}
+		xrResult = m_pInput->CreateAction( workshopActions.vec2SmoothLoco, workshopActionsets.locomotion, "loco_smooth", "Locomotion - Smooth", { "/user/hand/left", "/user/hand/right" } );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+			return xrResult;
 
-	XrResult Workshop::SuggestBindings()
-	{
-		m_pInput->AddBinding( &baseController, workshopActions.vec2SmoothLoco->xrActionHandle, XR_HAND_LEFT_EXT, Controller::Component::AxisControl, Controller::Qualifier::None );
-		m_pInput->AddBinding( &baseController, workshopActions.vec2SmoothLoco->xrActionHandle, XR_HAND_RIGHT_EXT, Controller::Component::AxisControl, Controller::Qualifier::None );
-
-		XrResult xrResult = m_pInput->SuggestBindings( &baseController, nullptr );
+		workshopActions.bEnableSmoothLoco = new Action( XR_ACTION_TYPE_BOOLEAN_INPUT, &Callback_EnableSmoothLoco );
+		xrResult = m_pInput->CreateAction(
+			workshopActions.bEnableSmoothLoco, workshopActionsets.locomotion, "enable_loco_passthrough", "Enable Locomotion - Passthrough", { "/user/hand/left", "/user/hand/right" } );
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
 
 		return XR_SUCCESS;
+	}
+
+	XrResult Workshop::SuggestBindings()
+	{
+		// smooth loco
+		m_pInput->AddBinding( &baseController, workshopActions.vec2SmoothLoco->xrActionHandle, XR_HAND_LEFT_EXT, Controller::Component::AxisControl, Controller::Qualifier::None );
+		m_pInput->AddBinding( &baseController, workshopActions.vec2SmoothLoco->xrActionHandle, XR_HAND_RIGHT_EXT, Controller::Component::AxisControl, Controller::Qualifier::None );
+
+		m_pInput->AddBinding( &baseController, workshopActions.bEnableSmoothLoco->xrActionHandle, XR_HAND_LEFT_EXT, Controller::Component::AxisControl, Controller::Qualifier::Touch );
+		m_pInput->AddBinding( &baseController, workshopActions.bEnableSmoothLoco->xrActionHandle, XR_HAND_RIGHT_EXT, Controller::Component::AxisControl, Controller::Qualifier::Touch );
+
+		return m_pInput->SuggestBindings( &baseController, nullptr );
 	}
 
 	XrResult Workshop::AttachActionsets()

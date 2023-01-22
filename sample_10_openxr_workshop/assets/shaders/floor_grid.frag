@@ -391,7 +391,7 @@ void main()
 	float gridSize = 0.1;   
 	float edgeWidth = gridSize/64.0; 
 	float tileLuminance = 0.75;
-	float edgeContrast = 0.5;
+	float edgeContrast = 0.05;
 
 	vec2 uv = inWorldPos.xy;
 	uv = (mod(uv, gridSize) - mod(uv - edgeWidth, gridSize) - edgeWidth) * 1.0/gridSize;

@@ -120,6 +120,7 @@ namespace oxa
 
 		// ... custom pipelines here ...
 		void PrepareFloorGridPipeline();
+		void PrepareStencilPipelines();
 
 		// Renderables
 		void AddSceneAssets();
@@ -138,6 +139,35 @@ namespace oxa
 			oxr::ExtFBRefreshRate* fbRefreshRate = nullptr;
 		} workshopExtensions;
 
+		// Graphics pipelines
+		struct graphics_pipelines
+		{
+			uint32_t unGridGraphicsPipeline = 0;
+			uint32_t unStencilMask = 0;
+			uint32_t unStencilFill = 0;
+			uint32_t unStencilOut = 0;
+		} workshopPipelines;
+
+		// Level assets - renderable indices (Scene, Sector, Model) in the level
+
+		// struct level_shapes{} workshopShapes;
+		
+		struct level_scenes
+		{
+			// xr
+			uint32_t unSpotMask = 0;
+
+			// vr
+			uint32_t unFloorSpot = 0;
+
+			// passthrough only
+			uint32_t unGridFloor = 0;
+			uint32_t unGridFloorHighlight = 0;
+		} workshopScenes;
+
+		// struct level_sectors{} workshopSectors;
+		// struct level_models{} workshopModels;
+
 		// Actionsets
 		struct actionsets
 		{
@@ -148,6 +178,7 @@ namespace oxa
 		struct actions
 		{
 			oxr::Action *vec2SmoothLoco = nullptr;
+			oxr::Action* bEnableSmoothLoco = nullptr;
 		} workshopActions;
 
 		// Locomotion parameters
@@ -172,9 +203,6 @@ namespace oxa
 
 		oxr::RenderImageCallback releaseCallback;
 		oxr::RenderImageCallback waitCallback;
-
-		// custom assets
-		uint32_t m_unFloorSpotIdx = 0;
 
 		// data from extensions
 		float m_fCurrentRefreshRate = 90.f;
