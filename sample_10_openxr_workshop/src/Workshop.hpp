@@ -132,11 +132,33 @@ namespace oxa
 		XrResult AttachActionsets();
 		XrResult AddActionsetsForSync();
 
+		// Gestures
+		inline bool IsTwoHandedGestureActive(
+			XrHandJointEXT leftJointA,
+			XrHandJointEXT leftJointB,
+			XrHandJointEXT rightJointA,
+			XrHandJointEXT rightJointB,
+			XrVector3f *outReferencePosition_Left,
+			XrVector3f *outReferencePosition_Right,
+			bool *outActivated,
+			float *fCacheValue );
+
+		inline void SmoothLocoGesture();
+
+		// Portal gesture handling
+		inline void Clap();
+		inline bool IsPortalAdjustmentActive( XrVector3f *outThumbPosition_Left, XrVector3f *outThumbPosition_Right );
+		inline void AdjustPortalShear( float fCurrentPortalShearValue );
+		inline void AdjustPortalShear();
+		inline void AdjustPortalShear_Controllers();
+		inline void RevealSecretRoom();
+		inline void CyclePortal();
+
 		// Supported extensions
 		struct supported_exts
 		{
-			oxr::ExtFBPassthrough* fbPassthrough = nullptr;
-			oxr::ExtFBRefreshRate* fbRefreshRate = nullptr;
+			oxr::ExtFBPassthrough *fbPassthrough = nullptr;
+			oxr::ExtFBRefreshRate *fbRefreshRate = nullptr;
 		} workshopExtensions;
 
 		// Graphics pipelines
@@ -151,7 +173,7 @@ namespace oxa
 		// Level assets - renderable indices (Scene, Sector, Model) in the level
 
 		// struct level_shapes{} workshopShapes;
-		
+
 		struct level_scenes
 		{
 			// xr
@@ -163,7 +185,50 @@ namespace oxa
 			// passthrough only
 			uint32_t unGridFloor = 0;
 			uint32_t unGridFloorHighlight = 0;
+
+			// level - locomotion
+			uint32_t unAncientRuins = 0;
+			uint32_t unPortal = 0;
+			uint32_t unRoom1 = 0;
+			uint32_t unRoom2 = 0;
+
 		} workshopScenes;
+
+		enum class EPortalState
+		{
+			PortalOff = 1,
+			Portal1 = 2,
+			Portal2 = 3,
+			PortalEMax
+		};
+
+		struct mechanics
+		{
+			bool bPlayerInSecretRoom = false;
+			bool bIsRoom1Current = true;
+
+			// Gestures
+			float fClapActivationThreshold = 0.07f;
+			bool bClapActive = false;
+
+			// Portal
+			EPortalState eCurrentPortalState = EPortalState::PortalOff;
+			float fCurrentPortalShearValue = 0.0f;
+			float fPortalShearingStride = 0.1f;
+
+			// Portal - Controllers
+			bool bPortalControllers = false;
+			bool bPortalLeft = false;
+			bool bPortalRight = false;
+
+			// Portal - Gestures
+			bool bPortalGesture = false;
+			float fPortalValueOnActivation = 0.f;
+			float fGestureActivationThreshold = 0.025f;
+			XrVector3f vec3fThumbPosLeft = { 0.f, 0.f, 0.f };
+			XrVector3f vec3fThumbPosRight = { 0.f, 0.f, 0.f };
+
+		} workshopMechanics;
 
 		// struct level_sectors{} workshopSectors;
 		// struct level_models{} workshopModels;
@@ -172,13 +237,16 @@ namespace oxa
 		struct actionsets
 		{
 			oxr::ActionSet *locomotion = nullptr;
+			oxr::ActionSet *portal = nullptr;
 		} workshopActionsets;
 
 		// Actions
 		struct actions
 		{
 			oxr::Action *vec2SmoothLoco = nullptr;
-			oxr::Action* bEnableSmoothLoco = nullptr;
+			oxr::Action *bEnableSmoothLoco = nullptr;
+			oxr::Action *bShearPortal = nullptr;
+			oxr::Action *bCyclePortal = nullptr;
 		} workshopActions;
 
 		// Locomotion parameters

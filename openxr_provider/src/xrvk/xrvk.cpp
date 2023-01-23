@@ -2320,6 +2320,13 @@ namespace xrvk
 		VkPipelineMultisampleStateCreateInfo multisampling { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 		multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
+		VkPipelineDepthStencilStateCreateInfo depthStencilState { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+		rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+		depthStencilState.depthWriteEnable = VK_TRUE;
+		depthStencilState.depthTestEnable = VK_TRUE;
+		depthStencilState.stencilTestEnable = VK_FALSE;
+		depthStencilState.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+		
 		VkGraphicsPipelineCreateInfo pipeInfo { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 		pipeInfo.stageCount = ( uint32_t )shaderStages.size();
 		pipeInfo.pStages = shaderStages.data();
@@ -2329,7 +2336,7 @@ namespace xrvk
 		pipeInfo.pViewportState = &viewportState;
 		pipeInfo.pRasterizationState = &rasterizer;
 		pipeInfo.pMultisampleState = &multisampling;
-		pipeInfo.pDepthStencilState = nullptr;
+		pipeInfo.pDepthStencilState = &depthStencilState;
 		pipeInfo.pColorBlendState = &colorBlending;
 
 		if ( dynamicState.dynamicStateCount > 0 )

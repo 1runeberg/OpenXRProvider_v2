@@ -381,7 +381,7 @@ namespace oxr
 
 		// (2) Create graphics pipeline for the debug shapes
 		m_pRender->PrepareShapesPipeline( &m_debugShape, "shaders/shape.vert.spv", "shaders/shape.frag.spv" );
-
+		
 		// (3) Hand tracking
 		if ( m_extHandTracking )
 		{
