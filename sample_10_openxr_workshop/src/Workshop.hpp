@@ -153,6 +153,8 @@ namespace oxa
 		inline void AdjustPortalShear_Controllers();
 		inline void RevealSecretRoom();
 		inline void CyclePortal();
+		inline void ResetPassthrough();
+		inline void CheckPlayerLeftRoom( uint32_t unCurrentRoom );
 
 		// Supported extensions
 		struct supported_exts
@@ -205,7 +207,8 @@ namespace oxa
 		struct mechanics
 		{
 			bool bPlayerInSecretRoom = false;
-			bool bIsRoom1Current = true;
+			bool bIsRoom1Current = true;   // todo: should really be an enum or vector
+			bool bColorPassthrough = true; // todo: should really be an enum so we can cycle through more fx
 
 			// Gestures
 			float fClapActivationThreshold = 0.07f;
@@ -214,7 +217,14 @@ namespace oxa
 			// Portal
 			EPortalState eCurrentPortalState = EPortalState::PortalOff;
 			float fCurrentPortalShearValue = 0.0f;
+			float fPreviousPortalShearValue = 0.0f;
 			float fPortalShearingStride = 0.1f;
+			float fPortalMaxScale = 14.95f;
+			float fPortalMinScale = 1.0f;
+			float fPortalMaxShear = 4.08f;
+			float fPortalMinShear = 0.25f;
+			float fPortalEnlargeFactor = 3.5f;
+			float fPortalShrinkFactor = 0.25f;
 
 			// Portal - Controllers
 			bool bPortalControllers = false;
@@ -247,6 +257,7 @@ namespace oxa
 			oxr::Action *bEnableSmoothLoco = nullptr;
 			oxr::Action *bShearPortal = nullptr;
 			oxr::Action *bCyclePortal = nullptr;
+			oxr::Action *bTogglePassthroughModes = nullptr;
 		} workshopActions;
 
 		// Locomotion parameters

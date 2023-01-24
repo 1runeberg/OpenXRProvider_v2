@@ -80,16 +80,16 @@ inline void Callback_EnableSmoothLoco( oxr::Action *pAction, uint32_t unActionSt
 	//	g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unGridFloor ]->bIsVisible = bVisibility;
 	//}
 	// else
-	{
-		g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unSpotMask ]->bIsVisible = false; // always off in vr
-		g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unFloorSpot ]->bIsVisible = true; // always visible in vr
+	//{
+	g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unSpotMask ]->bIsVisible = false; // always off in vr
+	g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unFloorSpot ]->bIsVisible = true; // always visible in vr
 
-		// Enlarge area
-		if ( bVisibility )
-			g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unFloorSpot ]->currentScale = { 100.f, 100.f, 100.f };
-		else
-			g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unFloorSpot ]->currentScale = { 3.f, 3.f, 3.f };
-	}
+	// Enlarge area
+	if ( bVisibility && !g_pWorkshop->workshopMechanics.bPlayerInSecretRoom )
+		g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unFloorSpot ]->currentScale = { 100.f, 100.f, 100.f };
+	else
+		g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unFloorSpot ]->currentScale = { 3.f, 3.f, 3.f };
+	//}
 
 	// portal and secret rooms must only show when not in locomotion
 	// g_pWorkshop->GetRender()->vecRenderSectors[ g_pWorkshop->workshopScenes.unPortal ]->bIsVisible =
@@ -114,6 +114,27 @@ inline void Callback_CyclePortal( oxr::Action *pAction, uint32_t unActionStateIn
 {
 	if ( pAction->vecActionStates[ unActionStateIndex ].stateBoolean.currentState )
 		g_pWorkshop->CyclePortal();
+}
+
+inline void Callback_TogglePassthroughModes( oxr::Action *pAction, uint32_t unActionStateIndex )
+{
+	if ( g_pWorkshop->workshopExtensions.fbPassthrough == nullptr )
+		return;
+
+	if ( pAction->vecActionStates[ unActionStateIndex ].stateBoolean.currentState )
+	{
+		if ( g_pWorkshop->workshopMechanics.bColorPassthrough )
+		{
+			// switch to mono
+			g_pWorkshop->workshopExtensions.fbPassthrough->SetModeToMono();
+			g_pWorkshop->workshopMechanics.bColorPassthrough = false;
+		}
+		else
+		{
+			g_pWorkshop->ResetPassthrough();
+			g_pWorkshop->workshopMechanics.bColorPassthrough = true;
+		}
+	}
 }
 
 // Render callbacks
@@ -267,10 +288,7 @@ namespace oxa
 		// Passthrough
 		if ( workshopExtensions.fbPassthrough )
 		{
-			workshopExtensions.fbPassthrough->StartPassThrough();
-			// workshopExtensions.fbPassthrough->SetModeToDefault();
-			workshopExtensions.fbPassthrough->SetModeToBCS( -25.f );
-
+			ResetPassthrough();
 			m_pRender->SetSkyboxVisibility( false );
 		}
 		else
@@ -419,6 +437,7 @@ namespace oxa
 			auto xrExtFBRefreshRateChangedEvent = *reinterpret_cast< const XrEventDataDisplayRefreshRateChangedFB * >( m_xrEventDataBaseheader );
 			m_fCurrentRefreshRate = xrExtFBRefreshRateChangedEvent.toDisplayRefreshRate;
 
+			locomotionParams.fSmoothFwd = ( 72.0f / m_fCurrentRefreshRate ) * .1f;
 			oxr::LogDebug( LOG_CATEGORY_APP, "Display refresh rate changed from: %f to %f", xrExtFBRefreshRateChangedEvent.fromDisplayRefreshRate, m_fCurrentRefreshRate );
 		}
 	}
@@ -673,9 +692,8 @@ namespace oxa
 		// stencil pass (mask - write to stencil buffer)
 		pipelineCI.layout = m_pRender->vkPipelineLayout;
 		pipelineCI.pVertexInputState = &vertexInputStateCI;
-		rasterizationStateCI.cullMode = VK_CULL_MODE_BACK_BIT;
 
-		// rasterizationState.cullMode = VK_CULL_MODE_NONE;
+		rasterizationStateCI.cullMode = VK_CULL_MODE_BACK_BIT;
 		depthStencilStateCI.depthTestEnable = VK_FALSE;
 		depthStencilStateCI.stencilTestEnable = VK_TRUE;
 		depthStencilStateCI.back.compareOp = VK_COMPARE_OP_ALWAYS;
@@ -786,6 +804,13 @@ namespace oxa
 		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 			return xrResult;
 
+		// Passthrough - toggle between color and mono modes
+		workshopActions.bTogglePassthroughModes = new Action( XR_ACTION_TYPE_BOOLEAN_INPUT, &Callback_TogglePassthroughModes );
+		xrResult = m_pInput->CreateAction(
+			workshopActions.bTogglePassthroughModes, m_pActionsetMain, "passthrough_toggle_color", "Toggle between mono and color passthrough", { "/user/hand/left", "/user/hand/right" } );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+			return xrResult;
+
 		return XR_SUCCESS;
 	}
 
@@ -804,6 +829,17 @@ namespace oxa
 
 		m_pInput->AddBinding( &baseController, workshopActions.bCyclePortal->xrActionHandle, XR_HAND_LEFT_EXT, Controller::Component::PrimaryButton, Controller::Qualifier::Click );
 		m_pInput->AddBinding( &baseController, workshopActions.bCyclePortal->xrActionHandle, XR_HAND_RIGHT_EXT, Controller::Component::PrimaryButton, Controller::Qualifier::Click );
+
+		// portal - specific for controllers without a primary button
+		m_pInput->AddBinding( &controllerVive, workshopActions.bCyclePortal->xrActionHandle, XR_HAND_LEFT_EXT, Controller::Component::Menu, Controller::Qualifier::Click );
+		m_pInput->AddBinding( &controllerVive, workshopActions.bCyclePortal->xrActionHandle, XR_HAND_RIGHT_EXT, Controller::Component::Menu, Controller::Qualifier::Click );
+
+		m_pInput->AddBinding( &controllerMR, workshopActions.bCyclePortal->xrActionHandle, XR_HAND_LEFT_EXT, Controller::Component::Menu, Controller::Qualifier::Click );
+		m_pInput->AddBinding( &controllerMR, workshopActions.bCyclePortal->xrActionHandle, XR_HAND_RIGHT_EXT, Controller::Component::Menu, Controller::Qualifier::Click );
+
+		// passthrough
+		m_pInput->AddBinding( &baseController, workshopActions.bTogglePassthroughModes->xrActionHandle, XR_HAND_LEFT_EXT, Controller::Component::SecondaryButton, Controller::Qualifier::Click );
+		m_pInput->AddBinding( &baseController, workshopActions.bTogglePassthroughModes->xrActionHandle, XR_HAND_RIGHT_EXT, Controller::Component::SecondaryButton, Controller::Qualifier::Click );
 
 		return m_pInput->SuggestBindings( &baseController, nullptr );
 	}
@@ -885,11 +921,11 @@ namespace oxa
 
 	void Workshop::SmoothLocoGesture()
 	{
-		if ( m_extHandTracking == nullptr )
+		if ( m_extHandTracking == nullptr || workshopActions.bEnableSmoothLoco->IsActive() )
 			return;
 
 		// Check gesture - middle & thumb tips of both hands are touching - we don't need any
-		// extra info so we'll just discard them, we jsut need activation status
+		// extra info so we'll just discard them, we just need activation status
 		// (todo: varying speed via distance of thumb tips)
 		XrVector3f v1, v2;
 		bool b;
@@ -907,7 +943,8 @@ namespace oxa
 			AddVectors( &m_pRender->playerWorldState.position, &dir );
 
 			// Enlarge teleport area
-			g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unFloorSpot ]->currentScale = { 100.f, 100.f, 100.f };
+			if ( !workshopMechanics.bPlayerInSecretRoom )
+				g_pWorkshop->GetRender()->vecRenderScenes[ g_pWorkshop->workshopScenes.unFloorSpot ]->currentScale = { 100.f, 100.f, 100.f };
 		}
 		else
 		{
@@ -968,37 +1005,45 @@ namespace oxa
 
 	void Workshop::AdjustPortalShear( float fCurrentPortalShearValue )
 	{
-		if ( workshopMechanics.fPortalValueOnActivation < 0.1f )
+		if ( workshopMechanics.fPortalValueOnActivation < workshopMechanics.fPortalShearingStride )
 		{
 			// Enlarge
-			workshopMechanics.fCurrentPortalShearValue = workshopMechanics.fCurrentPortalShearValue < 1.0f ? 0.25f : fCurrentPortalShearValue;
-			m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x = workshopMechanics.fCurrentPortalShearValue * 3.5f;
+			workshopMechanics.fCurrentPortalShearValue = workshopMechanics.fCurrentPortalShearValue > workshopMechanics.fPortalMaxShear ? workshopMechanics.fPortalMaxShear : fCurrentPortalShearValue;
 
-			// oxr::LogDebug(
-			// LOG_CATEGORY_APP,
-			//"ENLARGE Portal Shear Value: Current (%f) : InFrame (%f) : OnActivate (%f)",
-			// workshopMechanics.fCurrentPortalShearValue,
-			// workshopMechanics.fCurrentPortalShearValue,
-			// workshopMechanics.fPortalValueOnActivation );
-		}
-		else
-		{
-			if ( m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x < 1.0f )
-			{
-				m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x = 1.0f;
+			// Check max
+			float fNewScale = workshopMechanics.fCurrentPortalShearValue * workshopMechanics.fPortalEnlargeFactor;
+			if ( fNewScale > workshopMechanics.fPortalMaxScale )
 				return;
-			}
 
-			// Shrink
-			workshopMechanics.fCurrentPortalShearValue = workshopMechanics.fCurrentPortalShearValue < -3.0f ? 0.25f : fCurrentPortalShearValue;
-			m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x = m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x - 0.25f;
+			m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x = fNewScale;
 
 			// oxr::LogDebug(
 			//	LOG_CATEGORY_APP,
-			//	"SHRINK Portal Shear Value: Current (%f) : InFrame (%f) : OnActivate (%f)",
+			//	"ENLARGE Portal Shear Value: Current (%f) : InFrame (%f) : OnActivate (%f) : CurrentScale(%f)",
 			//	workshopMechanics.fCurrentPortalShearValue,
 			//	workshopMechanics.fCurrentPortalShearValue,
-			//	workshopMechanics.fPortalValueOnActivation );
+			//	workshopMechanics.fPortalValueOnActivation,
+			//	m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x);
+		}
+		else
+		{
+			// Shrink
+			workshopMechanics.fCurrentPortalShearValue = workshopMechanics.fCurrentPortalShearValue < workshopMechanics.fPortalMinShear ? workshopMechanics.fPortalMinShear : fCurrentPortalShearValue;
+
+			// Check min
+			float fNewScale = m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x - workshopMechanics.fPortalShrinkFactor;
+			if ( fNewScale < workshopMechanics.fPortalMinScale )
+				return;
+
+			m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x = fNewScale;
+
+			// oxr::LogDebug(
+			//	LOG_CATEGORY_APP,
+			//	"ENLARGE Portal Shear Value: Current (%f) : InFrame (%f) : OnActivate (%f) : CurrentScale(%f)",
+			//	workshopMechanics.fCurrentPortalShearValue,
+			//	workshopMechanics.fCurrentPortalShearValue,
+			//	workshopMechanics.fPortalValueOnActivation,
+			//	m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x );
 		}
 	}
 
@@ -1018,6 +1063,13 @@ namespace oxa
 			if ( !bGestureActivedOnPreviousFrame )
 			{
 				XrVector3f_Distance( &workshopMechanics.fPortalValueOnActivation, &leftThumb, &rightThumb );
+
+				// oxr::LogDebug(
+				//	LOG_CATEGORY_APP,
+				//	"Gesture activated this frame: OnActivate (%f) CurrentShear(%f) CurrentScale (%f)",
+				//	workshopMechanics.fPortalValueOnActivation,
+				//	workshopMechanics.fCurrentPortalShearValue,
+				//	m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x);
 			}
 
 			float currentDistance = 0.0f;
@@ -1094,10 +1146,29 @@ namespace oxa
 
 		uint32_t unCurrentRoom = workshopMechanics.bIsRoom1Current ? workshopScenes.unRoom1 : workshopScenes.unRoom2;
 
-		if ( dist > 12.5f && dist < 15.5f )
+		// check if player is coming from behind
+		if ( dist > 12.6f && !workshopMechanics.bPlayerInSecretRoom )
+			return;
+
+		// hide secret if player leaves the room
+		// todo: move figures to workshop mechanics (or better, add jolt physics support)
+		if ( workshopMechanics.bPlayerInSecretRoom && workshopMechanics.bIsRoom1Current && ( hmdPos.x > 1.4f || hmdPos.x < -1.4f ) )
 		{
-			// don't switch pipelines if player is just looking behind and going through the portal
-			if ( hmdPos.x > 0.3f || hmdPos.x < -0.3f || workshopMechanics.fCurrentPortalShearValue <= 0.25f )
+			CheckPlayerLeftRoom( unCurrentRoom );
+		}
+
+		if ( workshopMechanics.bPlayerInSecretRoom && !workshopMechanics.bIsRoom1Current && ( hmdPos.x > 5.5f || hmdPos.x < -6.27f ) )
+		{
+			CheckPlayerLeftRoom( unCurrentRoom );
+		}
+
+		// todo: move figures to workshop mechanics (or better, add jolt physics support)
+		if ( dist > 12.4f && dist < 15.5f )
+		{
+			// don't switch pipelines if player is just looking behind and not going in the portal
+			float max = 0.03f * m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x;
+			float min = -0.03f * m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->currentScale.x;
+			if ( hmdPos.x > max || hmdPos.x < min )
 				return;
 
 			// use default/pbr - only if within portal
@@ -1153,6 +1224,24 @@ namespace oxa
 
 			workshopMechanics.eCurrentPortalState = EPortalState::PortalOff;
 			workshopMechanics.bIsRoom1Current = true;
+		}
+	}
+
+	void Workshop::ResetPassthrough()
+	{
+		workshopExtensions.fbPassthrough->StartPassThrough();
+		workshopExtensions.fbPassthrough->SetModeToDefault();
+		//workshopExtensions.fbPassthrough->SetModeToBCS( -25.f );
+	}
+
+	void Workshop::CheckPlayerLeftRoom( uint32_t unCurrentRoom )
+	{
+		if ( m_pRender->vecRenderSectors[ unCurrentRoom ]->vkPipeline == VK_NULL_HANDLE )
+		{
+			// use stencil fill
+			m_pRender->vecRenderSectors[ unCurrentRoom ]->vkPipeline = m_pRender->GetCustomPipelines()[ workshopPipelines.unStencilFill ];
+			m_pRender->vecRenderSectors[ workshopScenes.unPortal ]->bIsVisible = true;
+			workshopMechanics.bPlayerInSecretRoom = false;
 		}
 	}
 
