@@ -1,13 +1,18 @@
 # Sample 10 - OpenXR Workshop
 
-**WIP** ñ Early demo of the openxr provider libraryís application template (generated via Ö./ .py script).
+**WIP** ‚Äì Early demo of the openxr provider library‚Äôs application template (generated via ../app_template/openxr_template/app_template/openxr_template.py script).
 
-[Video here]
+- Pertinent portal source code can be found at: `src/Workshop.cpp, src/Workshop.hpp`
 
-Main mechanics (to date)
-(1)	XR Portal Level Transitions: Uses ìin-worldî portals  - think Star Trek Holodeck or Dr Strange portals. Pretty compelling in passthrough imo :)
+- Pertinent portal assets (blender, affinity photo files, etc) can be found at: `/assets_src/...`
 
-(2)	Smooth locomotion with floor grid guide: Guides are beneficial moving around your virtual space, especially in passthrough where traditionally youíre stuck with roomscale space you have in the physical world.
+
+https://user-images.githubusercontent.com/17371351/214259239-14cb7ddf-ac27-43b9-b302-a210fd018dca.mp4
+
+**Main mechanics (to date)**
+1. XR Portal Level Transitions: Uses ‚Äúin-world‚Äù portals  - think Star Trek Holodeck or Dr Strange portals. Pretty compelling in passthrough imo :)
+
+2. Smooth locomotion (other options and locomotion types soon) with floor grid guide: Guides are beneficial moving around your virtual space, especially in passthrough where traditionally you‚Äôre stuck with roomscale space you have in the physical world.
 
 |Action|Controller Input|Handtracking|
 |:----|:----|:----|
