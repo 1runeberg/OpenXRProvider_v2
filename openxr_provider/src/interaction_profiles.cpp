@@ -473,4 +473,131 @@ namespace oxr
 		return XR_SUCCESS;
 	}
 
+	XrResult ViveTracker::AddBinding( XrInstance xrInstance, XrAction action, RolePath role, Controller::Component component, Controller::Qualifier qualifier )
+	{
+		std::string sBinding = k_pccTracker;
+
+		switch ( role )
+		{
+			case RolePath::HandheldObject:
+				sBinding += k_pccHandheldObject;
+				break;
+			case RolePath::LeftFoot:
+				sBinding += k_pccLeftFoot;
+				break;
+			case RolePath::RightFoot:
+				sBinding += k_pccRightFoot;
+				break;
+			case RolePath::LeftShoulder:
+				sBinding += k_pccLeftShoulder;
+				break;
+			case RolePath::RightShoulder:
+				sBinding += k_pccRightShoulder;
+				break;
+			case RolePath::LeftElbow:
+				sBinding += k_pccLeftElbow;
+				break;
+			case RolePath::RightElbow:
+				sBinding += k_pccRightElbow;
+				break;
+			case RolePath::LeftKnee:
+				sBinding += k_pccLeftKnee;
+				break;
+			case RolePath::RightKnee:
+				sBinding += k_pccRightKnee;
+				break;
+			case RolePath::Waist:
+				sBinding += k_pccWaist;
+				break;
+			case RolePath::Chest:
+				sBinding += k_pccChest;
+				break;
+			case RolePath::Camera:
+				sBinding += k_pccCamera;
+				break;
+			case RolePath::Keyboard:
+				sBinding += k_pccKeyboard;
+				break;
+			default:
+				sBinding.clear();
+				break;
+		}
+
+		sBinding += ( component == Controller::Component::Haptic ) ? k_pccOutput : k_pccInput;
+
+		// If binding can't be mapped, don't add
+		// We'll then let the dev do "additive" bindings instead using AddBinding( XrInstance xrInstance, XrAction action, FULL INPUT PAHT )
+		if ( sBinding.empty() )
+		{
+			oxr::LogInfo( LOG_CATEGORY_INPUT, "Skipping (%s) as there's no equivalent tracker component for this binding", Path() );
+			return XR_SUCCESS;
+		}
+
+		// Map requested binding configuration for this controller
+		switch ( component )
+		{
+			case Controller::Component::GripPose:
+				sBinding += k_pccGripPose;
+				break;
+			case Controller::Component::Trigger:
+			{
+				sBinding += k_pccTrigger;
+				if ( qualifier == Controller::Qualifier::Value )
+					sBinding += k_pccValue;
+				else
+					sBinding += k_pccClick;
+			}
+			break;
+			case Controller::Component::Squeeze:
+			{
+				sBinding += k_pccSqueeze;
+				sBinding += k_pccForce;
+			}
+			break;
+			case Controller::Component::Menu:
+			case Controller::Component::System:
+			{
+				sBinding += k_pccSystem;
+				if ( qualifier == Controller::Qualifier::Touch )
+					sBinding += k_pccTouch;
+				else
+					sBinding += k_pccClick;
+			}
+			break;
+			case Controller::Component::Haptic:
+				sBinding += k_pccHaptic;
+				break;
+			default:
+				sBinding.clear();
+				break;
+		}
+
+		// If binding can't be mapped, don't add
+		// We'll then let the dev do "additive" bindings instead using AddBinding( XrInstance xrInstance, XrAction action, FULL INPUT PAHT )
+		if ( sBinding.empty() )
+		{
+			LogInfo( LOG_CATEGORY_INPUT, "Skipping (%s) as there's no equivalent tracker component for this binding", Path() );
+			return XR_SUCCESS;
+		}
+
+		// Convert binding to path
+		XrPath xrPath = XR_NULL_PATH;
+		XrResult xrResult = xrStringToPath( xrInstance, sBinding.c_str(), &xrPath );
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_INPUT, "Error adding binding path [%s]: (%s) for: (%s)", XrEnumToString( xrResult ), sBinding.c_str(), Path() );
+			return xrResult;
+		}
+
+		XrActionSuggestedBinding suggestedBinding {};
+		suggestedBinding.action = action;
+		suggestedBinding.binding = xrPath;
+
+		vecSuggestedBindings.push_back( suggestedBinding );
+
+		LogInfo( LOG_CATEGORY_INPUT, "Added binding path: (%s) for: (%s)", sBinding.c_str(), Path() );
+		return XR_SUCCESS;
+	}
+
+
 } // namespace oxr

@@ -369,6 +369,12 @@ namespace oxr
 			uint32_t unArrayIndex = 0 );
 
 		/// <summary>
+		/// Call to trigger single headless render. No callbacks will be fired.
+		/// </summary>
+		/// <param name="pFrameState">Output parameter for the framestate, intended purely for updating predicted times</param>
+		void RenderHeadlessFrame( XrFrameState *pFrameState );
+
+		/// <summary>
 		/// Retrieve the most recent predicted display time from the openxr runtime
 		/// </summary>
 		/// <returns>The most recent predicted display time from the openxr runtime</returns>
