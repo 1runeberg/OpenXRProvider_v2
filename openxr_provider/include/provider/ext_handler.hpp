@@ -38,11 +38,11 @@
 // multi-vendor
 #include "ext_handtracking.hpp"
 #include "ext_eyegaze.hpp"
-#include "ext_htcxvivetrackerinteraction.hpp" // confirmed in steamvr, varjo
 
 // vendor
 #include "ext_fbpassthrough.hpp"	// meta only
 #include "ext_fbrefreshrate.hpp"	// has wide runtime support (steamvr, meta, monado, wmr)
+#include "ext_htcxtracker.hpp"		// confirmed in steamvr, varjo
 
 
 #define LOG_CATEGORY_EXT "OpenXRProvider-Ext"

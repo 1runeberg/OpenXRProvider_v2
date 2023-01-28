@@ -1,15 +1,15 @@
 # OpenXR Provider v2
-# Sample XX - Headless
+# Sample Extension: XR_HTCX_vive_tracker_interaction
 
 cmake_minimum_required(VERSION 3.14.4 FATAL_ERROR)
 set(CMAKE_SUPPRESS_REGENERATION true)
 
-set(SAMPLE_PROJECT "sample_XX_headless")
+set(SAMPLE_PROJECT "htcx_vive_tracker_interaction")
 project("${SAMPLE_PROJECT}" VERSION 0.1.0)
 
 # Set project directories
-set(SAMPLES_FOLDER "Samples")
-set(APP_DIRECTORY "${CMAKE_SOURCE_DIR}/${SAMPLE_PROJECT}")
+set(SAMPLES_FOLDER "Samples/Extensions")
+set(APP_DIRECTORY "${CMAKE_SOURCE_DIR}/sample_extensions/${SAMPLE_PROJECT}")
 
 set(APP_SOURCE_DIRECTORY "${APP_DIRECTORY}/src")
 set(APP_BINARY_DIRECTORY "${APP_DIRECTORY}/bin")

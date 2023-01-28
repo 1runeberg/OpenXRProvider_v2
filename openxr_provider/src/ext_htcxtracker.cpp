@@ -22,7 +22,7 @@
  *
  */
 
-#include <provider/ext_htcxvivetrackerinteraction.hpp>
+#include <provider/ext_htcxtracker.hpp>
 #include <assert.h>
 
 namespace oxr

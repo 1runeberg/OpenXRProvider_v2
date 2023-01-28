@@ -34,14 +34,14 @@ namespace
 		//     You can optionally set a default log level during creation.
 		std::unique_ptr< oxr::Provider > oxrProvider = std::make_unique< oxr::Provider >( oxr::ELogLevel::LogDebug );
 
-		std::vector< const char * > vecRequestedExtensions { XR_MND_HEADLESS_EXTENSION_NAME, XR_HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME };
+		std::vector< const char * > vecRequestedExtensions { XR_HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME };
 
 		oxrProvider->FilterOutUnsupportedExtensions( vecRequestedExtensions );
 
 		// (3) Set the application info that the openxr runtime will need in order to initialize an openxr instance
 		oxr::AppInstanceInfo oxrAppInstanceInfo {};
 		oxrAppInstanceInfo.sAppName = APP_NAME;
-		oxrAppInstanceInfo.unAppVersion = OXR_MAKE_VERSION32( SAMPLEXX_VERSION_MAJOR, SAMPLEXX_VERSION_MINOR, SAMPLEXX_VERSION_PATCH );
+		oxrAppInstanceInfo.unAppVersion = OXR_MAKE_VERSION32( HTCX_TRACKER_VERSION_MAJOR, HTCX_TRACKER_VERSION_MINOR, HTCX_TRACKER_VERSION_PATCH );
 		oxrAppInstanceInfo.sEngineName = ENGINE_NAME;
 		oxrAppInstanceInfo.unEngineVersion = OXR_MAKE_VERSION32( PROVIDER_VERSION_MAJOR, PROVIDER_VERSION_MINOR, PROVIDER_VERSION_PATCH );
 		oxrAppInstanceInfo.vecInstanceExtensions = vecRequestedExtensions;
