@@ -42,10 +42,10 @@
 	#include <windows.h>
 #endif
 
-#define APP_NAME "sample_xx_headless"
+#define APP_NAME "htcx_vive_tracker_interaction"
 #define ENGINE_NAME "openxr_provider"
 
-#define LOG_CATEGORY_HEADLESS "OpenXRProviderHeadless"
+#define LOG_CATEGORY_DEMO_EXT "ExtViveTracker"
 
 // global vars
 XrEventDataBaseHeader *g_xrEventDataBaseheader = nullptr;
@@ -57,7 +57,7 @@ oxr::Input *g_pInput = nullptr;
 XrSessionState g_sessionState = XR_SESSION_STATE_UNKNOWN;
 
 // Vive Tracker Extension, if present
-oxr::ExtHTCXViveTrackerInteraction *g_extHTCXViveTrackerInteraction = nullptr;
+oxr::ExtHTCXViveTrackerInteraction *g_extViveTracker = nullptr;
 
 // Future for input thread
 std::future< XrResult > g_inputThread;

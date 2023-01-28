@@ -124,51 +124,6 @@ namespace oxr
 		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override { return SuggestControllerBindings( xrInstance, pOtherInfo ); };
 	};
 
-	struct ViveTracker : public Controller
-	{
-	  public:
-		const char *k_pccTracker = "/user/vive_tracker_htcx/role";
-
-		const char *k_pccHandheldObject = "/handheld_object";
-		const char *k_pccLeftFoot = "/left_foot";
-		const char *k_pccRightFoot = "/right_foot";
-		const char *k_pccLeftShoulder = "/left_shoulder";
-		const char *k_pccRightShoulder = "/right_shoulder";
-		const char *k_pccLeftElbow = "/left_elbow";
-		const char *k_pccRightElbow = "/right_elbow";
-		const char *k_pccLeftKnee = "/left_knee";
-		const char *k_pccRightKnee = "/right_knee";
-		const char *k_pccWaist = "/waist";
-		const char *k_pccChest = "/chest";
-		const char *k_pccCamera = "/camera";
-		const char *k_pccKeyboard = "/keyboard";
-
-		enum class RolePath
-		{
-			HandheldObject,
-			LeftFoot,
-			RightFoot,
-			LeftShoulder,
-			RightShoulder,
-			LeftElbow,
-			RightElbow,
-			LeftKnee,
-			RightKnee,
-			Waist,
-			Chest,
-			Camera,
-			Keyboard
-		};
-
-		const char *Path() override { return "/interaction_profiles/htc/vive_tracker_htcx"; }
-		XrResult AddBinding( XrInstance xrInstance, XrAction action, XrHandEXT hand, oxr::Controller::Component component, oxr::Controller::Qualifier qualifier ) override
-		{
-			return XR_ERROR_FEATURE_UNSUPPORTED;
-		};
-		virtual XrResult AddBinding( XrInstance xrInstance, XrAction action, RolePath role, oxr::Controller::Component component, oxr::Controller::Qualifier qualifier );
-		XrResult SuggestBindings( XrInstance xrInstance, void *pOtherInfo ) override { return SuggestControllerBindings( xrInstance, pOtherInfo ); };
-	};
-
 	struct BaseController : Controller
 	{
 	  public:

@@ -54,49 +54,51 @@ namespace
 		XrResult xrResult = oxrProvider->Init( &oxrAppInstanceInfo );
 		if ( XR_UNQUALIFIED_SUCCESS( xrResult ) )
 		{
-			oxr::LogInfo( LOG_CATEGORY_HEADLESS, "OpenXr instance created with handle (%" PRIu64 ")", ( uint64_t )oxrProvider->GetOpenXrInstance() );
+			oxr::LogInfo( LOG_CATEGORY_DEMO_EXT, "OpenXr instance created with handle (%" PRIu64 ")", ( uint64_t )oxrProvider->GetOpenXrInstance() );
 		}
 		else
 		{
 			// The provider will add a log entry for the error, or optionally handle it,
 			//	here we're just logging it again and using a nifty stringify function (only for openxr enums).
-			oxr::LogError( LOG_CATEGORY_HEADLESS, "Error encountered while creating an openxr instance  (%s)", oxr::XrEnumToString( xrResult ) );
+			oxr::LogError( LOG_CATEGORY_DEMO_EXT, "Error encountered while creating an openxr instance  (%s)", oxr::XrEnumToString( xrResult ) );
 			return xrResult;
 		}
 
 		// (5) Create openxr session
-
 		XrSessionCreateInfo xrSessionCreateInfo { XR_TYPE_SESSION_CREATE_INFO };
 		xrSessionCreateInfo.systemId = oxrProvider->Instance()->xrSystemId;
 
 		xrResult = oxrProvider->CreateSession( &xrSessionCreateInfo );
 		if ( XR_UNQUALIFIED_SUCCESS( xrResult ) )
 		{
-			oxr::LogInfo( LOG_CATEGORY_HEADLESS, "Headless OpenXr session created with handle (%" PRIu64 ")", ( uint64_t )oxrProvider->Session()->GetXrSession() );
+			oxr::LogInfo( LOG_CATEGORY_DEMO_EXT, "Headless OpenXr session created with handle (%" PRIu64 ")", ( uint64_t )oxrProvider->Session()->GetXrSession() );
 		}
 		else
 		{
-			oxr::LogError( LOG_CATEGORY_HEADLESS, "Error creating openxr session with result (%s) ", oxr::XrEnumToString( xrResult ) );
+			oxr::LogError( LOG_CATEGORY_DEMO_EXT, "Error creating openxr session with result (%s) ", oxr::XrEnumToString( xrResult ) );
 			return xrResult;
 		}
 
 		g_pSession = oxrProvider->Session();
 
 		// (6) Get any extensions that requires an active openxr instance and session
-		g_extHTCXViveTrackerInteraction = static_cast< oxr::ExtHTCXViveTrackerInteraction * >( oxrProvider->Instance()->extHandler.GetExtension( XR_HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME ) );
-		if ( g_extHTCXViveTrackerInteraction )
+		g_extViveTracker = static_cast< oxr::ExtHTCXViveTrackerInteraction * >( oxrProvider->Instance()->extHandler.GetExtension( XR_HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME ) );
+		if ( g_extViveTracker )
 		{
-			xrResult = g_extHTCXViveTrackerInteraction->Init();
+			xrResult = g_extViveTracker->Init();
 
-			if ( !XR_UNQUALIFIED_SUCCESS( g_extHTCXViveTrackerInteraction->Init() ) )
-				delete g_extHTCXViveTrackerInteraction;
+			if ( !XR_UNQUALIFIED_SUCCESS( g_extViveTracker->Init() ) )
+			{
+				delete g_extViveTracker;
+				g_extViveTracker = nullptr;
+			}
 		}
 
 		// (7) Configuring input
 		g_pInput = oxrProvider->Input();
 		if ( g_pInput == nullptr || oxrProvider->Session() == nullptr )
 		{
-			oxr::LogError( LOG_CATEGORY_HEADLESS, "Error getting input object from the provider library or init failed." );
+			oxr::LogError( LOG_CATEGORY_DEMO_EXT, "Error getting input object from the provider library or init failed." );
 			return XR_ERROR_INITIALIZATION_FAILED;
 		}
 
@@ -105,10 +107,6 @@ namespace
 		g_pInput->CreateActionSet( &actionsetMain, "main", "main actions" );
 
 		// (7.2) Create actions
-		oxr::Action actionLeftFootPose( XR_ACTION_TYPE_POSE_INPUT, UpdateLeftFootPose );
-		g_pInput->CreateAction( &actionLeftFootPose, &actionsetMain, "left_foot_pose", "left foot pose", { "/user/vive_tracker_htcx/role/left_foot" } );
-		g_leftFootPoseAction = &actionLeftFootPose; // Keep a reference to this action for getting the pose later
-
 		oxr::Action actionControllerPose( XR_ACTION_TYPE_POSE_INPUT, UpdateControllerPose );
 		g_pInput->CreateAction( &actionControllerPose, &actionsetMain, "pose", "controller pose", { "/user/hand/left", "/user/hand/right" } );
 		g_controllerPoseAction = &actionControllerPose; // We'll need a reference to this action for getting the pose later
@@ -121,14 +119,8 @@ namespace
 
 		// (7.3) Create controller instances as a utility for setting bindings
 		oxr::HTCVive controllerVive {};
-		oxr::ViveTracker trackerVive {};
 
-		// (7.4) Add addings
-		trackerVive.AddBinding(
-			oxrProvider->Instance()->xrInstance, actionLeftFootPose.xrActionHandle, oxr::ViveTracker::RolePath::LeftFoot, oxr::Controller::Component::GripPose, oxr::Controller::Qualifier::None );
-
-		trackerVive.SuggestBindings( oxrProvider->Instance()->xrInstance, nullptr );
-
+		// (7.4) Add bindings
 		controllerVive.AddBinding( oxrProvider->Instance()->xrInstance, actionControllerPose.xrActionHandle, XR_HAND_LEFT_EXT, oxr::Controller::Component::AimPose, oxr::Controller::Qualifier::None );
 		controllerVive.AddBinding( oxrProvider->Instance()->xrInstance, actionControllerPose.xrActionHandle, XR_HAND_RIGHT_EXT, oxr::Controller::Component::AimPose, oxr::Controller::Qualifier::None );
 
@@ -144,6 +136,13 @@ namespace
 		// (7.6) Initialize input with session - required for succeeding calls
 		g_pInput->Init( oxrProvider->Session() );
 
+		// (7.6.1) Create a default action with all possible tracker roles as subpaths
+		//      this will also auto-populate ExtHTCXViveTrackerInteraction::vecActionSpaces
+		//		use ExtHTCXViveTrackerInteraction::ETrackerRole as index.
+		//		NOTE: This call requires an active (initialized) session
+		if ( g_extViveTracker )
+			g_extViveTracker->SetupAllTrackerRoles( g_pInput, &actionsetMain );
+
 		// (7.7) Attach actionset(s) to session
 		std::vector< XrActionSet > vecActionSets = { actionsetMain.xrActionSetHandle };
 		g_pInput->AttachActionSetsToSession( vecActionSets.data(), static_cast< uint32_t >( vecActionSets.size() ) );
@@ -154,16 +153,12 @@ namespace
 		g_pInput->AddActionsetForSync( &actionsetMain ); //  optional sub path is a filter if made available with the action - e.g /user/hand/left
 
 		// (7.9) Create identity poses for use as action spaces for pose actions
-		XrPosef leftFootPoseInSpace;
 		XrPosef controllerPoseInSpace;
-		XrPosef_Identity( &leftFootPoseInSpace );
 		XrPosef_Identity( &controllerPoseInSpace );
 
 		// (7.10) Create the action spaces. Note that you can add multiple action spaces for the same action.
 		g_pInput->CreateActionSpace( &actionControllerPose, &controllerPoseInSpace, "/user/hand/left" );
 		g_pInput->CreateActionSpace( &actionControllerPose, &controllerPoseInSpace, "/user/hand/right" );
-
-		g_pInput->CreateActionSpace( &actionLeftFootPose, &leftFootPoseInSpace, "/user/vive_tracker_htcx/role/left_foot" );
 
 		// Main game loop
 		bool bProcessInput = false;
@@ -187,25 +182,44 @@ namespace
 					if ( g_sessionState == XR_SESSION_STATE_READY )
 					{
 						// (8.1) Start session - begin the app's frame loop here.
-						oxr::LogInfo( LOG_CATEGORY_HEADLESS, "App frame loop starts here." );
+						oxr::LogInfo( LOG_CATEGORY_DEMO_EXT, "App frame loop starts here." );
 
 						// With the headless extension, runtimes must ignore viewconfiguration
 						// and must accept a 0 value.
 						xrResult = oxrProvider->Session()->Begin( ( XrViewConfigurationType )0 );
 						if ( xrResult != XR_SUCCESS )
 						{
-							oxr::LogError( LOG_CATEGORY_HEADLESS, "Unable to start openxr session (%s)", oxr::XrEnumToString( xrResult ) );
+							oxr::LogError( LOG_CATEGORY_DEMO_EXT, "Unable to start openxr session (%s)", oxr::XrEnumToString( xrResult ) );
 						}
 					}
 					else if ( g_sessionState == XR_SESSION_STATE_STOPPING )
 					{
 						// (8.2) End session - end the app's frame loop here
-						oxr::LogInfo( LOG_CATEGORY_HEADLESS, "App frame loop ends here." );
+						oxr::LogInfo( LOG_CATEGORY_DEMO_EXT, "App frame loop ends here." );
 						oxrProvider->Session()->End();
 					}
 					else if ( g_sessionState == XR_SESSION_STATE_FOCUSED )
 					{
 						bProcessInput = true;
+					}
+				}
+
+				// Handle events from extensions
+				if ( g_extViveTracker )
+				{
+					if ( g_xrEventDataBaseheader->type == XR_TYPE_EVENT_DATA_VIVE_TRACKER_CONNECTED_HTCX )
+					{
+						auto xrEventDataViveTrackerConnectedHTCX = *reinterpret_cast< const XrEventDataViveTrackerConnectedHTCX * >( g_xrEventDataBaseheader );
+
+						std::string sTrackerId, sTrackerRole;
+						g_pInput->XrPathToString( sTrackerId, &xrEventDataViveTrackerConnectedHTCX.paths->persistentPath );
+						g_pInput->XrPathToString( sTrackerId, &xrEventDataViveTrackerConnectedHTCX.paths->rolePath );
+
+						oxr::LogDebug(
+							LOG_CATEGORY_DEMO_EXT,
+							"Vive tracker connected: Id[%s] Role[%s]",
+							sTrackerId.c_str(),
+							sTrackerRole.c_str() );
 					}
 				}
 			}
@@ -227,10 +241,9 @@ namespace
 				else
 				{
 					// If there's been a problem we can log and error and just skip the rendering phase and try again.
-					oxr::LogError( LOG_CATEGORY_HEADLESS, "Unable to process inputs (%s)", oxr::XrEnumToString( xrResult ) );
+					oxr::LogError( LOG_CATEGORY_DEMO_EXT, "Unable to process inputs (%s)", oxr::XrEnumToString( xrResult ) );
 					std::this_thread::sleep_for( 100ms );
 				}
-
 			}
 			// Headless Render
 			if ( bFakeRender )
@@ -264,7 +277,7 @@ namespace
 					xrResult = g_pInput->GetActionPose( &handLocation, g_controllerPoseAction, activeSpaceIndex, g_xrFrameState.predictedDisplayTime );
 
 					oxr::LogInfo(
-						LOG_CATEGORY_HEADLESS,
+						LOG_CATEGORY_DEMO_EXT,
 						"Controller:\npos: %2.2f,%2.2f,%2.2f\nrot: %2.2f,%2.2f,%2.2f,%2.2f\nAim: %1.2f,%1.2f\nAimClick: %s\n",
 						handLocation.pose.position.x,
 						handLocation.pose.position.y,
@@ -275,8 +288,7 @@ namespace
 						handLocation.pose.orientation.w,
 						activeController->xrvec2Aim.x,
 						activeController->xrvec2Aim.y,
-						activeController->bAimClick ? "On" : "Off");
-
+						activeController->bAimClick ? "On" : "Off" );
 
 					if ( g_ActionLeftFoot.bIsActive )
 					{
@@ -284,7 +296,7 @@ namespace
 						xrResult = g_pInput->GetActionPose( &bodyLocation, g_leftFootPoseAction, 0, g_xrFrameState.predictedDisplayTime );
 
 						oxr::LogInfo(
-							LOG_CATEGORY_HEADLESS,
+							LOG_CATEGORY_DEMO_EXT,
 							"Left Foot:\npos: %2.2f,%2.2f,%2.2f\nrot: %2.2f,%2.2f,%2.2f,%2.2f",
 							bodyLocation.pose.position.x,
 							bodyLocation.pose.position.y,
@@ -306,9 +318,7 @@ namespace
 		return xrResult;
 	}
 
-}
-
-
+} // namespace
 
 int main( int argc, char *argv[] )
 {
