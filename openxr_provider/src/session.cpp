@@ -72,6 +72,9 @@ namespace oxr
 
 				if ( extensionName == XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME )
 					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME );
+
+				if ( extensionName == XR_HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME )
+					m_pInstance->extHandler.AddExtension( m_pInstance->xrInstance, m_xrSession, XR_HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME);
 			}
 
 			// Log session supported reference space types (debug only)

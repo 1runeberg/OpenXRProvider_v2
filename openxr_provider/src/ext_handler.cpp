@@ -133,6 +133,7 @@ namespace oxr
 			return true;
 		}
 
+		// HTCX: Vive tracker
 		if ( strcmp( extensionName, XR_HTCX_VIVE_TRACKER_INTERACTION_EXTENSION_NAME ) == 0 )
 		{
 			m_vecExtensions.push_back( new ExtHTCXViveTrackerInteraction( xrInstance, xrSession ) );

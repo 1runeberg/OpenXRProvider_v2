@@ -42,7 +42,7 @@
 // vendor
 #include "ext_fbpassthrough.hpp"	// meta only
 #include "ext_fbrefreshrate.hpp"	// has wide runtime support (steamvr, meta, monado, wmr)
-#include "ext_htcxtracker.hpp"		// confirmed in steamvr, varjo
+#include "ext_htcxtracker.hpp"		// steamvr, varjo, monado(?)
 
 
 #define LOG_CATEGORY_EXT "OpenXRProvider-Ext"

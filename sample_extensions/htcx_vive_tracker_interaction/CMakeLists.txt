@@ -15,6 +15,11 @@ set(APP_SOURCE_DIRECTORY "${APP_DIRECTORY}/src")
 set(APP_BINARY_DIRECTORY "${APP_DIRECTORY}/bin")
 set(APP_LIBRARY_DIRECTORY "${APP_DIRECTORY}/lib")
 
+set(APP_ASSETS_DIRECTORY "${APP_DIRECTORY}/assets")
+set(APP_SHADERS_DIRECTORY "${APP_ASSETS_DIRECTORY}/shaders")
+set(APP_MODELS_DIRECTORY "${APP_ASSETS_DIRECTORY}/models")
+set(APP_TEXTURES_DIRECTORY "${APP_ASSETS_DIRECTORY}/textures")
+
 set(PROVIDER_DIRECTORY "${CMAKE_SOURCE_DIR}/openxr_provider")
 set(PROVIDER_INCLUDE_DIRECTORY "${PROVIDER_DIRECTORY}/include")
 
@@ -38,6 +43,8 @@ endif()
 # Find all project header files
 file(GLOB APP_HEADER_FILES
         "${APP_SOURCE_DIRECTORY}/*.h*"
+        "${APP_SOURCE_DIRECTORY}/xrvk/*.h*"
+        "${APP_SOURCE_DIRECTORY}/xrvk/vulkanpbr/*.h*"
 	)
 
 # Find all project source files
@@ -47,6 +54,11 @@ file(GLOB APP_SOURCE_FILES
         "${APP_DIRECTORY}/CMakeLists.txt" 
         "${APP_DIRECTORY}/*.h.in" 
         "${APP_SOURCE_DIRECTORY}/*.cpp"
+        "${APP_SOURCE_DIRECTORY}/xrvk/*.cpp"
+        "${APP_SOURCE_DIRECTORY}/xrvk/vulkanpbr/*.cpp"
+        "${APP_SHADERS_DIRECTORY}/*.*sl"
+        "${APP_SHADERS_DIRECTORY}/*.vert"
+        "${APP_SHADERS_DIRECTORY}/*.frag"
 	)
 
 add_executable(${SAMPLE_PROJECT} 
@@ -107,4 +119,34 @@ add_custom_command(TARGET ${SAMPLE_PROJECT} POST_BUILD
 add_custom_command(TARGET ${SAMPLE_PROJECT} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     "${PROVIDER_DIRECTORY}/bin"
-    "${CMAKE_SOURCE_DIR}/build/${SAMPLE_PROJECT}")
+    "${CMAKE_SOURCE_DIR}/build/sample_extensions/${SAMPLE_PROJECT}")
+
+add_custom_command(TARGET ${SAMPLE_PROJECT} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${APP_SHADERS_DIRECTORY}"
+    "${APP_BINARY_DIRECTORY}/shaders")
+
+add_custom_command(TARGET ${SAMPLE_PROJECT} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${APP_MODELS_DIRECTORY}"
+    "${APP_BINARY_DIRECTORY}/models")
+
+ add_custom_command(TARGET ${SAMPLE_PROJECT} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${APP_TEXTURES_DIRECTORY}"
+    "${APP_BINARY_DIRECTORY}/textures")
+
+add_custom_command(TARGET ${SAMPLE_PROJECT} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${APP_SHADERS_DIRECTORY}"
+    "${CMAKE_SOURCE_DIR}/build/sample_extensions/${SAMPLE_PROJECT}/shaders")
+
+add_custom_command(TARGET ${SAMPLE_PROJECT} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${APP_MODELS_DIRECTORY}"
+    "${CMAKE_SOURCE_DIR}/build/sample_extensions/${SAMPLE_PROJECT}/models")
+
+add_custom_command(TARGET ${SAMPLE_PROJECT} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${APP_TEXTURES_DIRECTORY}"
+    "${CMAKE_SOURCE_DIR}/build/sample_extensions/${SAMPLE_PROJECT}/textures")

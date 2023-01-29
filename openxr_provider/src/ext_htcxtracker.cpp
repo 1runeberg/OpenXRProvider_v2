@@ -1,7 +1,7 @@
-/* Copyright 2023 Charlotte Gore (GitHub: https://github.com/charlottegore)
- * and Rune Berg (GitHub: https://github.com/1runeberg, Twitter: https://twitter.com/1runeberg, YouTube: https://www.youtube.com/@1RuneBerg)
- *
- *  SPDX-License-Identifier: MIT
+/* Copyright 2023 Rune Berg (GitHub: https://github.com/1runeberg, Twitter: https://twitter.com/1runeberg, YouTube: https://www.youtube.com/@1RuneBerg)
+ * 
+ * Based on Pull Request #2 by Charlotte Gore (GitHub: https://github.com/charlottegore)
+ * SPDX-License-Identifier: MIT
  *
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
  *
@@ -75,7 +75,27 @@ namespace oxr
 
 		for ( uint32_t i = 0; i < ETrackerRole::TrackerRoleMax; i++ )
 		{
-			pInput->CreateActionSpace( pTrackerAction, &originPose, vecRolePaths[ i ] );
+			XrActionSpaceCreateInfo xrActionSpaceCreateInfo { XR_TYPE_ACTION_SPACE_CREATE_INFO };
+			xrActionSpaceCreateInfo.action = pTrackerAction->xrActionHandle;
+			xrActionSpaceCreateInfo.poseInActionSpace = originPose;
+
+			XrPath xrPath = XR_NULL_PATH;
+			pInput->StringToXrPath( vecRolePaths[ i ].c_str(), &xrPath );
+			xrActionSpaceCreateInfo.subactionPath = xrPath;
+
+			XrResult xrResult = xrCreateActionSpace( m_xrSession, &xrActionSpaceCreateInfo, &vecActionSpaces[ i ] );
+
+			if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+			{
+				LogWarning( LOG_CATEGORY_EXTVIVETRACKER, "Unable to create an action space : ", XrEnumToString( xrResult ) );
+			}
+
+			LogInfo(
+				LOG_CATEGORY_EXTVIVETRACKER,
+				"Tracker action (%" PRIu64 ") : New reference space handle for role (%i) (%" PRIu64 ")",
+				( uint64_t )( pTrackerAction->xrActionHandle ),
+				i,
+				( uint64_t )( pTrackerAction->vecActionSpaces[ i ] ) );
 		}
 	}
 
@@ -117,7 +137,7 @@ namespace oxr
 		uint32_t unCapacityOut = 0;
 		XrResult xrResult = xrEnumerateViveTrackerPathsHTCX( m_xrInstance, 0, &unCapacityOut, nullptr );
 
-		if ( XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
 		{
 			oxr::LogDebug( LOG_CATEGORY_EXTVIVETRACKER, "Unable to retrieve capacity for xrEnumerateViveTrackerPathsHTCX: %s", XrEnumToString( xrResult ) );
 			return xrResult;
@@ -136,6 +156,61 @@ namespace oxr
 			oxr::LogDebug( LOG_CATEGORY_EXTVIVETRACKER, "Unable to retrieve active trackers: %s", XrEnumToString( xrResult ) );
 			return xrResult;
 		}
+
+		return XR_SUCCESS;
+	}
+
+	XrResult ExtHTCXViveTrackerInteraction::SuggestDefaultBindings()
+	{
+		// Get all roles paths
+		std::vector< std::string > vecRolePaths;
+		GetAllRolePaths( vecRolePaths );
+
+		// Populate suggested bindings vector
+		m_vecSuggestedBindings.clear();
+		for ( uint32_t i = 0; i < ETrackerRole::TrackerRoleMax; i++ )
+		{
+			// Compose suggested binding path
+			std::string sPosePath = vecRolePaths[ i ];
+			sPosePath += "/input/grip/pose";
+
+			XrPath suggestedBindingPath;
+			xrStringToPath( m_xrInstance, sPosePath.c_str(), &suggestedBindingPath );
+
+			XrActionSuggestedBinding suggestedBinding {};
+			suggestedBinding.action = pTrackerAction->xrActionHandle;
+			suggestedBinding.binding = suggestedBindingPath;
+
+			m_vecSuggestedBindings.push_back( suggestedBinding );
+
+			LogInfo( LOG_CATEGORY_EXTVIVETRACKER, "Added binding path: (%s) for: (%s)", sPosePath.c_str(), sInteractionProfilePath );
+		}
+
+		// Suggest bindings to the runtime
+		XrPath xrPath = XR_NULL_PATH;
+		XrResult xrResult = xrStringToPath( m_xrInstance, sInteractionProfilePath, &xrPath );
+
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_EXTVIVETRACKER, "Error converting interaction profile to an xrpath (%s): %s", XrEnumToString( xrResult ), sInteractionProfilePath );
+			return xrResult;
+		}
+
+		XrInteractionProfileSuggestedBinding xrInteractionProfileSuggestedBinding { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
+		xrInteractionProfileSuggestedBinding.next = nullptr;
+		xrInteractionProfileSuggestedBinding.interactionProfile = xrPath;
+		xrInteractionProfileSuggestedBinding.suggestedBindings = m_vecSuggestedBindings.data();
+		xrInteractionProfileSuggestedBinding.countSuggestedBindings = static_cast< uint32_t >( m_vecSuggestedBindings.size() );
+
+		xrResult = xrSuggestInteractionProfileBindings( m_xrInstance, &xrInteractionProfileSuggestedBinding );
+
+		if ( !XR_UNQUALIFIED_SUCCESS( xrResult ) )
+		{
+			LogError( LOG_CATEGORY_INPUT, "Error suggesting bindings (%s) for %s", XrEnumToString( xrResult ), sInteractionProfilePath );
+		}
+
+		LogInfo( LOG_CATEGORY_INPUT, "All action bindings sent to runtime for: (%s)", sInteractionProfilePath );
+		return xrResult;
 
 		return XR_SUCCESS;
 	}

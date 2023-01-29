@@ -1,7 +1,7 @@
-/* Copyright 2023 Charlotte Gore (GitHub: https://github.com/charlottegore)
- * and Rune Berg (GitHub: https://github.com/1runeberg, Twitter: https://twitter.com/1runeberg, YouTube: https://www.youtube.com/@1RuneBerg)
+/* Copyright 2023 Rune Berg (GitHub: https://github.com/1runeberg, Twitter: https://twitter.com/1runeberg, YouTube: https://www.youtube.com/@1RuneBerg)
  *
- *  SPDX-License-Identifier: MIT
+ * Based on Pull Request #2 by Charlotte Gore (GitHub: https://github.com/charlottegore)
+ * SPDX-License-Identifier: MIT
  *
  *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
  *
@@ -117,8 +117,14 @@ namespace oxr
 		/// Retrieves all connected trackers as reported by the currently active openxr runtime
 		/// </summary>
 		/// <param name="vecConnectedTrackers">Out vector of XrViveTrackerPathsHTCX that will hold the active trackers as reported by the runtime</param>
-		/// <returns></returns>
+		/// <returns>Result from the openxr runtime</returns>
 		XrResult GetAllConnectedTrackers( std::vector< XrViveTrackerPathsHTCX > &vecConnectedTrackers );
+
+		/// <summary>
+		/// Suggests all default action bindings to the grip pose for all possible tracker roles
+		/// </summary>
+		/// <returns>Result from the openxr runtime</returns>
+		XrResult SuggestDefaultBindings();
 
 		/// <summary>
 		/// Cleanup all internal objects
@@ -141,6 +147,9 @@ namespace oxr
 
 		// Placeholder for role generation
 		std::string m_sRole;
+
+		// Default suggested bindings (all tracker roles as grip/pose) to be sent to the openxr runtime
+		std::vector< XrActionSuggestedBinding > m_vecSuggestedBindings;
 
 		// Cached function pointer to the main EnumberViveTrackerPaths call from the active openxr runtime
 		PFN_xrEnumerateViveTrackerPathsHTCX xrEnumerateViveTrackerPathsHTCX = nullptr;
