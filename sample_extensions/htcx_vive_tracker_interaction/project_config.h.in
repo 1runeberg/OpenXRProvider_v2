@@ -1,0 +1,3 @@
+#define HTCX_TRACKER_VERSION_MAJOR @htcx_vive_tracker_interaction_VERSION_MAJOR@
+#define HTCX_TRACKER_VERSION_MINOR @htcx_vive_tracker_interaction_VERSION_MINOR@
+#define HTCX_TRACKER_VERSION_PATCH @htcx_vive_tracker_interaction_VERSION_PATCH@

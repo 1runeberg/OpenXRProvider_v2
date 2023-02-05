@@ -472,5 +472,4 @@ namespace oxr
 		LogInfo( LOG_CATEGORY_INPUT, "Added binding path: (%s) for: (%s)", sBinding.c_str(), Path() );
 		return XR_SUCCESS;
 	}
-
 } // namespace oxr
