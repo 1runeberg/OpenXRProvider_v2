@@ -35,12 +35,25 @@
 namespace Shapes
 {
 	// Color constants
+	constexpr XrVector3f OpenXRPurple { 0.25f, 0.f, 0.25f };
+	constexpr XrVector3f BeyondRealityYellow { 1.0f, 0.5f, 0.f };
+	constexpr XrVector3f HomageOrange { 1.f, 0.1f, 0.f };
+	constexpr XrVector3f CyberCyan { 0.f, 1.0f, 0.9608f };
+
 	constexpr XrVector3f Red { 1, 0, 0 };
 	constexpr XrVector3f DarkRed { 0.25f, 0, 0 };
 	constexpr XrVector3f Green { 0, 1, 0 };
 	constexpr XrVector3f DarkGreen { 0, 0.25f, 0 };
 	constexpr XrVector3f Blue { 0, 0, 1 };
 	constexpr XrVector3f DarkBlue { 0, 0, 0.25f };
+
+	// Vertices for a 1x1x1 meter pyramid
+	constexpr XrVector3f TIP { 0.f, 0.f, -0.5f };
+	constexpr XrVector3f TOP { 0.f, 0.5f, 0.5f };
+	constexpr XrVector3f BASE_L { -0.5f, -0.5f, 0.5f };
+	constexpr XrVector3f BASE_R { 0.5f, -0.5f, 0.5f };
+
+#define PYRAMID_SIDE( V1, V2, V3, COLOR ) { V1, COLOR }, { V2, COLOR }, { V3, COLOR },
 
 	// Vertices for a 1x1x1 meter cube. (Left/Right, Top/Bottom, Front/Back)
 	constexpr XrVector3f LBB { -0.5f, -0.5f, -0.5f };
@@ -60,30 +73,15 @@ namespace Shapes
 		XrVector3f Color;
 	};
 
-	// Cube indices
-	std::vector< unsigned short > vecCubeIndices = {
-		0,	1,	2,	3,	4,	5,	// -X
-		6,	7,	8,	9,	10, 11, // +X
-		12, 13, 14, 15, 16, 17, // -Y
-		18, 19, 20, 21, 22, 23, // +Y
-		24, 25, 26, 27, 28, 29, // -Z
-		30, 31, 32, 33, 34, 35, // +Z
-	};
-
-	// Cube vertices
-	std::vector< Shapes::Vertex > vecCubeVertices = {
-		CUBE_SIDE( LTB, LBF, LBB, LTB, LTF, LBF, DarkRed )	 // -X
-		CUBE_SIDE( RTB, RBB, RBF, RTB, RBF, RTF, Red )		 // +X
-		CUBE_SIDE( LBB, LBF, RBF, LBB, RBF, RBB, DarkGreen ) // -Y
-		CUBE_SIDE( LTB, RTB, RTF, LTB, RTF, LTF, Green )	 // +Y
-		CUBE_SIDE( LBB, RBB, RTB, LBB, RTB, LTB, DarkBlue )	 // -Z
-		CUBE_SIDE( LBF, LTF, RTF, LBF, RTF, RBF, Blue )		 // +Z
-	};
-
 	struct Shape
 	{
-		XrPosef pose;
+		bool bIsVisible = true;
+		bool bMovesWithPlayer = false;
+
+		XrPosef pose{};
 		XrVector3f scale { 1.0f, 1.0f, 1.0f };
+		XrSpace space = XR_NULL_HANDLE;
+		XrSpaceLocationFlags spaceFlags = 0;
 
 		xrvk::Buffer indexBuffer {};
 		xrvk::Buffer vertexBuffer {};
@@ -96,8 +94,11 @@ namespace Shapes
 		Shape *Duplicate()
 		{
 			Shape *shape = new Shape;
+			shape->bIsVisible = bIsVisible;
+			shape->bMovesWithPlayer = bMovesWithPlayer;
 			shape->pose = pose;
 			shape->scale = scale;
+			shape->space = space;
 			shape->indexBuffer = indexBuffer;
 			shape->vertexBuffer = vertexBuffer;
 			shape->pipeline = pipeline;
@@ -107,17 +108,6 @@ namespace Shapes
 			return shape;
 		}
 	};
-
-	struct Shape_Cube : Shape
-	{
-		Shape_Cube()
-		{
-			XrPosef_Identity( &pose );
-			this->vecIndices = &vecCubeIndices;
-			this->vecVertices = &vecCubeVertices;
-		}
-	};
-
 } // namespace Shapes
 
 namespace xrvk
@@ -191,9 +181,9 @@ namespace xrvk
 
 		struct DescriptorSetLayouts
 		{
-			VkDescriptorSetLayout scene;
-			VkDescriptorSetLayout material;
-			VkDescriptorSetLayout node;
+			VkDescriptorSetLayout scene = VK_NULL_HANDLE;
+			VkDescriptorSetLayout material = VK_NULL_HANDLE;
+			VkDescriptorSetLayout node = VK_NULL_HANDLE;
 		} descriptorSetLayouts;
 
 		struct DescriptorSets
@@ -223,11 +213,11 @@ namespace xrvk
 
 		struct Pipelines
 		{
-			VkPipeline vismask;
-			VkPipeline skybox;
-			VkPipeline pbr;
-			VkPipeline pbrDoubleSided;
-			VkPipeline pbrAlphaBlend;
+			VkPipeline vismask = VK_NULL_HANDLE;
+			VkPipeline skybox = VK_NULL_HANDLE;
+			VkPipeline pbr = VK_NULL_HANDLE;
+			VkPipeline pbrDoubleSided = VK_NULL_HANDLE;
+			VkPipeline pbrAlphaBlend = VK_NULL_HANDLE;
 		} pipelines;
 
 		struct VisMask
@@ -235,6 +225,19 @@ namespace xrvk
 			std::vector< XrVector2f > vertices;
 			std::vector< uint32_t > indices;
 		};
+
+		struct HmdState
+		{
+			XrSpace			space = XR_NULL_HANDLE;
+			XrVector3f		position { 0.f, 0.f, 0.f };
+			XrQuaternionf	orientation { 0.f, 0.f, 0.f, 1.f };
+		} currentHmdState;
+
+		struct WorldState
+		{
+			XrVector3f		position { 0.f, 0.f, 0.f };
+			XrQuaternionf	orientation { 0.f, 0.f, 0.f, 1.f };
+		} playerWorldState;
 
 		// data
 		int32_t nAnimationIndex = 0;
@@ -286,6 +289,12 @@ namespace xrvk
 		// Initialize vulkan resources
 		void CreateRenderResources( oxr::Session *pSession, int64_t nColorFormat, int64_t nDepthFormat, VkExtent2D vkExtent );
 
+		// Initialize hmd tracking
+		void StartHmdTracking(oxr::Session *pSession);
+
+		// Apply player world state
+		void ApplyPlayerWorldStateToPose(XrPosef* pose);
+
 		// Rendering
 		void BeginRender(
 			oxr::Session *pSession,
@@ -324,6 +333,7 @@ namespace xrvk
 		VkPipelineShaderStageCreateInfo CreateShaderStage( VkShaderStageFlagBits flagShaderStage, VkShaderModule *pShaderModule, const std::string &sEntrypoint );
 
 		// Renderables handling
+		uint32_t AddShape( Shapes::Shape *shape, XrVector3f scale = { 1.0f, 1.0f, 1.0f } );
 		uint32_t AddRenderScene( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f } );
 		uint32_t AddRenderSector( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f }, XrSpace xrSpace = XR_NULL_HANDLE );
 		uint32_t AddRenderModel( std::string sFilename, XrVector3f scale = { 1.0f, 1.0f, 1.0f }, XrSpace xrSpace = XR_NULL_HANDLE );
@@ -444,8 +454,8 @@ namespace xrvk
 		std::vector< VertexBufferSet > m_vecVisMaskBuffers;
 
 		// vulkan
-		const std::vector< const char* > m_vecValidationLayers; // = { "VK_LAYER_KHRONOS_validation" };
-		const std::vector< const char* > m_vecValidationExtensions; // = { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
+		const std::vector< const char * > m_vecValidationLayers;	 // = { "VK_LAYER_KHRONOS_validation" };
+		const std::vector< const char * > m_vecValidationExtensions; // = { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
 
 		// custom graphics pipelines
 		std::vector< CustomLayout > m_vecCustomLayouts;

@@ -1,0 +1,3 @@
+#define APP_openxr_workshop_VERSION_MAJOR @sample_10_openxr_workshop_VERSION_MAJOR@
+#define APP_openxr_workshop_VERSION_MINOR @sample_10_openxr_workshop_VERSION_MINOR@
+#define APP_openxr_workshop_VERSION_PATCH @sample_10_openxr_workshop_VERSION_PATCH@

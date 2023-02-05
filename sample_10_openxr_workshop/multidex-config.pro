@@ -1,0 +1,1 @@
+-keep class net.beyondreality.YOUR_APP_NAME_HERE.** { *; } // All classes

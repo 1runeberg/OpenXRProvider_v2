@@ -57,9 +57,12 @@ add_subdirectory("sample_08_finger_painting3")
 # Sample 09 - Hidden Worlds
 add_subdirectory("sample_09_hidden_worlds")
 
+# Sample 10 - OpenXR Workshop
+add_subdirectory("sample_10_openxr_workshop")
+
 # Sample Extensions (mini demos for extensions)
 add_subdirectory("sample_extensions/htcx_vive_tracker_interaction")
 
 # Set a sample app as the startup project in VS
-set_property (DIRECTORY PROPERTY VS_STARTUP_PROJECT "sample_09_hidden_worlds")
-message("[${MAIN_PROJECT}] Startup project for VS set to: sample_09_hidden_worlds")
+set_property (DIRECTORY PROPERTY VS_STARTUP_PROJECT "sample_10_openxr_workshop")
+message("[${MAIN_PROJECT}] Startup project for VS set to: sample_10_openxr_workshop")

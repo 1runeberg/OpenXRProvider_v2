@@ -1,0 +1,1 @@
+-keep class YOUR_TLD_HERE.YOUR_DOMAIN_HERE.YOUR_APP_NAME_HERE.** { *; } // All classes

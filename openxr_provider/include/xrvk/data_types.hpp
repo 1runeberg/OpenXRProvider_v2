@@ -109,7 +109,7 @@ namespace xrvk
 		VkDevice device = VK_NULL_HANDLE;
 		VkBuffer buffer = VK_NULL_HANDLE;
 		VkDeviceMemory memory = VK_NULL_HANDLE;
-		VkDescriptorBufferInfo descriptor{};
+		VkDescriptorBufferInfo descriptor {};
 		int32_t count = 0;
 		void *mapped = nullptr;
 		void create( vks::VulkanDevice *device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, bool map = true )
@@ -138,8 +138,16 @@ namespace xrvk
 			{
 				unmap();
 			}
-			vkDestroyBuffer( device, buffer, nullptr );
-			vkFreeMemory( device, memory, nullptr );
+
+			if ( device != VK_NULL_HANDLE )
+			{
+				if ( buffer != VK_NULL_HANDLE )
+					vkDestroyBuffer( device, buffer, nullptr );
+
+				if ( memory != VK_NULL_HANDLE )
+					vkFreeMemory( device, memory, nullptr );
+			}
+
 			buffer = VK_NULL_HANDLE;
 			memory = VK_NULL_HANDLE;
 		}
@@ -166,6 +174,7 @@ namespace xrvk
 	{
 		// data payload
 		bool bIsVisible = true;
+		bool bMovesWithPlayer = false;
 		std::string sFilename;
 		vkglTF::Model gltfModel;
 		VkPipeline vkPipeline = VK_NULL_HANDLE;
@@ -251,6 +260,7 @@ namespace xrvk
 	struct RenderSector : RenderScene
 	{
 		XrSpace xrSpace = XR_NULL_HANDLE;
+		XrSpaceLocationFlags xrSpaceFlags = 0;
 
 		RenderSector( std::string filename )
 			: RenderScene( filename )

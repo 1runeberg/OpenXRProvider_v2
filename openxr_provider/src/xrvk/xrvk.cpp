@@ -347,6 +347,27 @@ namespace xrvk
 		VK_CHECK_RESULT( vkCreatePipelineCache( m_SharedState.vkDevice, &pipelineCacheCreateInfo, nullptr, &m_SharedState.vkPipelineCache ) );
 	}
 
+	void Render::StartHmdTracking( oxr::Session *pSession )
+	{
+		assert( pSession );
+
+		// Create reference space of type view to keep track of the hmd's pose
+		XrPosef identityPose {};
+		XrPosef_Identity( &identityPose );
+
+		pSession->CreateReferenceSpace( &currentHmdState.space, XR_REFERENCE_SPACE_TYPE_VIEW, identityPose );
+	}
+
+	void Render::ApplyPlayerWorldStateToPose( XrPosef *pose )
+	{
+		pose->position.x += playerWorldState.position.x;
+		pose->position.y += playerWorldState.position.y;
+		pose->position.z += playerWorldState.position.z;
+
+		// XrQuaternionf poseOrientation = pose->orientation;
+		// XrQuaternionf_Multiply( &pose->orientation, &playerWorldState.orientation, &poseOrientation );
+	}
+
 	void Render::BeginRender(
 		oxr::Session *pSession,
 		std::vector< XrCompositionLayerProjectionView > &vecFrameLayerProjectionViews,
@@ -387,12 +408,39 @@ namespace xrvk
 		XrMatrix4x4f matProjection;
 		XrMatrix4x4f_CreateProjectionFov( &matProjection, GRAPHICS_VULKAN, vecFrameLayerProjectionViews[ unSwapchainIndex ].fov, fNearZ, fFarZ );
 
-		// (8) Get eye pose
+		// (8) Update eye and head poses
+
+		// (8.1) Update current eye pose
 		XrPosef *eyePose = &vecFrameLayerProjectionViews[ unSwapchainIndex ].pose;
 
+		// (8.2) Update current hmd pose
+		if ( currentHmdState.space != XR_NULL_HANDLE )
+		{
+			XrSpaceLocation xrSpaceLocation { XR_TYPE_SPACE_LOCATION };
+			pSession->LocateSpace( pSession->GetAppSpace(), currentHmdState.space, pFrameState->predictedDisplayTime, &xrSpaceLocation );
+
+			if ( xrSpaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT )
+				currentHmdState.position = xrSpaceLocation.pose.position;
+
+			if ( xrSpaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT )
+				currentHmdState.orientation = xrSpaceLocation.pose.orientation;
+		}
+
 		// (9) Create the view matrix (eye transform)
+
+		// (9.1) Update player position in world
+		WorldState newPlayerWorldState {};
+
+		newPlayerWorldState.position.x = playerWorldState.position.x + eyePose->position.x;
+		newPlayerWorldState.position.y = playerWorldState.position.y + eyePose->position.y;
+		newPlayerWorldState.position.z = playerWorldState.position.z + eyePose->position.z;
+
+		// (9.2) Update player orientation in world
+		XrQuaternionf_Multiply( &newPlayerWorldState.orientation, &playerWorldState.orientation, &eyePose->orientation );
+
+		// (9.3) Create TRS matrix
 		XrMatrix4x4f matView;
-		XrMatrix4x4f_CreateTranslationRotationScale( &matView, &eyePose->position, &eyePose->orientation, &v3fScaleEyeView );
+		XrMatrix4x4f_CreateTranslationRotationScale( &matView, &newPlayerWorldState.position, &newPlayerWorldState.orientation, &v3fScaleEyeView );
 
 		// (10) Invert
 		XrMatrix4x4f matInvertedRigidBodyView;
@@ -424,9 +472,18 @@ namespace xrvk
 			XrMatrix4x4f_CreateTranslationRotationScale( &matVisMask, &eyePose->position, &eyePose->orientation, &scaleVisMask );
 
 			// calculate mvp
+			XrMatrix4x4f vismaskMatView;
+			XrMatrix4x4f_CreateTranslationRotationScale( &vismaskMatView, &eyePose->position, &eyePose->orientation, &v3fScaleEyeView );
+
+			XrMatrix4x4f vismaskMatInvertedRigidBodyView;
+			XrMatrix4x4f_InvertRigidBody( &vismaskMatInvertedRigidBodyView, &vismaskMatView );
+
+			XrMatrix4x4f vismaskViewProjection;
+			XrMatrix4x4f_Multiply( &vismaskViewProjection, &matProjection, &vismaskMatInvertedRigidBodyView );
+
 			XrMatrix4x4f mvp;
 			XrMatrix4x4f_CreateIdentity( &mvp );
-			XrMatrix4x4f_Multiply( &mvp, &matViewProjection, &matVisMask );
+			XrMatrix4x4f_Multiply( &mvp, &vismaskViewProjection, &matVisMask );
 
 			// bind graphics pipeline
 			vkCmdBindPipeline( m_vecFrameData[ 0 ].vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.vismask );
@@ -471,6 +528,9 @@ namespace xrvk
 		// (15) Draw basic geometry if present
 		for ( auto &shape : vecShapes )
 		{
+			if ( !shape->bIsVisible )
+				continue;
+
 			// Bind the graphics pipeline for this shape
 			vkCmdBindPipeline( m_vecFrameData[ 0 ].vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shape->pipeline );
 
@@ -1635,6 +1695,16 @@ namespace xrvk
 		return shaderStageInfo;
 	}
 
+	uint32_t Render::AddShape( Shapes::Shape *shape, XrVector3f scale /*= { 1.0f, 1.0f, 1.0f } */ )
+	{
+		uint32_t unSize = static_cast< uint32_t >( vecShapes.size() );
+
+		shape->scale = scale;
+		vecShapes.push_back( shape );
+
+		return unSize;
+	}
+
 	void Render::UpdateUniformBuffers( UBOMatrices *uboMatrices, Buffer *buffer, RenderSceneBase *renderable, XrMatrix4x4f *matViewProjection, XrPosef *eyePose )
 	{
 		if ( !renderable->bIsVisible )
@@ -1681,13 +1751,47 @@ namespace xrvk
 		XrSpaceLocation xrSpaceLocation { XR_TYPE_SPACE_LOCATION };
 		pSession->LocateAppSpace( pFrameState->predictedDisplayTime, &xrSpaceLocation );
 
+		// Shapes
+		for ( auto &renderable : vecShapes )
+		{
+			if ( !renderable->bIsVisible )
+				continue;
+
+			// If this shape has an XrSpace defined, locate it and update the pose
+			if ( renderable->space != XR_NULL_HANDLE )
+			{
+				XrSpaceLocation renderableSpaceLocation { XR_TYPE_SPACE_LOCATION };
+
+				pSession->LocateSpace( pSession->GetReferenceSpace(), renderable->space, pFrameState->predictedDisplayTime, &renderableSpaceLocation );
+
+				renderable->spaceFlags = renderableSpaceLocation.locationFlags;
+
+				if ( renderableSpaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT )
+					renderable->pose.position = renderableSpaceLocation.pose.position;
+
+				if ( renderableSpaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT )
+					renderable->pose.orientation = renderableSpaceLocation.pose.orientation;
+			}
+
+			// Apply player world state
+			if ( renderable->bMovesWithPlayer )
+				ApplyPlayerWorldStateToPose( &renderable->pose );
+		}
+
 		// Scenes
 		for ( auto &renderable : vecRenderScenes )
 		{
 			if ( !renderable->bIsVisible )
 				continue;
 
+			// Update pose
 			renderable->currentPose = xrSpaceLocation.pose;
+
+			// Apply player world state
+			if ( renderable->bMovesWithPlayer )
+				ApplyPlayerWorldStateToPose( &renderable->currentPose );
+
+			// Play anims (if any)
 			renderable->PlayAnimations();
 		}
 
@@ -1704,9 +1808,21 @@ namespace xrvk
 
 				pSession->LocateSpace(
 					pSession->GetReferenceSpace(), renderable->xrSpace, renderable->xrTimeOverride == 0 ? pFrameState->predictedDisplayTime : renderable->xrTimeOverride, &renderableSpaceLocation );
-				renderable->currentPose = renderableSpaceLocation.pose;
+
+				renderable->xrSpaceFlags = renderableSpaceLocation.locationFlags;
+
+				if ( renderableSpaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT )
+					renderable->currentPose.position = renderableSpaceLocation.pose.position;
+
+				if ( renderableSpaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT )
+					renderable->currentPose.orientation = renderableSpaceLocation.pose.orientation;
 			}
 
+			// Apply player world state
+			if ( renderable->bMovesWithPlayer )
+				ApplyPlayerWorldStateToPose( &renderable->currentPose );
+
+			// Play anims (if any)
 			renderable->PlayAnimations();
 		}
 
@@ -1724,7 +1840,13 @@ namespace xrvk
 				pSession->LocateSpace(
 					pSession->GetReferenceSpace(), renderable->xrSpace, renderable->xrTimeOverride == 0 ? pFrameState->predictedDisplayTime : renderable->xrTimeOverride, &renderableSpaceLocation );
 
-				renderable->currentPose = renderableSpaceLocation.pose;
+				renderable->xrSpaceFlags = renderableSpaceLocation.locationFlags;
+
+				if ( renderableSpaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT )
+					renderable->currentPose.position = renderableSpaceLocation.pose.position;
+
+				if ( renderableSpaceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT )
+					renderable->currentPose.orientation = renderableSpaceLocation.pose.orientation;
 
 				if ( renderable->bApplyOffset )
 				{
@@ -1739,19 +1861,24 @@ namespace xrvk
 			}
 			else if ( renderable->xrSpace == XR_NULL_HANDLE && renderable->bApplyOffset )
 			{
-					XrVector3f newPos {};
-					XrQuaternionf newRot {};
+				XrVector3f newPos {};
+				XrQuaternionf newRot {};
 
-					XrVector3f_Add( &newPos, &renderable->offsetPosition, &xrSpaceLocation.pose.position );
-					XrQuaternionf_Multiply( &newRot, &renderable->offsetRotation, &xrSpaceLocation.pose.orientation );
+				XrVector3f_Add( &newPos, &renderable->offsetPosition, &xrSpaceLocation.pose.position );
+				XrQuaternionf_Multiply( &newRot, &renderable->offsetRotation, &xrSpaceLocation.pose.orientation );
 
-					renderable->currentPose = { newRot, newPos };
+				renderable->currentPose = { newRot, newPos };
 			}
 			else
 			{
 				renderable->currentPose = xrSpaceLocation.pose;
 			}
 
+			// Apply player world state
+			if ( renderable->bMovesWithPlayer )
+				ApplyPlayerWorldStateToPose( &renderable->currentPose );
+
+			// Play anims (if any)
 			renderable->PlayAnimations();
 		}
 	}
@@ -2193,6 +2320,13 @@ namespace xrvk
 		VkPipelineMultisampleStateCreateInfo multisampling { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 		multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
+		VkPipelineDepthStencilStateCreateInfo depthStencilState { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+		rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+		depthStencilState.depthWriteEnable = VK_TRUE;
+		depthStencilState.depthTestEnable = VK_TRUE;
+		depthStencilState.stencilTestEnable = VK_FALSE;
+		depthStencilState.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+		
 		VkGraphicsPipelineCreateInfo pipeInfo { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 		pipeInfo.stageCount = ( uint32_t )shaderStages.size();
 		pipeInfo.pStages = shaderStages.data();
@@ -2202,7 +2336,7 @@ namespace xrvk
 		pipeInfo.pViewportState = &viewportState;
 		pipeInfo.pRasterizationState = &rasterizer;
 		pipeInfo.pMultisampleState = &multisampling;
-		pipeInfo.pDepthStencilState = nullptr;
+		pipeInfo.pDepthStencilState = &depthStencilState;
 		pipeInfo.pColorBlendState = &colorBlending;
 
 		if ( dynamicState.dynamicStateCount > 0 )
@@ -2636,7 +2770,7 @@ namespace xrvk
 		at[ colorRef.attachment ].samples = VK_SAMPLE_COUNT_1_BIT;
 		at[ colorRef.attachment ].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		at[ colorRef.attachment ].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		at[colorRef.attachment].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		at[ colorRef.attachment ].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		at[ colorRef.attachment ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		at[ colorRef.attachment ].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		at[ colorRef.attachment ].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;

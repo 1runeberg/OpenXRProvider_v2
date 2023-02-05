@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
+  package="net.beyondreality.openxr_workshop"
+  android:installLocation="auto"
+  android:versionCode="1"
+  android:versionName="1.0">
+  <!--
+  Copyright (c) 2017-2022, The Khronos Group Inc.
+
+  SPDX-License-Identifier: Apache-2.0
+  -->
+  <!-- Tell the system this app works in either 3dof or 6dof mode -->
+  <uses-feature
+    android:name="android.hardware.vr.headtracking"
+    android:testOnly="false"
+    android:required="false"
+    android:version="1" />
+
+  <!-- Pass through -->
+  <uses-feature android:name="com.oculus.experimental.enabled" android:required="false" />
+  <uses-feature android:name="com.oculus.feature.PASSTHROUGH" android:required="false" />
+
+  <!-- Hand tracking -->
+  <uses-feature android:name="oculus.software.handtracking" android:required="false" />
+  <uses-permission android:name="com.oculus.permission.HAND_TRACKING" />
+
+  <!-- Eye tracking -->
+  <uses-feature android:name="oculus.software.eye_tracking" android:required="false" />
+  <uses-permission android:name="com.oculus.permission.EYE_TRACKING" />
+
+  <!-- If building externally with the OpenXR AAR, this would be merged in automatically. -->
+  <uses-permission android:name="org.khronos.openxr.permission.OPENXR" />
+  <uses-permission android:name="org.khronos.openxr.permission.OPENXR_SYSTEM" />
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  
+  <queries>
+    <provider android:authorities="org.khronos.openxr.runtime_broker;org.khronos.openxr.system_runtime_broker" />
+  </queries>
+
+  <application android:name="androidx.multidex.MultiDexApplication"
+    android:allowBackup="true"
+    android:hasCode="true"
+    android:icon="@mipmap/ic_openxr_app"
+    android:label="@string/app_name"
+    android:roundIcon="@mipmap/ic_openxr_app">
+
+    <!-- The activity is the built-in NativeActivity framework class. -->
+    <!-- launchMode is set to singleTask because there should never be multiple copies of the app running. -->
+    <!-- Theme.Black.NoTitleBar.Fullscreen gives solid black instead of a (bad stereoscopic) gradient on app transition. -->
+    <activity
+      android:name=".MainActivity"
+      android:configChanges="screenSize|screenLayout|orientation|keyboardHidden|keyboard|navigation|uiMode|density"
+      android:excludeFromRecents="false"
+      android:launchMode="singleTask"
+      android:resizeableActivity="false"
+      android:screenOrientation="landscape"
+      android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+      tools:ignore="NonResizeableActivity">
+
+      <!-- Tell NativeActivity the name of the .so -->
+      <meta-data
+        android:name="android.app.lib_name"
+        android:value="sample_10_openxr_workshop" />
+
+      <!-- Specify hardware (s) supported -->
+      <meta-data android:name="com.oculus.supportedDevices" android:value="all" />
+
+      <!-- This filter lets the apk show up as a launchable icon. -->
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+            <category android:name="com.oculus.intent.category.VR" />
+            <category android:name="org.khronos.openxr.intent.category.IMMERSIVE_HMD" />
+        </intent-filter>
+    </activity>
+  </application>
+</manifest>
