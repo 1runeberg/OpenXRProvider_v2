@@ -4,7 +4,7 @@ Provides a simpler C++ interface to the OpenXR api. Also includes an optional re
 
 OpenXR Provider Library is now feature complete - demo tutorial vids soon. 
 
-The optional render module is currently an active work in progress with testing done in both **Android (Meta Quest)** and **Win64**, although I expect the code to work in Linux and Linux ARM as well but haven't had the chance to test yet.
+The optional render module is currently an active work in progress with testing done in **Android (Meta Quest)**, **Win64** and ""Linux64**
 
 ### Current backlog prior to full release:
 
