@@ -72,3 +72,40 @@ From demo 4 onwards - PC VR users note that the renderer doesn't render/blit to 
  3. Click File > Open File or Project
  4. Select the root folder of the project you want to build (e.g. sample_05_hello_pbr)
  5. Once the project loads, select your connected Quest Device in the top toolbar and hit the Play button
+ 
+ ## For Linux:
+
+1. All pre-requisite install instructions:
+- Get Vulkan SDK pacakge from https://vulkan.lunarg.com/sdk/home#linux
+
+    - e.g for Ubuntu Focal Fossa (20.04): 
+    - `wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-focal.list https://packages.lunarg.com/vulkan/lunarg-vulkan-focal.list`
+
+- run `sudo apt-get update`
+
+- run `sudo apt-get install vulkan-sdk`
+
+- run `sudo apt-get install git-all curl libxcb-glx0-dev libsdl2-dev`
+
+- Get git-lfs package from https://packagecloud.io/github/git-lfs/install
+
+    - e.g for Ubuntu Focal Fossa (20.04): 
+    - `curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash`
+    - `sudo apt-get install git-lfs`
+
+2. Fork repository `git fork https://github.com/1runeberg/OpenXRProvider_v2.git`
+
+3. `cd OpenXRProvider_v2`
+
+4. Initialize submodules `git submodule update --init --recursive`
+
+5. Initialize git lfs `git lfs install`
+
+6. `mkdir build`
+
+7. `cd build`
+
+8. `cmake ..`
+
+9. `cmake --build .`
