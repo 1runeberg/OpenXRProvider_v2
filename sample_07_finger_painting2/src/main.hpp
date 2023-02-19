@@ -124,7 +124,13 @@ uint32_t g_unRightHandIndex = 0;
 // State for extra cubemaps - 360 panorama photos (for passthrough backup)
 bool g_bCyclingPanoramas = false;
 uint32_t g_unCurrentPanoramaIndex = 0;
-std::chrono::steady_clock::time_point g_xrLastPanoramaScaleTime;
+
+#ifdef _WIN32 
+	std::chrono::steady_clock::time_point g_xrLastPanoramaScaleTime;
+#elif __linux__
+    std::chrono::_V2::system_clock::time_point g_xrLastPanoramaScaleTime;
+#endif
+
 std::vector< uint32_t > g_vecPanoramaIndices;
 
 // Passthrough styles
@@ -147,7 +153,13 @@ static const float k_fSaturationAdjustmentStride = 0.1f;
 // Pressie
 bool g_bShowPressie = false;
 uint32_t g_unPressieIndex = 0;
-std::chrono::steady_clock::time_point g_xrLastPressieTime;
+
+#ifdef _WIN32 
+	std::chrono::steady_clock::time_point g_xrLastPressieTime;
+#elif __linux__
+    std::chrono::_V2::system_clock::time_point g_xrLastPressieTime;
+#endif
+
 XrQuaternionf g_quatRotation = { 0.0f, 0.0087265f, 0.0f, 1.0f }; // 1 degree in the y-axis
 
 // Painting constants

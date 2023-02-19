@@ -63,8 +63,6 @@ XrResult demo_openxr_init()
 	//     We will use this later when initializing an openxr instance
 	//     In this sample, we'll try to check for and enable some useful extensions if available:
 	//     https://registry.khronos.org/OpenXR/specs/1.0/html/xrspec.html#XR_KHR_visibility_mask
-	//	   https://registry.khronos.org/OpenXR/specs/1.0/html/xrspec.html#XR_KHR_composition_layer_depth
-	//     https://registry.khronos.org/OpenXR/specs/1.0/html/xrspec.html#XR_EXT_dpad_binding
 	//
 	// 	   If you do not specify a vulkan graphics api extension, then the provider will choose the best one
 	//     from what's available from the runtime. In this case, you can use GetCurrentVulkanExt() check which
@@ -73,7 +71,7 @@ XrResult demo_openxr_init()
 	//     Similar functions are available for api layers
 
 	std::vector< const char * > vecRequestedExtensions {
-		XR_KHR_VULKAN_ENABLE_EXTENSION_NAME, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME, XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME, XR_EXT_DPAD_BINDING_EXTENSION_NAME };
+		XR_KHR_VULKAN_ENABLE_EXTENSION_NAME, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME };
 
 	oxrProvider->FilterOutUnsupportedExtensions( vecRequestedExtensions );
 

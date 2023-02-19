@@ -150,6 +150,8 @@ add_custom_command(TARGET ${OPENXR_PROVIDER} POST_BUILD
 
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${PROVIDER_INCLUDE_DIRECTORY}/openxr"
 
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${PROVIDER_BINARY_DIRECTORY}"
+
         #COMMAND ${CMAKE_COMMAND} -E copy_directory
         #"${OPENXR_INCLUDE_DIRECTORY}/openxr"
         #"${PROVIDER_INCLUDE_DIRECTORY}/openxr"

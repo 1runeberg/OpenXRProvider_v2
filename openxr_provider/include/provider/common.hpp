@@ -23,6 +23,13 @@
 
 #pragma once
 
+#ifdef __linux__
+	#include <float.h>
+	#include <string.h>
+	#include <cstring>
+#endif
+
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
