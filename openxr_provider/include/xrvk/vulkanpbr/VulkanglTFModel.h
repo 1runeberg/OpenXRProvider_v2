@@ -13,6 +13,7 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <mutex>
 
 #include "vulkan/vulkan.h"
 #include "VulkanDevice.hpp"
@@ -77,9 +78,10 @@ namespace vkglTF
 		uint32_t layerCount;
 		VkDescriptorImageInfo descriptor;
 		VkSampler sampler;
+
 		void updateDescriptor();
 		void destroy();
-		// Load a texture from a glTF image (stored as vector of chars loaded via stb_image) and generate a full mip chaing for it
+		// Load a texture from a glTF image (stored as vector of chars loaded via stb_image) and generate a full mip chain for it
 		void fromglTfImage(tinygltf::Image& gltfimage, TextureSampler textureSampler, vks::VulkanDevice* device, VkQueue copyQueue);
 	};
 
@@ -202,7 +204,11 @@ namespace vkglTF
 
 	struct Model {
 
+		// Reference to vulkan logical device
 		vks::VulkanDevice *device;
+
+		// mutex for vulkan queue operations
+		std::mutex mutexVulkanQueue;
 
 		struct Vertex {
 			glm::vec3 pos;
