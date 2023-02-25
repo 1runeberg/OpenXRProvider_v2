@@ -407,7 +407,7 @@ namespace vkglTF
 			vkFreeMemory(device, indices.memory, nullptr);
 			indices.buffer = VK_NULL_HANDLE;
 		}
-		for (auto texture : textures) {
+		for (auto &texture : textures) {
 			texture.destroy();
 		}
 		textures.resize(0);
@@ -724,6 +724,7 @@ namespace vkglTF
 				textureSampler = textureSamplers[tex.sampler];
 			}
 			vkglTF::Texture texture;
+			const std::lock_guard< std::mutex > lock( mutexVulkanQueue );
 			texture.fromglTfImage(image, textureSampler, device, transferQueue);
 			textures.push_back(texture);
 		}
@@ -1104,6 +1105,8 @@ namespace vkglTF
 			vkCmdCopyBuffer(copyCmd, indexStaging.buffer, indices.buffer, 1, &copyRegion);
 		}
 
+		// run vulkan commands, lock vulkan queue as it's not thread safe
+		const std::lock_guard< std::mutex > lock( mutexVulkanQueue );
 		device->flushCommandBuffer(copyCmd, transferQueue, true);
 
 		vkDestroyBuffer(device->logicalDevice, vertexStaging.buffer, nullptr);

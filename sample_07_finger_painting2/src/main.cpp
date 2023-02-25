@@ -174,6 +174,7 @@ XrResult demo_openxr_start()
 
 		// For painting cubes
 		g_pReferencePaint = new Shapes::Shape;
+		g_pReferencePaint->vecIndices = &g_vecCubeIndices;
 		g_pReferencePaint->vecVertices = &g_vecPaintCubeVertices;
 		g_pReferencePaint->scale = { 0.01f, 0.01f, 0.01f };
 
