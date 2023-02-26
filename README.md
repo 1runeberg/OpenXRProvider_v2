@@ -57,6 +57,8 @@ From demo 4 onwards - PC VR users note that the renderer doesn't render/blit to 
 - CMake 3.14.4 and above (https://cmake.org/download/) - Install with include in system path option
 - Python 3 (required by the OpenXR SDK submodule build. In Windows, I found it easier to disable Python in "Manage App Execution Aliases" and install it manually from here: https://www.python.org/downloads/)
 - Vulkan SDK (https://vulkan.lunarg.com/)
+- Git/Git toolset (I use GitKraken in the tutorials: https://www.gitkraken.com/ but feel free to use your preferred git tooling of choice)
+- Git LFS (https://git-lfs.com/)
 
 ### For Android (Meta Quest) builds:
 
@@ -69,9 +71,10 @@ From demo 4 onwards - PC VR users note that the renderer doesn't render/blit to 
 
 ## For PC (Win64):
  1. Clone the repository and initialize submodules: `git clone --recurse-submodules https://github.com/1runeberg/OpenXRProvider_v2.git`
- 2. From the root directory of the repository, create a build directory (mkdir build)
- 3. Go to the build directory (`cd build`). Create one if it's not present, this is where all the cmake files will be generated.
- 4. Run CMake (`cmake ..` or for VS 2017 `cmake -G "Visual Studio 15 2017 Win64" ..`) A *OPENXR_PROVIDER.sln* file is generated in the build directory which you can then open and use in Visual Studio 2019
+ 2. Initialize git lfs `git lfs install`
+ 3. From the root directory of the repository, create a build directory (mkdir build)
+ 4. Go to the build directory (`cd build`). Create one if it's not present, this is where all the cmake files will be generated.
+ 5. Run CMake (`cmake ..` or for VS 2017 `cmake -G "Visual Studio 15 2017 Win64" ..`) A *OPENXR_PROVIDER.sln* file is generated in the build directory which you can then open and use in Visual Studio 2019
 
 ## For Android (Meta Quest):
  1. Clone the repository and initialize submodules: `git clone --recurse-submodules https://github.com/1runeberg/OpenXRProvider_v2.git`
