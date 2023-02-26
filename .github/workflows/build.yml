@@ -19,31 +19,18 @@ jobs:
     strategy:
         fail-fast: false
         matrix:
-            build_type: [Debug, Release]
-            clang_version: [clang++-12, clang++-14]
-            double_precision: [No, Yes]
+            build_type: [Debug]
+            clang_version: [clang++-14]
 
     steps:
-    - name: Build Vulkan SDK
-      uses: humbletim/setup-vulkan-sdk@v1.2.0
+    - name: Install Vulkan SDK
+      uses: humbletim/install-vulkan-sdk@v1.1.1
       with:
-        vulkan-query-version: latest
-        vulkan-components: Vulkan-Headers, Vulkan-Loader
-        vulkan-use-cache: true
-    - name: Add vulkan paths
-      run: |
-            echo "Vulkan_LIBRARY=${{github.workspace}}/VULKAN_SDK" >> $GITHUB_ENV
-            echo "Vulkan_INCLUDE_DIR=${{github.workspace}}/VULKAN_SDK/include" >> $GITHUB_ENV
-            echo "Vulkan_FOUND=true" >> $GITHUB_ENV
-    - name: Check vulkan paths
-      run: |
-            echo "Vulkan SDK Version=='$VULKAN_SDK_VERSION'"
-            echo "VULKAN_SDK=='$VULKAN_SDK'"
-            echo "Path Vulkan_LIBRARY='$Vulkan_LIBRARY'"
-            echo "Path Vulkan_INCLUDE_DIR='$Vulkan_INCLUDE_DIR'"
+        version: latest
+        cache: true
     - name: Checkout Code
       uses: actions/checkout@v3
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/Build/Linux_${{matrix.build_type}}_${{matrix.clang_version}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.clang_version}} -DDOUBLE_PRECISION=${{matrix.double_precision}} Build
+      run: cmake -B ${{github.workspace}}/Build/Linux_${{matrix.build_type}}_${{matrix.clang_version}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.clang_version}} Build
     - name: Build
       run: cmake --build ${{github.workspace}}/Build/Linux_${{matrix.build_type}}_${{matrix.clang_version}} -j 2
