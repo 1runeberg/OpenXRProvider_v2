@@ -75,6 +75,7 @@ From demo 4 onwards - PC VR users note that the renderer doesn't render/blit to 
  3. From the root directory of the repository, create a build directory (mkdir build)
  4. Go to the build directory (`cd build`). Create one if it's not present, this is where all the cmake files will be generated.
  5. Run CMake (`cmake ..` or for VS 2017 `cmake -G "Visual Studio 15 2017 Win64" ..`) A *OPENXR_PROVIDER.sln* file is generated in the build directory which you can then open and use in Visual Studio 2019
+ 6. To build the library and all samples from the commandline: `cmake --build .` or open OPENXR_PROVIDER.sln file in Visual Studio and build from VS
 
 ## For Android (Meta Quest):
  1. Clone the repository and initialize submodules: `git clone --recurse-submodules https://github.com/1runeberg/OpenXRProvider_v2.git`
@@ -118,4 +119,4 @@ sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-focal.list https://packages.
 
 8. `cmake ..`
 
-9. `cmake --build .`
+9. `cmake --build .` or open root folder of git repository in Visual Studio Code and run automated build tasks or run  `cmake --build .` in VSCode's built-in terminal
