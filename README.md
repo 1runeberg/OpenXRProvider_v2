@@ -13,15 +13,22 @@ The optional render module is currently an active work in progress with testing 
 | ~~Input subsystem~~               | MSAA support                                                     | 
 | ~~Flexible extension subsystem~~  | Mesh Instancing                                                  |
 |                                   | ~~Custom graphics pipelines and shaders~~                        |
-|                                   | Multithreading (Async loading, Double buffer, subcommands)       | 
+|                                   | Multithreading (~~Async loading~~, Double buffer, subcommands)   | 
 |                                   | Improve async asset loading (add async rendering)                |
-|                                   | Animation support and demos (basic done, skel anims pending)     |
+|                                   | Animation support and demos (~~transform~~, skel anims)          |
 |                                   | XML-style header documentation and resulting refactors (if any)  |
 
 
 ### Current demos and tutorials:
 
-| Name                      | Description                                               | YouTube Tutorial  |
+| Platform Pre-requisites   | Description                                               | YouTube Tutorial  |
+|---------------------------|-----------------------------------------------------------|-------------------|
+| Pre-requisites (windows)  | Windows pre-requisties and tooling installation & setup   | TBD               |
+| Pre-requisites (android)  | Android pre-requisties and tooling installation & setup   | TBD               |
+| Pre-requisites (linux)    | Linux pre-requisties and tooling installation & setup     | TBD               |
+
+
+| Application               | Description                                               | YouTube Tutorial  |
 |---------------------------|-----------------------------------------------------------|-------------------|
 | sample_01_hello           | Runtime querying and instance creation                    | TBD               |
 | sample_02_hello_exts      | Extensions handling                                       | TBD               |
