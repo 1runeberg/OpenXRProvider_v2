@@ -27,11 +27,17 @@ jobs:
     - name: Build Vulkan SDK
       uses: humbletim/setup-vulkan-sdk@v1.2.0
       with:
-        vulkan-query-version: 1.3.204.0
+        vulkan-query-version: latest
         vulkan-components: Vulkan-Headers, Vulkan-Loader
         vulkan-use-cache: true
-    - name: Add vulkan sdk path
-      run: echo "Vulkan_LIBRARY=${{github.workspace}}/VULKAN_SDK" >> $GITHUB_ENV
+    - name: Add vulkan paths
+      run: |
+            echo "Vulkan_LIBRARY=${{github.workspace}}/VULKAN_SDK" >> $GITHUB_ENV
+            echo "Vulkan_INCLUDE_DIR=${{github.workspace}}/VULKAN_SDK/include" >> $GITHUB_ENV
+            echo "Vulkan SDK Version=='$VULKAN_SDK_VERSION'"
+            echo "VULKAN_SDK=='$VULKAN_SDK'"
+            echo "Path Vulkan_LIBRARY='$Vulkan_LIBRARY'"
+            echo "Path Vulkan_INCLUDE_DIR='$Vulkan_INCLUDE_DIR'"
     - name: Add vulkan include path
       run: echo "Vulkan_INCLUDE_DIR=${{github.workspace}}/VULKAN_SDK/include" >> $GITHUB_ENV
     - name: Checkout Code
