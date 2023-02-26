@@ -33,7 +33,7 @@ jobs:
     - name: Add vulkan sdk path
       run: echo "Vulkan_LIBRARY=${{github.workspace}}/VULKAN_SDK" >> $GITHUB_ENV
     - name: Add vulkan include path
-      run: echo "Vulkan_LIBRARY=${{github.workspace}}/VULKAN_SDK/include" >> $GITHUB_ENV
+      run: echo "Vulkan_INCLUDE_DIR=${{github.workspace}}/VULKAN_SDK/include" >> $GITHUB_ENV
     - name: Checkout Code
       uses: actions/checkout@v3
     - name: Configure CMake
