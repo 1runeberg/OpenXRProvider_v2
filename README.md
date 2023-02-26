@@ -58,7 +58,7 @@ From demo 4 onwards - PC VR users note that the renderer doesn't render/blit to 
 - Python 3 (required by the OpenXR SDK submodule build. In Windows, I found it easier to disable Python in "Manage App Execution Aliases" and install it manually from here: https://www.python.org/downloads/)
 - Vulkan SDK (https://vulkan.lunarg.com/)
 - Git/Git toolset (I use GitKraken in the tutorials: https://www.gitkraken.com/ but feel free to use your preferred git tooling of choice)
-- Git LFS (https://git-lfs.com/)
+- Git LFS (https://git-lfs.com/) - some of the asset files and corresponding pre-built apks can be quite large
 
 ### For Android (Meta Quest) builds:
 
