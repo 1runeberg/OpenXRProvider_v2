@@ -21,11 +21,11 @@ The optional render module is currently an active work in progress with testing 
 
 ### Current demos and tutorials:
 
-| Platform Pre-requisites   | Description                                               | YouTube Tutorial  |
+| Platform prerequisite     | Description                                               | YouTube Tutorial  |
 |---------------------------|-----------------------------------------------------------|-------------------|
-| Pre-requisites (windows)  | Windows pre-requisties and tooling installation & setup   | TBD               |
-| Pre-requisites (android)  | Android pre-requisties and tooling installation & setup   | TBD               |
-| Pre-requisites (linux)    | Linux pre-requisties and tooling installation & setup     | TBD               |
+| Windows                   | Windows prerequisites and tooling installation & setup    | TBD               |
+| Android                   | Android prerequisites and tooling installation & setup    | TBD               |
+| Linux                     | Linux prerequisites and tooling installation & setup      | TBD               |
 
 
 | Application               | Description                                               | YouTube Tutorial  |
