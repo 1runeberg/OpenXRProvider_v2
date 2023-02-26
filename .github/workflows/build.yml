@@ -34,12 +34,12 @@ jobs:
       run: |
             echo "Vulkan_LIBRARY=${{github.workspace}}/VULKAN_SDK" >> $GITHUB_ENV
             echo "Vulkan_INCLUDE_DIR=${{github.workspace}}/VULKAN_SDK/include" >> $GITHUB_ENV
+    - name: Check vulkan paths
+      run: |
             echo "Vulkan SDK Version=='$VULKAN_SDK_VERSION'"
             echo "VULKAN_SDK=='$VULKAN_SDK'"
             echo "Path Vulkan_LIBRARY='$Vulkan_LIBRARY'"
             echo "Path Vulkan_INCLUDE_DIR='$Vulkan_INCLUDE_DIR'"
-    - name: Add vulkan include path
-      run: echo "Vulkan_INCLUDE_DIR=${{github.workspace}}/VULKAN_SDK/include" >> $GITHUB_ENV
     - name: Checkout Code
       uses: actions/checkout@v3
     - name: Configure CMake
