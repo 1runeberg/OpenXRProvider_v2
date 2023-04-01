@@ -63,7 +63,7 @@ From demo 4 onwards - PC VR users note that the renderer doesn't render/blit to 
 ### For Android (Meta Quest) builds:
 
 - Quest Device Setup (https://developer.oculus.com/documentation/native/android/mobile-device-setup/)
-- Android Studio with Android SDK and NDK (https://developer.oculus.com/documentation/native/android/mobile-studio-setup-android/)
+- Android Studio with Android SDK and NDK (https://developer.android.com/studio)
 - Download the Oculus OpenXR Mobile SDK from https://developer.oculus.com/downloads/package/oculus-openxr-mobile-sdk/ and extract in
     `{Drive}:\{OpenXR Provider Library Repo Folder}\third_party\openxr_meta`
 
