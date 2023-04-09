@@ -70,8 +70,8 @@ From demo 4 onwards - PC VR users note that the renderer doesn't render/blit to 
 ## III. Building
 
 ## For PC (Win64):
- 1. Clone the repository and initialize submodules: `git clone --recurse-submodules https://github.com/1runeberg/OpenXRProvider_v2.git`
- 2. Initialize git lfs `git lfs install`
+ 1. Initialize git lfs `git lfs install` if you haven't already - this ensures you have all the raw binary files in the repository (source art assets, executables, etc)
+ 2. Clone the repository and initialize submodules: `git clone --recurse-submodules https://github.com/1runeberg/OpenXRProvider_v2.git`
  3. From the root directory of the repository, create a build directory (mkdir build)
  4. Go to the build directory (`cd build`). Create one if it's not present, this is where all the cmake files will be generated.
  5. Run CMake (`cmake ..` or for VS 2017 `cmake -G "Visual Studio 15 2017 Win64" ..`) A *OPENXR_PROVIDER.sln* file is generated in the build directory which you can then open and use in Visual Studio 2019
