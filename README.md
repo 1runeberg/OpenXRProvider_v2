@@ -23,8 +23,7 @@ The optional render module is currently an active work in progress with testing 
 
 | Platform prerequisite     | Description                                               | YouTube Tutorial  |
 |---------------------------|-----------------------------------------------------------|-------------------|
-| Windows                   | Windows prerequisites and tooling installation & setup    | TBD               |
-| Android                   | Android prerequisites and tooling installation & setup    | TBD               |
+| Windows & Android         | Windows prerequisites and tooling installation & setup    | https://youtu.be/WWuKZ78hBH8 |
 | Linux                     | Linux prerequisites and tooling installation & setup      | TBD               |
 
 
