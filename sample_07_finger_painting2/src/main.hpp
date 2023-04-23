@@ -125,7 +125,7 @@ uint32_t g_unRightHandIndex = 0;
 bool g_bCyclingPanoramas = false;
 uint32_t g_unCurrentPanoramaIndex = 0;
 
-#ifdef _WIN32 
+#if defined(_WIN32) || defined(XR_USE_PLATFORM_ANDROID)
 	std::chrono::steady_clock::time_point g_xrLastPanoramaScaleTime;
 #elif __linux__
     std::chrono::_V2::system_clock::time_point g_xrLastPanoramaScaleTime;
@@ -154,7 +154,7 @@ static const float k_fSaturationAdjustmentStride = 0.1f;
 bool g_bShowPressie = false;
 uint32_t g_unPressieIndex = 0;
 
-#ifdef _WIN32 
+#if defined(_WIN32) || defined(XR_USE_PLATFORM_ANDROID)
 	std::chrono::steady_clock::time_point g_xrLastPressieTime;
 #elif __linux__
     std::chrono::_V2::system_clock::time_point g_xrLastPressieTime;

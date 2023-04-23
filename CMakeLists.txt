@@ -61,7 +61,9 @@ add_subdirectory("sample_09_hidden_worlds")
 add_subdirectory("sample_10_openxr_workshop")
 
 # Sample Extensions (mini demos for extensions)
-add_subdirectory("sample_extensions/htcx_vive_tracker_interaction")
+if(NOT ANDROID)
+	add_subdirectory("sample_extensions/htcx_vive_tracker_interaction")
+endif()
 
 # Set a sample app as the startup project in VS
 set_property (DIRECTORY PROPERTY VS_STARTUP_PROJECT "sample_10_openxr_workshop")
