@@ -23,13 +23,14 @@ The optional render module is currently an active work in progress with testing 
 
 | Platform prerequisite     | Description                                               | YouTube Tutorial  |
 |---------------------------|-----------------------------------------------------------|-------------------|
-| Windows & Android         | Windows prerequisites and tooling installation & setup    | https://youtu.be/WWuKZ78hBH8 |
+| Windows & Android         | Windows prerequisites and tooling installation & setup    | [![Windows prerequisites and tooling installation & setup](http://img.youtube.com/vi/WWuKZ78hBH8/0.jpg)](http://www.youtube.com/watch?v=WWuKZ78hBH8 "Windows prerequisites and tooling installation & setup") |
 | Linux                     | Linux prerequisites and tooling installation & setup      | TBD               |
 
 | Building                  | Description                                               | YouTube Tutorial  |
 |---------------------------|-----------------------------------------------------------|-------------------|
-| Windows                   | Building for PC, OpenXR app overview and Basic Troubleshooting    | https://youtu.be/xyEkCr7gK3Y |
-| Android (Meta Quest)      | Building for Android Devices (Meta Quest)      | https://youtu.be/uyDXCbpT9Iw |
+| Windows                   | Building for PC, OpenXR app overview and Basic Troubleshooting    | [![Building for PC, OpenXR app overview and Basic Troubleshooting](http://img.youtube.com/vi/xyEkCr7gK3Y/0.jpg)](http://www.youtube.com/watch?v=xyEkCr7gK3Y "Building for PC, OpenXR app overview and Basic Troubleshooting") |
+| Android (Meta Quest)      | Building for Android Devices (Meta Quest)      | [![Building for Android Devices (Meta Quest)](http://img.youtube.com/vi/uyDXCbpT9Iw/0.jpg)](http://www.youtube.com/watch?v=uyDXCbpT9Iw "Building for Android Devices (Meta Quest)") |
+https://youtu.be/uyDXCbpT9Iw |
 
 | Application               | Description                                               | YouTube Tutorial  |
 |---------------------------|-----------------------------------------------------------|-------------------|
