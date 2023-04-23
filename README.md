@@ -26,6 +26,10 @@ The optional render module is currently an active work in progress with testing 
 | Windows & Android         | Windows prerequisites and tooling installation & setup    | https://youtu.be/WWuKZ78hBH8 |
 | Linux                     | Linux prerequisites and tooling installation & setup      | TBD               |
 
+| Building                  | Description                                               | YouTube Tutorial  |
+|---------------------------|-----------------------------------------------------------|-------------------|
+| Windows                   | Building for PC, OpenXR app overview and Basic Troubleshooting    | https://youtu.be/xyEkCr7gK3Y |
+| Android (Meta Quest)      | Building for Android Devices (Meta Quest)      | https://youtu.be/uyDXCbpT9Iw |
 
 | Application               | Description                                               | YouTube Tutorial  |
 |---------------------------|-----------------------------------------------------------|-------------------|
