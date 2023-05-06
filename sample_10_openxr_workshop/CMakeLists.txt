@@ -24,8 +24,10 @@ set(PROVIDER_DIRECTORY "${CMAKE_SOURCE_DIR}/openxr_provider")
 set(PROVIDER_INCLUDE_DIRECTORY "${PROVIDER_DIRECTORY}/include")
 
 set(TEMPLATE_DIRECTORY "${APP_DIRECTORY}/openxr_app")
-set(THIRD_PARTY_DIRECTORY "${APP_DIRECTORY}/thirdparty")
+set(THIRD_PARTY_DIRECTORY "${APP_DIRECTORY}/third_party")
 
+# Add physics engine (Jolt)
+add_subdirectory(${TEMPLATE_DIRECTORY}/third_party/Jolt)
 
 # C++ 17
 set(CMAKE_CXX_STANDARD 17)
@@ -102,7 +104,8 @@ else()
 
     target_link_libraries(${XR_PROJECT} 
     				  ${Vulkan_LIBRARY}
-					  ${OPENXR_PROVIDER})
+					  ${OPENXR_PROVIDER}
+                      Jolt)
 endif()
 
 message(STATUS "[${XR_PROJECT}] Project executable/module defined.")
@@ -121,7 +124,8 @@ target_include_directories(${XR_PROJECT} PUBLIC ${APP_SOURCE_DIRECTORY}
                                                ${PROVIDER_INCLUDE_DIRECTORY}
                                                ${OPENXR_PROVIDER}
 					                           ${THIRD_PARTY_DIRECTORY}
-                                               ${TEMPLATE_DIRECTORY})
+                                               ${TEMPLATE_DIRECTORY}
+                                               ${TEMPLATE_DIRECTORY}/third_party)
 
 #For Android, add the native app glue NDK directory
 if(ANDROID)

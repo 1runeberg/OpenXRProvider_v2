@@ -28,6 +28,7 @@
 
 // Openxr template app
 #include <app.hpp>
+#include <physics.hpp>
 
 // App defines
 #define APP_NAME "openxr_workshop"
@@ -99,6 +100,10 @@ namespace oxa
 		void CacheExtensions();
 
 		void Prep();
+
+		// Physics setup
+		void SetupPhysics();
+		void CleanupPhysics();
 
 		// Game loop
 		void RunGameLoop();
@@ -276,6 +281,10 @@ namespace oxa
 		void AndroidPoll();
 #endif
 
+		// Physics system
+		oxr::phy::Physics JoltPhysics;
+		oxr::phy::Config PhysicsConfig;
+
 	  private:
 		bool m_bProcessRenderFrame = false;
 		bool m_bProcessInputFrame = false;
@@ -285,6 +294,14 @@ namespace oxa
 
 		// data from extensions
 		float m_fCurrentRefreshRate = 90.f;
+
+		// physics
+		oxr::phy::ListenerContact m_PhysicsContactListener;
+		oxr::phy::ListenerBodyActivation m_BodyActivationListener;
+		JPH::BodyInterface *m_pPhysicsBodyInterface = nullptr;
+
+		oxr::phy::PhysicsBody *m_pFloor = nullptr;
+		oxr::phy::PhysicsBody *m_pBall = nullptr;
 	};
 
 } // namespace oxa

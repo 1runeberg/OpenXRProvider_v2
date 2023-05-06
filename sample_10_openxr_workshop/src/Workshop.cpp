@@ -168,6 +168,21 @@ namespace oxa
 
 		if ( workshopExtensions.fbRefreshRate )
 			delete workshopExtensions.fbRefreshRate;
+
+		// Cleanup physics bodies
+		if ( m_pBall )
+		{
+			m_pPhysicsBodyInterface->RemoveBody( m_pBall->Id );
+			m_pPhysicsBodyInterface->DestroyBody( m_pBall->Id );
+			delete m_pBall;
+		}
+
+		if ( m_pFloor )
+		{
+			m_pPhysicsBodyInterface->RemoveBody( m_pFloor->Id );
+			m_pPhysicsBodyInterface->DestroyBody( m_pFloor->Id );
+			delete m_pFloor;
+		}
 	}
 
 #ifdef XR_USE_PLATFORM_ANDROID
@@ -183,6 +198,7 @@ namespace oxa
 		// ... you can add requested extensions with ecRequestedExtensions.push_back( EXT NAME ) ...
 		vecRequestedExtensions.push_back( XR_FB_PASSTHROUGH_EXTENSION_NAME );
 		vecRequestedExtensions.push_back( XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME );
+		vecRequestedExtensions.push_back( XR_MND_HEADLESS_EXTENSION_NAME );
 
 		// .. you can add requested texture formats in vecRequestedTextureFormats and vecRequestedDepthFormats ...
 
@@ -249,6 +265,7 @@ namespace oxa
 		m_pRender->SetSkyboxVisibility( true );
 
 		// (16) ... Set additional prep for this app ..
+		SetupPhysics();
 		Prep();
 
 		// (17) Run main loop
@@ -338,6 +355,76 @@ namespace oxa
 		m_pRender->vecRenderSectors[ workshopScenes.unRoom2 ]->bIsVisible = false;
 	}
 
+	void Workshop::SetupPhysics() 
+	{
+		// Initialize physics system
+		JoltPhysics.Init( PhysicsConfig );
+
+		// A contact listener gets notified when bodies (are about to) collide, and when they separate again.
+		// Note that this is called from a job so whatever you do here needs to be thread safe.
+		// Registering one is entirely optional.
+		JoltPhysics.System()->SetContactListener( &m_PhysicsContactListener );
+
+		// A body activation listener gets notified when bodies activate and go to sleep
+		// Note that this is called from a job so whatever you do here needs to be thread safe.
+		// Registering one is entirely optional.
+		JoltPhysics.System()->SetBodyActivationListener( &m_BodyActivationListener );
+
+		// Set debug mode of all physics classes
+		oxr::phy::SetDebugMode( true, JoltPhysics, m_PhysicsContactListener, m_BodyActivationListener );
+		// oxr::phy::SetDebugMode( false, JoltPhysics, m_PhysicsContactListener, m_BodyActivationListener );
+
+		// The main way to interact with the bodies in the physics system is through the body interface. There is a locking and a non-locking
+		// variant of this. We're going to use the locking version (even though we're not planning to access bodies from multiple threads)
+		m_pPhysicsBodyInterface = JoltPhysics.BodyInterface();
+		if ( !m_pPhysicsBodyInterface )
+			return;
+
+		// Create floor
+		m_pFloor = new oxr::phy::PhysicsBody();
+		bool bCreated = JoltPhysics.CreateBox( 
+			m_pFloor, 
+			JPH::Vec3( 100.0f, 1.0f, 100.0f ), 
+			JPH::EActivation::DontActivate, 
+			JPH::RVec3( 0.0_r, -1.0_r, 0.0_r ), 
+			JPH::Quat::sIdentity(), 
+			JPH::EMotionType::Static, 
+			oxr::phy::OBJ_STATIC );
+
+		if ( !bCreated )
+			m_pFloor = nullptr;
+
+
+		// Create ball
+		m_pBall = new oxr::phy::PhysicsBody();
+		bCreated = JoltPhysics.CreateSphere(
+			m_pBall, 
+			0.5f, 
+			JPH::EActivation::DontActivate, 
+			JPH::RVec3( 0.0_r, 2.0_r, 0.0_r ), 
+			JPH::Quat::sIdentity(), 
+			JPH::EMotionType::Dynamic, 
+			oxr::phy::OBJ_DYNAMIC );
+
+		if ( !bCreated )
+			m_pBall = nullptr;
+	}
+
+	void Workshop::CleanupPhysics() 
+	{
+		// Cleanup physics bodies
+		if ( m_pPhysicsBodyInterface )
+		{
+			// Destroy dynamic objects
+			m_pPhysicsBodyInterface->RemoveBody( m_pBall->Id );
+			m_pPhysicsBodyInterface->DestroyBody( m_pBall->Id );
+
+			// Destroy static objects
+			m_pPhysicsBodyInterface->RemoveBody( m_pFloor->Id );
+			m_pPhysicsBodyInterface->DestroyBody( m_pFloor->Id );
+		}
+	}
+
 	void Workshop::RunGameLoop()
 	{
 		XrResult xrResult = XR_SUCCESS;
@@ -368,7 +455,21 @@ namespace oxa
 				m_inputThread = std::async( std::launch::async, &oxr::Input::ProcessInput, m_pInput );
 			}
 
-			// (4) Render
+			// (4) Update physics
+			if ( m_pPhysicsBodyInterface->IsActive( m_pBall->Id ) )
+			{
+
+				// Output current position and velocity of the sphere
+				JPH::RVec3 position = m_pPhysicsBodyInterface->GetCenterOfMassPosition( m_pBall->Id );
+				JPH::Vec3 velocity = m_pPhysicsBodyInterface->GetLinearVelocity( m_pBall->Id );
+
+				LogDebug( LOG_CATEGORY_APP, "Ball Position = (%f, %f, %f), Velocity = (%f, %f, %f)", position.GetX(), position.GetY(), position.GetZ(), velocity.GetX(), velocity.GetY(), velocity.GetZ() );
+
+				// Step the world
+				JoltPhysics.Update();
+			}
+
+			// (5) Render
 			if ( m_bProcessRenderFrame )
 			{
 				XrCompositionLayerFlags xrCompositionLayerFlags = 0;
@@ -415,11 +516,20 @@ namespace oxa
 			{
 				// Start input
 				m_bProcessInputFrame = true;
+
+				// Start physics bodies
+				m_pPhysicsBodyInterface->SetLinearVelocity( m_pBall->Id, Vec3( 0.0f, -5.0f, 0.0f ) );
+
+				// Optimize physics
+				JoltPhysics.System()->OptimizeBroadPhase();
 			}
 			else if ( m_sessionState == XR_SESSION_STATE_STOPPING )
 			{
 				// End session - end input
 				m_bProcessRenderFrame = m_bProcessInputFrame = false;
+
+				// End physics
+				CleanupPhysics();
 
 				// End session - end the app's frame loop here
 				oxr::LogInfo( LOG_CATEGORY_APP, "App frame loop ends here." );

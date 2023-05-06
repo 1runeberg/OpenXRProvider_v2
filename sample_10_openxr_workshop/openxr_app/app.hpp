@@ -30,6 +30,8 @@
 #include <openxr_provider.h>
 #include <xrvk/xrvk.hpp>
 
+#include <physics.hpp>
+
 namespace oxr
 {
 	class XrApp
