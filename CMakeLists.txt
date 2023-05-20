@@ -3,6 +3,12 @@ set(CMAKE_SUPPRESS_REGENERATION true)
 set(MAIN_PROJECT "OPENXR_PROVIDER")
 project("${MAIN_PROJECT}")
 
+# Command line options
+option(BUILD_PROVIDER_ONLY "Only build openxr and c++ provider" OFF)
+option(BUILD_DEMOS "Build all demos except workshop and extensions demo" ON)
+option(BUILD_WORKSHOP "Build workshop demo" ON)
+option(BUILD_EXTENSIONS "Build extension demos" ON)
+
 # Compiler specific stuff
 IF(MSVC)
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") # for perf
@@ -28,43 +34,60 @@ set(OPENXR_PROVIDER "openxr_provider")
 add_subdirectory(${OPENXR_PROVIDER})
 
 # Samples
-set (SAMPLES_FOLDER "Samples")
+IF (NOT BUILD_PROVIDER_ONLY)
+	set (SAMPLES_FOLDER "Samples")
 
-# Sample 01 - Hello
-add_subdirectory("sample_01_hello")
+	IF (BUILD_DEMOS)
+		# Sample 01 - Hello
+		add_subdirectory("sample_01_hello")
 
-# Sample 02 - Hello Extensions
-add_subdirectory("sample_02_hello_exts")
+		# Sample 02 - Hello Extensions
+		add_subdirectory("sample_02_hello_exts")
 
-# Sample 03 - Hello Extensions
-add_subdirectory("sample_03_hello_session")
+		# Sample 03 - Hello Extensions
+		add_subdirectory("sample_03_hello_session")
 
-# Sample 04 - Hello Cube
-add_subdirectory("sample_04_hello_cube")
+		# Sample 04 - Hello Cube
+		add_subdirectory("sample_04_hello_cube")
 
-# Sample 05 - Hello PBR
-add_subdirectory("sample_05_hello_pbr")
+		# Sample 05 - Hello PBR
+		add_subdirectory("sample_05_hello_pbr")
 
-# Sample 06 - Finger Painting
-add_subdirectory("sample_06_finger_painting")
+		# Sample 06 - Finger Painting
+		add_subdirectory("sample_06_finger_painting")
 
-# Sample 07 - Finger Painting 2
-add_subdirectory("sample_07_finger_painting2")
+		# Sample 07 - Finger Painting 2
+		add_subdirectory("sample_07_finger_painting2")
 
-# Sample 08 - Finger Painting 3
-add_subdirectory("sample_08_finger_painting3")
+		# Sample 08 - Finger Painting 3
+		add_subdirectory("sample_08_finger_painting3")
 
-# Sample 09 - Hidden Worlds
-add_subdirectory("sample_09_hidden_worlds")
+		# Sample 09 - Hidden Worlds
+		add_subdirectory("sample_09_hidden_worlds")
+	ENDIF()
 
-# Sample 10 - OpenXR Workshop
-add_subdirectory("sample_10_openxr_workshop")
+	# wip - interactions demo (workshop) 
+	IF (BUILD_WORKSHOP)
+		# Sample 10 - OpenXR Workshop
+		add_subdirectory("sample_10_openxr_workshop")
+	ENDIF()
 
-# Sample Extensions (mini demos for extensions)
-if(NOT ANDROID)
-	add_subdirectory("sample_extensions/htcx_vive_tracker_interaction")
-endif()
+	# Sample Extensions (mini demos for extensions)
+	IF(BUILD_EXTENSIONS)
+		if(NOT ANDROID)
+			add_subdirectory("sample_extensions/htcx_vive_tracker_interaction")
+		endif()
+	ENDIF()
 
-# Set a sample app as the startup project in VS
-set_property (DIRECTORY PROPERTY VS_STARTUP_PROJECT "sample_10_openxr_workshop")
-message("[${MAIN_PROJECT}] Startup project for VS set to: sample_10_openxr_workshop")
+	# Set a sample app as the startup project in VS
+	IF (BUILD_WORKSHOP)
+		set(STARTUP_APP "sample_10_openxr_workshop")
+	ELSEIF (BUILD_DEMOS)
+		set(STARTUP_APP "sample_09_hidden_worlds")
+	ELSE()
+		RETURN()
+	ENDIF()
+
+	set_property (DIRECTORY PROPERTY VS_STARTUP_PROJECT ${STARTUP_APP})
+	message("[${MAIN_PROJECT}] Startup project for VS set to: ${STARTUP_APP}")
+ENDIF()
