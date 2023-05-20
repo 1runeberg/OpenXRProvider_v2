@@ -33,6 +33,9 @@ ENDIF()
 set(OPENXR_PROVIDER "openxr_provider")
 add_subdirectory(${OPENXR_PROVIDER})
 
+# Tutorial demo
+add_subdirectory("gday_openxr")
+
 # Samples
 IF (NOT BUILD_PROVIDER_ONLY)
 	set (SAMPLES_FOLDER "Samples")
