@@ -34,7 +34,7 @@ https://youtu.be/uyDXCbpT9Iw |
 
 | Application               | Description                                               | YouTube Tutorial  |
 |---------------------------|-----------------------------------------------------------|-------------------|
-| sample_01_hello           | Runtime querying and instance creation                    | [![G'day OpenXR (xrInstance, xrSystem)](http://img.youtube.com/vi/jJ8QeTNRMfw/0.jpg)](http://www.youtube.com/watch?v=jJ8QeTNRMfw "G'day OpenXR (xrInstance, xrSystem)") |
+| sample_01_hello           | Coding G'day OpenXR - Runtime querying and instance creation                    | [![G'day OpenXR (xrInstance, xrSystem)](http://img.youtube.com/vi/jJ8QeTNRMfw/0.jpg)](http://www.youtube.com/watch?v=jJ8QeTNRMfw "G'day OpenXR (xrInstance, xrSystem)") |
 | sample_02_hello_exts      | Extensions handling                                       | TBD               |
 | sample_03_hello_session   | Session creation                                          | TBD               |
 | sample_04_hello_cube      | Event Polling and Session Lifecycle                       | TBD               |
