@@ -23,20 +23,57 @@
 
 #include<openxr_provider.h>
 
+#define APPNAME "GDAY_OPENXR"
+
 int main(int argc, char* argv[])
 {
+	// Create the openxr provider helper object
+	std::unique_ptr< oxr::Provider > oxrProvider = std::make_unique< oxr::Provider >( oxr::ELogLevel::LogDebug );
+
+	// Define a list of extensions our app wants to use
+	std::vector< const char * > vecRequestedExtensions 
+	{
+		XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME, 
+		XR_KHR_VISIBILITY_MASK_EXTENSION_NAME, 
+		XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME, 
+		XR_VALVE_ANALOG_THRESHOLD_EXTENSION_NAME 
+	};
+
+	oxr::LogInfo( APPNAME, "*** These are the extensions we want ***" );
+	for ( auto &extName : vecRequestedExtensions )
+	{
+		oxr::LogInfo( APPNAME, "\t%s", extName );
+	}
+
+	// Filter out unsupported extensions (from currently active runtime)
+	oxrProvider->FilterOutUnsupportedExtensions( vecRequestedExtensions );
+
+	oxr::LogInfo( APPNAME, "*** These are the extensions that will be enabled (sans extensions that the current runtime doesn't support ***" );
+	for ( auto &extName : vecRequestedExtensions )
+	{
+		oxr::LogInfo( APPNAME, "\t%s", extName );
+	}
+
+	// Define application instance
 	oxr::AppInstanceInfo oxrAppInstanceInfo {};
-	oxrAppInstanceInfo.sAppName = "gday_openxr";
+	oxrAppInstanceInfo.sAppName = APPNAME;
 	oxrAppInstanceInfo.unAppVersion = OXR_MAKE_VERSION32( 0, 1, 0 );
 	oxrAppInstanceInfo.sEngineName = "openxr_provider";
 	oxrAppInstanceInfo.unEngineVersion = OXR_MAKE_VERSION32( PROVIDER_VERSION_MAJOR, PROVIDER_VERSION_MINOR, PROVIDER_VERSION_PATCH );
+	oxrAppInstanceInfo.vecInstanceExtensions = vecRequestedExtensions;
 	
-	XrResult xrResult = XR_SUCCESS;
-	std::unique_ptr< oxr::Provider > oxrProvider = std::make_unique< oxr::Provider >( oxr::ELogLevel::LogDebug );
-	xrResult = oxrProvider->Init( &oxrAppInstanceInfo );
+	// Create openxr instance
+	XrResult xrResult = oxrProvider->Init( &oxrAppInstanceInfo );
 
 	if ( XR_UNQUALIFIED_SUCCESS( xrResult ) )
 	{
-		oxr::LogInfo( "GDAY_OPENXR", "OpenXr instance created with handle (%" PRIu64 ")", ( uint64_t )oxrProvider->GetOpenXrInstance() );
+		oxr::LogInfo( APPNAME, "OpenXr instance created with handle (%" PRIu64 ")", ( uint64_t )oxrProvider->GetOpenXrInstance() );
+
+		// List enabled extensions
+		oxr::LogInfo( APPNAME, "*** These are the enabled openxr extensions for this instance ***" );
+		for (auto& extName : oxrProvider->GetEnabledExtensions())
+		{
+			oxr::LogInfo( APPNAME, "\t%s", extName.c_str() );
+		}
 	}
 }
