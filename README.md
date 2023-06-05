@@ -35,7 +35,7 @@ https://youtu.be/uyDXCbpT9Iw |
 | Application               | Description                                               | YouTube Tutorial  |
 |---------------------------|-----------------------------------------------------------|-------------------|
 | sample_01_hello           | Coding G'day OpenXR - Runtime querying and instance creation                    | [![G'day OpenXR (xrInstance, xrSystem)](http://img.youtube.com/vi/jJ8QeTNRMfw/0.jpg)](http://www.youtube.com/watch?v=jJ8QeTNRMfw "G'day OpenXR (xrInstance, xrSystem)") |
-| sample_02_hello_exts      | Extensions handling                                       | TBD               |
+| sample_02_hello_exts      | Extensions handling                                       | [![OpenXR Extensions](http://img.youtube.com/vi/8QE1FR-5sH4/0.jpg)](http://www.youtube.com/watch?v=8QE1FR-5sH4 "OpenXR Extensions") |
 | sample_03_hello_session   | Session creation                                          | TBD               |
 | sample_04_hello_cube      | Event Polling and Session Lifecycle                       | TBD               |
 | sample_05_hello_pbr       | Complex rendering and intro xrvk module                   | TBD               |
