@@ -65,7 +65,7 @@
         android:value="sample_09_hidden_worlds" />
 
       <!-- Specify hardware (s) supported -->
-      <meta-data android:name="com.oculus.supportedDevices" android:value="all" />
+      <meta-data android:name="com.oculus.supportedDevices" android:value="quest|quest2|cambria|quest3" />
 
       <!-- This filter lets the apk show up as a launchable icon. -->
         <intent-filter>
