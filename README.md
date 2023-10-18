@@ -1,3 +1,12 @@
+# IMPORTANT ANNOUNCEMENT (19 October 2023)
+There's been a sudden spike of interest with this project and it *appears* to coincide with the Meta Quest 3 shipping date. I'm glad there's so much interest with OpenXR and if traffic is indeed Quest3 related, MR content specifically.  GitHub engineering team is currently doing an investigation of the traffic source.
+
+While I've been lucky with having AAA studio clients, I am not one, so unfortunately can't sustain this much activity for too long as data pack costs are adding up to unsustainable (for me) levels.
+
+So in the meantime, please fork the repo and not directly clone so that it can stay available for everyone. Once I hit my budget cap, git lfs files such as the source blender files, textures, shaders, etc won't be accessible to others to learn from or re-use in their own projects. Not to mention the pre-built binaries for those who just wants to try out the demos. So please help us and fork the repo first so everyone can get the full benefit of this public project. 
+
+Thanks everyone for your support!
+
 # OpenXR Provider Library v2
 
 Provides a simpler C++ interface to the OpenXR api. Also includes an optional render module introduced in Demo 5 (Hello PBR).
